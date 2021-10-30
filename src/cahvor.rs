@@ -1,42 +1,62 @@
 
 use crate::{
     vector::Vector,
-    matrix::Matrix
+    matrix::Matrix,
+    stats::radians
 };
 
+use serde::{
+    Deserialize, 
+    Serialize
+};
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Mode {
     Cahvor,
     Cahv
 }
+impl Default for Mode {
+    fn default() -> Self {
+        Mode::Cahv
+    }
+}
+
 
 pub struct Point {
     pub i: f64,
     pub j: f64
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Cahvor {
     
+    
+    #[serde(skip_deserializing)]
+    #[serde(default)]
     pub mode: Mode,
 
     // Camera center vector C
+    #[serde(with = "crate::vector::vector_format")]
     pub c: Vector,
 
     // Camera axis unit vector A
+    #[serde(with = "crate::vector::vector_format")]
     pub a: Vector,
 
     // Horizontal information vector H
+    #[serde(with = "crate::vector::vector_format")]
     pub h: Vector,
 
     // Vertical information vector V
+    #[serde(with = "crate::vector::vector_format")]
     pub v: Vector,
 
     // Optical axis unit vector O
+    #[serde(with = "crate::vector::vector_format")]
     pub o: Vector,
     
     // Radial lens distortion coefficients
+    #[serde(with = "crate::vector::vector_format")]
     pub r: Vector
 }
 
@@ -101,10 +121,10 @@ impl Cahvor {
         p.add(&l)
     }
 
-    pub fn rotation_matrix(&self, _w:f64, _o:f64, _k:f64) -> Matrix {
-        let w = _w.to_radians();
-        let o = _o.to_radians();
-        let k = _k.to_radians();
+    fn rotation_matrix(&self, _w:f64, _o:f64, _k:f64) -> Matrix {
+        let w = radians(_w);
+        let o = radians(_o);
+        let k = radians(_k);
 
         Matrix::new_with_values(
                 o.cos() * k.cos(), w.sin() * o.sin() * k.sin() + w.cos() * k.sin(), -(w.cos() * o.sin() * k.cos() + w.sin() * k.sin()),

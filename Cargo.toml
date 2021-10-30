@@ -18,3 +18,5 @@ chrono = "0.4.19"
 fastblur = "0.1.1"
 rayon = "1.5.1"
 lab = "0.11.0"
+serde = { version = "1.0.125", features = ["derive"] }
+string-builder = "0.2.0"

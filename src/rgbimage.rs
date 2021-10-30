@@ -79,10 +79,10 @@ impl RgbImage {
     }
 
     pub fn open_str(file_path:&str) -> error::Result<RgbImage> {
-        RgbImage::open(String::from(file_path))
+        RgbImage::open(&String::from(file_path))
     }
 
-    pub fn open(file_path:String) -> error::Result<RgbImage> {
+    pub fn open(file_path:&String) -> error::Result<RgbImage> {
         if !path::file_exists(file_path.as_str()) {
             panic!("File not found: {}", file_path);
         }

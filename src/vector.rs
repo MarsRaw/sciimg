@@ -3,7 +3,8 @@ use crate::{
     stats::degrees,
     stats::radians,
     error,
-    enums::Axis
+    enums::Axis,
+    util::string_is_valid_f64
 };
 
 #[derive(Debug, Clone)]
@@ -13,7 +14,7 @@ pub struct Vector {
     pub z: f64
 }
 
-
+use string_builder::Builder;
 
 impl Vector {
 
@@ -258,6 +259,89 @@ impl Vector {
 
         let cp = b0.cross_product(&b1);
         cp.normalized()
+    }
+
+}
+
+
+
+fn vec_to_str(v:&[f64]) -> String {
+    let mut b = Builder::default();
+
+    for item in v {
+        b.append(format!("{},", item));
+    }
+
+    let mut s = b.string().unwrap();
+    if !s.is_empty() {
+        s.remove(s.len()-1);
+    }
+    
+
+    format!("({})", s)
+}
+
+fn str_to_vec(s:&str) -> error::Result<Vec<f64>> {
+    let mut tuple_vec:Vec<f64> = Vec::new();
+    let mut s0 = String::from(s);
+    s0.remove(0);s0.remove(s0.len()-1);
+    let split = s0.split(',');
+    for n in split {
+        let n_t = n.trim();
+        if string_is_valid_f64(n_t) {
+            tuple_vec.push(n_t.parse::<f64>().unwrap());
+        } else {
+            panic!("Encoutered invalid float value string: {}", n_t);
+        }
+        
+    }
+    Ok(tuple_vec)
+}
+
+pub mod vector_format {
+    use serde::{
+        self,
+        Deserialize,
+        Deserializer,
+        Serializer
+    };
+
+    use crate::vector::{
+        str_to_vec,
+        vec_to_str
+    };
+
+    use crate::vector::Vector;
+
+    pub fn serialize<S>(
+        vector: &Vector,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = vec_to_str(&vector.to_vec());
+        serializer.serialize_str(s.as_ref())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vector, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let r :Result<&str, D::Error> = Deserialize::deserialize(deserializer);
+        match r {
+            Err(_) => Ok(Vector::default()),
+            Ok(s) => {
+                match s {
+                    "UNK" => Ok(Vector::default()),
+                    _ => {
+                        let tuple_vec = str_to_vec(s).unwrap();
+                        let vec = Vector::from_vec(&tuple_vec).unwrap();
+                        Ok(vec)
+                    }
+                }
+            }
+        }
     }
 
 }

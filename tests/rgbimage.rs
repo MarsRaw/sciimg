@@ -10,23 +10,23 @@ const M20_ZCAM_ECM_RGB : &str = "tests/testdata/ZL0_0053_0671642352_402ECM_N0032
 
 #[test]
 fn test_grayscale_check() {
-    let img_gray = rgbimage::RgbImage::open(String::from(M20_ZCAM_ECM_GRAY)).unwrap();
+    let img_gray = rgbimage::RgbImage::open(&String::from(M20_ZCAM_ECM_GRAY)).unwrap();
     assert_eq!(img_gray.is_grayscale(), true);
 
-    let img_rgb = rgbimage::RgbImage::open(String::from(M20_ZCAM_ECM_RGB)).unwrap();
+    let img_rgb = rgbimage::RgbImage::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
     assert_eq!(img_rgb.is_grayscale(), false);
 }
 
 #[test]
 fn test_image_size() {
-    let img_rgb = rgbimage::RgbImage::open(String::from(M20_ZCAM_ECM_RGB)).unwrap();
+    let img_rgb = rgbimage::RgbImage::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
     assert_eq!(img_rgb.width, 1648);
     assert_eq!(img_rgb.height, 1200);
 }
 
 #[test]
 fn test_image_mode() {
-    let mut img_rgb = rgbimage::RgbImage::open(String::from(M20_ZCAM_ECM_RGB)).unwrap();
+    let mut img_rgb = rgbimage::RgbImage::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
     assert_eq!(img_rgb.get_mode(), enums::ImageMode::U8BIT);
     img_rgb.decompand(&decompanding::ILT);
     assert_eq!(img_rgb.get_mode(), enums::ImageMode::U12BIT);
@@ -41,7 +41,7 @@ fn test_image_mode() {
 
 #[test]
 fn test_cropping() {
-    let mut img_rgb = rgbimage::RgbImage::open(String::from(M20_ZCAM_ECM_RGB)).unwrap();
+    let mut img_rgb = rgbimage::RgbImage::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
     assert_eq!(img_rgb.width, 1648);
     assert_eq!(img_rgb.height, 1200);
     img_rgb.crop(24, 4, 1600, 1192);
