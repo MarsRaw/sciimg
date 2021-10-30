@@ -1,0 +1,555 @@
+
+use crate::{
+    imagebuffer::ImageBuffer, 
+    path, 
+    error, 
+    decompanding, 
+    enums, 
+    inpaint,
+    debayer,
+    noise,
+    hotpixel,
+    min,
+    max
+};
+
+use image::{
+    open, 
+    DynamicImage, 
+    Rgba
+};
+
+// A simple image raster buffer.
+#[derive(Debug, Clone)]
+pub struct RgbImage {
+    bands : Vec<ImageBuffer>,
+    pub width: usize,
+    pub height: usize,
+    mode: enums::ImageMode,
+    empty: bool
+}
+
+
+
+macro_rules! check_band_in_bounds {
+    ($band:expr, $self:ident) => {
+        if $band >= $self.bands.len() {
+            panic!("Band index out of bounds: {}", $band);
+        }
+    };
+}
+
+#[allow(dead_code)]
+impl RgbImage {
+
+    pub fn new(width:usize, height:usize, mode:enums::ImageMode) -> error::Result<RgbImage> {
+
+        Ok(RgbImage{
+            bands:vec!(),
+            width,
+            height,
+            mode:mode,
+            empty:false
+        })
+    }
+
+    pub fn new_with_bands(width:usize, height:usize, num_bands:usize, mode:enums::ImageMode) -> error::Result<RgbImage> {
+
+        let mut bands : Vec<ImageBuffer> = vec!();
+        for _ in 0..num_bands {
+            bands.push(ImageBuffer::new(width, height).unwrap());
+        }
+        Ok(RgbImage{
+            bands,
+            width,
+            height,
+            mode:mode,
+            empty:false
+        })
+    }
+
+    pub fn new_empty() -> error::Result<RgbImage> {
+        Ok(RgbImage{
+            bands:vec!(),
+            width:0,
+            height:0,
+            mode:enums::ImageMode::U8BIT,
+            empty:true
+        })
+    }
+
+    pub fn open_str(file_path:&str) -> error::Result<RgbImage> {
+        RgbImage::open(String::from(file_path))
+    }
+
+    pub fn open(file_path:String) -> error::Result<RgbImage> {
+        if !path::file_exists(file_path.as_str()) {
+            panic!("File not found: {}", file_path);
+        }
+
+        let image_data = open(&file_path).unwrap().into_rgb8();
+        let dims = image_data.dimensions();
+
+        let width = dims.0 as usize;
+        let height = dims.1 as usize;
+
+        // TODO: Don't assume 8-bit
+        let mut rgbimage = RgbImage::new_with_bands(width, height, 3, enums::ImageMode::U8BIT).unwrap();
+
+        for y in 0..height {
+            for x in 0..width {
+                let pixel = image_data.get_pixel(x as u32, y as u32);
+                let red = pixel[0] as f32;
+                let green = pixel[1] as f32;
+                let blue = pixel[2] as f32;
+                rgbimage.put(x, y, red, 0);
+                rgbimage.put(x, y, green, 1);
+                rgbimage.put(x, y, blue, 2);
+            }
+        }
+
+        Ok(rgbimage)
+    }
+
+    pub fn new_from_buffers_rgb(red:&ImageBuffer, green:&ImageBuffer, blue:&ImageBuffer, mode:enums::ImageMode) -> error::Result<RgbImage> {
+        Ok(RgbImage{
+            bands:vec![red.clone(), green.clone(), blue.clone()],
+            width:red.width,
+            height:red.height,
+            mode,
+            empty:false
+        })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.empty
+    }
+
+    pub fn get_mode(&self) -> enums::ImageMode {
+        self.mode
+    }
+
+    pub fn num_bands(&self) -> usize {
+        self.bands.len()
+    }
+
+    pub fn get_band(&self, band:usize) -> error::Result<&ImageBuffer> {
+        if band > 0 && band <= self.bands.len() {
+            Ok(&self.bands[band])
+        } else {
+            Err("Band index out of bounds")
+        }
+    }
+
+    pub fn divide_from_each(&mut self, other:&ImageBuffer) {
+        if self.width != other.width || self.height != other.height {
+            panic!("Array size mismatch");
+        }
+
+        for i in 0..self.bands.len() {
+            self.bands[i].divide_mut(&other);
+        }
+    }
+
+    pub fn add_to_each(&mut self, other:&ImageBuffer) {
+        if self.width != other.width || self.height != other.height {
+            panic!("Array size mismatch");
+        }
+
+        for i in 0..self.bands.len() {
+            self.bands[i].add_mut(&other);
+        }
+    }
+
+    pub fn add(&mut self, other:&RgbImage) {
+        if self.width != other.width || self.height != other.height {
+            panic!("Array size mismatch");
+        }
+        for i in 0..self.bands.len() {
+            self.bands[i].add_mut(other.get_band(i).unwrap());
+        }
+    }
+
+    pub fn put(&mut self, x:usize, y:usize, value:f32, band:usize) {
+        if x < self.width && y < self.height {
+            self.bands[band].put(x, y, value);
+        } else {
+            panic!("Invalid pixel coordinates");
+        }
+    }
+
+    pub fn paste(&mut self, src:&RgbImage, tl_x:usize, tl_y:usize) {
+        for i in 0..self.bands.len() {
+            self.bands[i].paste_mut(src.get_band(i).unwrap(), tl_x, tl_y);
+        }
+    }
+
+    pub fn apply_mask_to_band(&mut self, mask:&ImageBuffer, band:usize) {
+        check_band_in_bounds!(band, self);
+        self.bands[band].set_mask(mask);
+    }
+
+    pub fn apply_mask(&mut self, mask:&ImageBuffer) {
+        for i in 0..self.bands.len() {
+            self.apply_mask_to_band(mask, i);
+        }
+    }
+
+    pub fn clear_mask_on_band(&mut self, band:usize) {
+        check_band_in_bounds!(band, self);
+        self.bands[band].clear_mask();
+    }
+
+    pub fn clear_mask(&mut self) {
+        for i in 0..self.bands.len() {
+            self.clear_mask_on_band(i);
+        }
+    }
+
+    pub fn copy_mask_from(&mut self, src:&ImageBuffer) {
+        for i in 0..self.bands.len() {
+            src.copy_mask_to(&mut self.bands[i]);
+        }
+    }
+
+
+    fn apply_flat_on_band(&mut self, band:usize, flat_buffer:&ImageBuffer) {
+        let mean_flat = flat_buffer.mean();
+        self.bands[band] = self.bands[band].scale(mean_flat).unwrap().divide(&flat_buffer).unwrap();
+    }
+
+    fn apply_flat(&mut self, flat:&RgbImage)  {
+        for i in 0..self.bands.len() {
+            self.apply_flat_on_band(i, &flat.get_band(i).unwrap());
+        }
+    }
+
+    pub fn flatfield(&mut self, flat:&RgbImage) {
+        self.apply_flat(flat);
+    }
+
+    pub fn compand(&mut self, ilt:&[u32; 256]) {
+        for i in 0..self.bands.len() {
+            decompanding::compand_buffer(&mut self.bands[i], ilt);
+        }
+        self.mode = enums::ImageMode::U8BIT;
+    }
+
+    pub fn decompand(&mut self,ilt:&[u32; 256]) {
+        for i in 0..self.bands.len() {
+            decompanding::decompand_buffer(&mut self.bands[i], ilt);
+        }
+        self.mode = enums::ImageMode::U12BIT;
+    }
+
+    pub fn debayer(&mut self) {
+        let use_band = 0;
+        check_band_in_bounds!(use_band, self);
+
+        let debayered = debayer::debayer(&self.bands[use_band]).unwrap();
+        self.bands = vec![debayered.bands[0].clone(),
+                        debayered.bands[1].clone(),
+                        debayered.bands[2].clone()
+                    ];
+    }
+
+
+    pub fn reduce_color_noise(&mut self, amount:i32) {
+        let result = noise::color_noise_reduction(&mut self.clone(), amount).unwrap();
+        for i in 0..self.bands.len() {
+            self.bands[i] = result.bands[i].clone();
+        }
+    }
+
+    pub fn apply_weight_on_band(&mut self, scalar:f32, band:usize) {
+        check_band_in_bounds!(band, self);
+        self.bands[band].scale_mut(scalar);
+    }
+
+    pub fn hot_pixel_correction_on_band(&mut self, window_size:i32, threshold:f32, band:usize) {
+        check_band_in_bounds!(band, self);
+        self.bands[band] = hotpixel::hot_pixel_detection(&self.bands[band], window_size, threshold).unwrap().buffer.clone();
+    }
+
+    pub fn hot_pixel_correction(&mut self, window_size:i32, threshold:f32) {
+        for i in 0..self.bands.len() {
+            self.hot_pixel_correction_on_band(window_size, threshold, i);
+        }
+
+    }
+
+    pub fn crop(&mut self, x:usize, y:usize, width:usize, height:usize) {
+        for i in 0..self.bands.len() {
+            self.bands[i] = self.bands[i].get_subframe(x, y, width, height).unwrap();
+
+        }
+        self.width = width;
+        self.height = height;
+    }
+
+    fn is_pixel_grayscale(&self, x:usize, y:usize) -> bool { 
+        if self.bands.len() <= 1 {
+            return true;
+        }
+
+        let mut v = std::f32::MIN;
+
+        for i in 0..self.bands.len() {
+            let b = self.bands[i].get(x, y).unwrap();
+            if v == std::f32::MIN {
+                v = b;
+            } else if v != b {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    // This makes some assumptions and isn't perfect.
+    pub fn is_grayscale(&self) -> bool {
+
+        let tl = self.is_pixel_grayscale(30, 30);
+        let bl = self.is_pixel_grayscale(30, self.height - 30);
+        let tr = self.is_pixel_grayscale(self.width - 30, 30);
+        let br = self.is_pixel_grayscale(self.width - 30, self.height - 30);
+
+        let mid_x = self.width / 2;
+        let mid_y = self.height / 2;
+
+        let mtl = self.is_pixel_grayscale(mid_x - 20, mid_y - 20);
+        let mbl = self.is_pixel_grayscale(mid_x - 20, mid_y + 20);
+        let mtr = self.is_pixel_grayscale(mid_x + 20, mid_y - 20);
+        let mbr = self.is_pixel_grayscale(mid_x + 20, mid_y + 20);
+
+        tl && bl && tr && br && mtl && mbl && mtr && mbr
+    }
+
+    pub fn apply_inpaint_fix(&mut self, mask:&ImageBuffer) {
+        let fixed = inpaint::apply_inpaint_to_buffer(&self, &mask).unwrap();
+        self.bands = fixed.bands.clone();
+
+
+        // let mut new_r = fixed.red().clone();
+        // self._red.copy_mask_to(&mut new_r);
+
+        // let mut new_g = fixed.green().clone();
+        // self._green.copy_mask_to(&mut new_g);
+
+        // let mut new_b = fixed.blue().clone();
+        // self._blue.copy_mask_to(&mut new_b);
+
+        // self._red = new_r;
+        // self._green = new_g;
+        // self._blue = new_b;
+    }
+
+
+    pub fn get_min_max_all_channel(&self) -> (f32, f32) {
+        let mut minval = std::f32::MAX;
+        let mut maxval = std::f32::MIN;
+
+        for i in 0..self.bands.len() {
+            let mnmx = self.bands[i].get_min_max().unwrap();
+            minval = min!(mnmx.min, minval);
+            maxval = max!(mnmx.max, maxval);
+        }
+        (minval, maxval)
+    }
+
+    pub fn normalize_between(&mut self, min:f32, max:f32) {
+        for i in 0..self.bands.len() {
+            self.bands[i] = self.bands[i].normalize(min, max).unwrap();
+        }
+    }
+
+    pub fn normalize_to_8bit_with_max(&mut self, max:f32) {
+        for i in 0..self.bands.len() {
+            self.bands[i] = self.bands[i].normalize_force_minmax(0.0, 255.0, 0.0, max).unwrap();
+        }
+        self.mode = enums::ImageMode::U8BIT;
+    }
+
+    pub fn normalize_to_12bit_with_max(&mut self, max12bit:f32, max:f32) {
+        for i in 0..self.bands.len() {
+            self.bands[i] = self.bands[i].normalize_force_minmax(0.0, max12bit, 0.0, max).unwrap();
+        }
+        self.mode = enums::ImageMode::U12BIT;
+    }
+
+    pub fn normalize_to_16bit_with_max(&mut self, max:f32) {
+        for i in 0..self.bands.len() {
+            self.bands[i] = self.bands[i].normalize_force_minmax(0.0, 65535.0, 0.0, max).unwrap();
+        }
+        self.mode = enums::ImageMode::U16BIT;
+    }
+
+    pub fn normalize_band_to_12bit(&mut self, band:usize, max12bit:f32) {
+        check_band_in_bounds!(band, self);
+        let mnmx = self.bands[band].get_min_max().unwrap();
+        self.normalize_to_12bit_with_max(max12bit, mnmx.max);
+    }
+
+
+    pub fn normalize_to_12bit(&mut self, max12bit:f32) {
+        let (_, maxval) = self.get_min_max_all_channel();
+        self.normalize_to_12bit_with_max(max12bit, maxval);
+    }
+
+    pub fn normalize_to_8bit(&mut self) {
+        let (_, maxval) = self.get_min_max_all_channel();
+        self.normalize_to_8bit_with_max(maxval);
+    }
+
+    pub fn normalize_to_16bit(&mut self) {
+        let (_, maxval) = self.get_min_max_all_channel();
+        self.normalize_to_16bit_with_max(maxval);
+    }
+
+    pub fn normalize_16bit_to_8bit(&mut self) {
+        self.normalize_to_8bit_with_max(65535.0);
+    }
+
+    pub fn normalize_8bit_to_16bit(&mut self) {
+        self.normalize_to_16bit_with_max(255.0);
+    }
+
+    fn save_16bit_mono(&self, to_file:&str, band:usize) {
+        check_band_in_bounds!(band, self);
+        let mut out_img = DynamicImage::new_rgba16(self.width as u32, self.height as u32).into_rgba16();
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+
+                let r = self.bands[band].get(x, y).unwrap().round() as u16;
+                let a = if self.bands[band].get_mask_at_point(x, y).unwrap() { 65535 } else { 0 };
+                out_img.put_pixel(x as u32, y as u32, Rgba([r, r, r, a]));
+            }
+        }
+
+        if path::parent_exists_and_writable(&to_file) {
+            out_img.save(to_file).unwrap();
+        } else {
+            panic!("Parent path does not exist or is unwritable: {}", path::get_parent(to_file));
+        }
+
+    }
+
+    fn save_16bit_rgba(&self, to_file:&str) {
+        check_band_in_bounds!(2, self);
+        let mut out_img = DynamicImage::new_rgba16(self.width as u32, self.height as u32).into_rgba16();
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+
+                let r = self.bands[0].get(x, y).unwrap().round() as u16;
+                let g = self.bands[1].get(x, y).unwrap().round() as u16;
+                let b = self.bands[2].get(x, y).unwrap().round() as u16;
+                let a = if self.bands[0].get_mask_at_point(x, y).unwrap() { 65535 } else { 0 };
+                out_img.put_pixel(x as u32, y as u32, Rgba([r, g, b, a]));
+            }
+        }
+
+        if path::parent_exists_and_writable(&to_file) {
+            out_img.save(to_file).unwrap();
+        } else {
+            panic!("Parent path does not exist or is unwritable: {}", path::get_parent(to_file));
+        }
+
+    }
+
+    fn save_16bit(&self, to_file:&str) {
+        if self.bands.len() == 1 {
+            self.save_16bit_mono(to_file, 0);
+        } else if self.bands.len() >= 3 {
+            self.save_16bit_rgba(to_file);
+        } else {
+            panic!("Unsupported number of bands. Cannot save as implemented");
+        }
+    }
+
+    fn save_8bit_mono(&self, to_file:&str, band:usize) {
+        check_band_in_bounds!(band, self);
+
+        let mut out_img = DynamicImage::new_rgba8(self.width as u32, self.height as u32).into_rgba8();
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let r = self.bands[band].get(x, y).unwrap().round() as u8;
+                let a = if self.bands[band].get_mask_at_point(x, y).unwrap() { 255 } else { 0 };
+                out_img.put_pixel(x as u32, y as u32, Rgba([r, r, r, a]));
+            }
+        }
+
+        if path::parent_exists_and_writable(&to_file) {
+            out_img.save(to_file).unwrap();
+        } else {
+            panic!("Parent path does not exist or is unwritable: {}", path::get_parent(to_file));
+        }
+    }
+
+    fn save_8bit_rgba(&self, to_file:&str) {
+        check_band_in_bounds!(2, self);
+
+        let mut out_img = DynamicImage::new_rgba8(self.width as u32, self.height as u32).into_rgba8();
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let r = self.bands[0].get(x, y).unwrap().round() as u8;
+                let g = self.bands[1].get(x, y).unwrap().round() as u8;
+                let b = self.bands[2].get(x, y).unwrap().round() as u8;
+                let a = if self.bands[0].get_mask_at_point(x, y).unwrap() { 255 } else { 0 };
+                out_img.put_pixel(x as u32, y as u32, Rgba([r, g, b, a]));
+            }
+        }
+
+        if path::parent_exists_and_writable(&to_file) {
+            out_img.save(to_file).unwrap();
+        } else {
+            panic!("Parent path does not exist or is unwritable: {}", path::get_parent(to_file));
+        }
+    }
+
+    fn save_8bit(&self, to_file:&str) {
+        if self.bands.len() == 1 {
+            self.save_8bit_mono(to_file, 0);
+        } else if self.bands.len() >= 3 {
+            self.save_8bit_rgba(to_file);
+        } else {
+            panic!("Unsupported number of bands. Cannot save as implemented");
+        }
+    }
+
+    pub fn save_mono(&self, to_file:&str, band:usize) {
+        match self.mode {
+            enums::ImageMode::U8BIT => {
+                self.save_8bit_mono(to_file, band)
+            },
+            _ => {
+                self.save_16bit_mono(to_file, band)
+            }
+        };
+    }
+
+    pub fn save_rgba(&self, to_file:&str) {
+        match self.mode {
+            enums::ImageMode::U8BIT => {
+                self.save_8bit_rgba(to_file)
+            },
+            _ => {
+                self.save_16bit_rgba(to_file)
+            }
+        };
+    }
+
+    pub fn save(&self, to_file:&str) {
+        match self.mode {
+            enums::ImageMode::U8BIT => {
+                self.save_8bit(to_file)
+            },
+            _ => {
+                self.save_16bit(to_file)
+            }
+        };
+    }
+}
