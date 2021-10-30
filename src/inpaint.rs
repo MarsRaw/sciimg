@@ -176,15 +176,15 @@ fn rgb_image_to_vec(rgb:&RgbImage) -> error::Result<RgbVec> {
     for y in 0..rgb.height {
         for x in 0..rgb.width {
             let idx = y * rgb.width + x;
-            let r = match rgb.get_band(0).unwrap().get(x, y) {
+            let r = match rgb.get_band(0).get(x, y) {
                 Ok(v) => v,
                 Err(e) => return Err(e)
             };
-            let g = match rgb.get_band(1).unwrap().get(x, y) {
+            let g = match rgb.get_band(1).get(x, y) {
                 Ok(v) => v,
                 Err(e) => return Err(e)
             };
-            let b = match rgb.get_band(2).unwrap().get(x, y) {
+            let b = match rgb.get_band(2).get(x, y) {
                 Ok(v) => v,
                 Err(e) => return Err(e)
             };
@@ -274,9 +274,9 @@ pub fn make_mask_from_red(rgbimage:&RgbImage) -> error::Result<ImageBuffer> {
     };
     for y in 0..rgbimage.height {
         for x in 0..rgbimage.width {
-            let r = rgbimage.get_band(0).unwrap().get(x, y).unwrap();
-            let g = rgbimage.get_band(1).unwrap().get(x, y).unwrap();
-            let b = rgbimage.get_band(2).unwrap().get(x, y).unwrap();
+            let r = rgbimage.get_band(0).get(x, y).unwrap();
+            let g = rgbimage.get_band(1).get(x, y).unwrap();
+            let b = rgbimage.get_band(2).get(x, y).unwrap();
             
             // if r != g || r != b || g != b {
             //     new_mask.put(x, y, 255.0).unwrap();

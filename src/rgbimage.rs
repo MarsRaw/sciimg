@@ -133,12 +133,9 @@ impl RgbImage {
         self.bands.len()
     }
 
-    pub fn get_band(&self, band:usize) -> error::Result<&ImageBuffer> {
-        if band > 0 && band <= self.bands.len() {
-            Ok(&self.bands[band])
-        } else {
-            Err("Band index out of bounds")
-        }
+    pub fn get_band(&self, band:usize) -> &ImageBuffer {
+        check_band_in_bounds!(band, self);
+        &self.bands[band]
     }
 
     pub fn divide_from_each(&mut self, other:&ImageBuffer) {
@@ -166,7 +163,7 @@ impl RgbImage {
             panic!("Array size mismatch");
         }
         for i in 0..self.bands.len() {
-            self.bands[i].add_mut(other.get_band(i).unwrap());
+            self.bands[i].add_mut(other.get_band(i));
         }
     }
 
@@ -180,7 +177,7 @@ impl RgbImage {
 
     pub fn paste(&mut self, src:&RgbImage, tl_x:usize, tl_y:usize) {
         for i in 0..self.bands.len() {
-            self.bands[i].paste_mut(src.get_band(i).unwrap(), tl_x, tl_y);
+            self.bands[i].paste_mut(src.get_band(i), tl_x, tl_y);
         }
     }
 
@@ -218,9 +215,9 @@ impl RgbImage {
         self.bands[band] = self.bands[band].scale(mean_flat).unwrap().divide(&flat_buffer).unwrap();
     }
 
-    fn apply_flat(&mut self, flat:&RgbImage)  {
+    pub fn apply_flat(&mut self, flat:&RgbImage)  {
         for i in 0..self.bands.len() {
-            self.apply_flat_on_band(i, &flat.get_band(i).unwrap());
+            self.apply_flat_on_band(i, &flat.get_band(0));
         }
     }
 

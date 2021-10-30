@@ -79,9 +79,9 @@ pub fn color_noise_reduction(image:&mut RgbImage, amount:i32) -> error::Result<R
 
     for y in 0..image.height {
         for x in 0..image.width {
-            let r = image.get_band(0).unwrap().get(x, y).unwrap() as u8;
-            let g = image.get_band(1).unwrap().get(x, y).unwrap() as u8;
-            let b = image.get_band(2).unwrap().get(x, y).unwrap() as u8;
+            let r = image.get_band(0).get(x, y).unwrap() as u8;
+            let g = image.get_band(1).get(x, y).unwrap() as u8;
+            let b = image.get_band(2).get(x, y).unwrap() as u8;
             let idx = (y * image.width) + x;
             data[idx][0] = r;
             data[idx][1] = g;
@@ -99,9 +99,9 @@ pub fn color_noise_reduction(image:&mut RgbImage, amount:i32) -> error::Result<R
 
     let rgbs = labs_to_rgbs(&labs_recombined);
 
-    let mut red = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(0).unwrap().mask).unwrap();
-    let mut green = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(1).unwrap().mask).unwrap();
-    let mut blue = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(2).unwrap().mask).unwrap();
+    let mut red = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(0).mask).unwrap();
+    let mut green = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(1).mask).unwrap();
+    let mut blue = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(2).mask).unwrap();
 
     for y in 0..image.height {
         for x in 0..image.width {
