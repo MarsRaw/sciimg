@@ -663,6 +663,30 @@ impl ImageBuffer {
         ImageBuffer::new_from_op(cropped_buffer, width, height, &cropped_mask, self.mode)
     }
 
+    pub fn calc_center_of_mass_offset(&self, threshold:f32) -> Offset {
+        let mut ox: f32 = 0.0;
+        let mut oy: f32 = 0.0;
+        let mut count: u32 = 0;
+    
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let val = self.get(x, y).unwrap();
+                if val >= threshold {
+                    ox = ox + (x as f32);
+                    oy = oy + (y as f32);
+                    count = count + 1;
+                }   
+            }
+        }
+    
+        if count > 0 {
+            ox = (self.width as f32 / 2.0) - (ox / (count as f32));
+            oy = (self.height as f32 / 2.0) - (oy / (count as f32));
+        }
+    
+        Offset{h:ox.round() as i32, v:oy.round() as i32}
+    }
+
     pub fn paste_mut(&mut self, src:&ImageBuffer, tl_x:usize, tl_y:usize) {
         for y in 0..src.height {
             for x in 0..src.width {
