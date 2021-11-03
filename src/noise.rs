@@ -8,7 +8,6 @@ use lab::{
 };
 
 use crate::{
-    error, 
     rgbimage::RgbImage,
     enums,
     imagebuffer::ImageBuffer
@@ -64,13 +63,7 @@ fn combine_lab_channels(splitlab:&SplitLab) -> Vec<Lab> {
     lab_array
 }
 
-pub fn color_noise_reduction(image:&mut RgbImage, amount:i32) -> error::Result<RgbImage> {
-    //let orig_mode = image.get_mode();
-
-    if image.get_mode() != enums::ImageMode::U8BIT {
-        //image.normalize_to_8bit_with_max(decompanding::get_max_for_instrument(image.get_instrument()) as f32).unwrap();
-    }
-
+pub fn color_noise_reduction(image:&mut RgbImage, amount:i32) -> RgbImage {
     // We're juggling a couple different data structures here so we need to
     // convert the imagebuffer to a vec that's expected by lab and fastblur...
 
@@ -112,15 +105,6 @@ pub fn color_noise_reduction(image:&mut RgbImage, amount:i32) -> error::Result<R
         }
     }
 
-    let newimage = RgbImage::new_from_buffers_rgb(&red, &green, &blue, enums::ImageMode::U8BIT).unwrap();
-
-    // TODO: Check value stretching!!
-    // if orig_mode == enums::ImageMode::U12BIT {
-    //     newimage.normalize_to_12bit_with_max(255.0).unwrap();
-    // } else if orig_mode == enums::ImageMode::U16BIT {
-    //     newimage.normalize_to_16bit_with_max(255.0).unwrap();
-    // }
-
-    Ok(newimage)
+    RgbImage::new_from_buffers_rgb(&red, &green, &blue, enums::ImageMode::U8BIT).unwrap()
 }
 

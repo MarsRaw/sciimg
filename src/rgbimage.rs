@@ -129,6 +129,10 @@ impl RgbImage {
         self.mode
     }
 
+    pub fn set_mode(&mut self, mode:enums::ImageMode) {
+        self.mode = mode;
+    }
+
     pub fn num_bands(&self) -> usize {
         self.bands.len()
     }
@@ -252,9 +256,19 @@ impl RgbImage {
 
 
     pub fn reduce_color_noise(&mut self, amount:i32) {
-        let result = noise::color_noise_reduction(&mut self.clone(), amount).unwrap();
+        let orig_mode = self.mode;
+        let (_, maxval) = self.get_min_max_all_channel();
+        self.normalize_to_8bit_with_max(maxval);
+
+        let result = noise::color_noise_reduction(&mut self.clone(), amount);
         for i in 0..self.bands.len() {
             self.bands[i] = result.bands[i].clone();
+        }
+
+        if orig_mode == enums::ImageMode::U12BIT {
+            self.normalize_to_12bit_with_max(maxval, 255.0);
+        } else if orig_mode == enums::ImageMode::U16BIT {
+            self.normalize_to_16bit_with_max(255.0);
         }
     }
 
