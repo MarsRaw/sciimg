@@ -1,6 +1,7 @@
 
 use crate::{
     imagebuffer::ImageBuffer, 
+    imagebuffer::Offset,
     path, 
     error, 
     decompanding, 
@@ -10,7 +11,8 @@ use crate::{
     noise,
     hotpixel,
     min,
-    max
+    max,
+    imagerot
 };
 
 use image::{
@@ -166,8 +168,16 @@ impl RgbImage {
         if self.width != other.width || self.height != other.height {
             panic!("Array size mismatch");
         }
+
         for i in 0..self.bands.len() {
-            self.bands[i].add_mut(other.get_band(i));
+
+            // Handle adding a mono 'other' to a multi-band self.
+            let other_band = match other.num_bands() > i {
+                true => i,
+                false => 0
+            };
+
+            self.bands[i].add_mut(other.get_band(other_band));
         }
     }
 
@@ -213,6 +223,42 @@ impl RgbImage {
         }
     }
 
+    pub fn calibrate_band(&mut self, band:usize, flat_field:&RgbImage, dark_field:&RgbImage, dark_flat_field:&RgbImage) {
+        check_band_in_bounds!(band, self);
+
+        if ! flat_field.is_empty() && ! dark_field.is_empty()  && ! dark_flat_field.is_empty() {
+
+            let flat_minus_darkflat = flat_field.bands[band].subtract(&dark_flat_field.bands[band]).unwrap();
+            let darkflat = flat_minus_darkflat.subtract(&dark_field.bands[band]).unwrap();
+            let mean_flat = darkflat.mean();
+            let frame_minus_dark = self.bands[band].subtract(&dark_field.bands[band]).unwrap();
+            self.bands[band] = frame_minus_dark.scale(mean_flat).unwrap().divide(&flat_minus_darkflat).unwrap();
+
+        } else  if ! flat_field.is_empty() && ! dark_field.is_empty() {
+
+            let darkflat = flat_field.bands[band].subtract(&dark_field.bands[band]).unwrap();
+            let mean_flat = darkflat.mean();
+            let frame_minus_dark = self.bands[band].subtract(&dark_field.bands[band]).unwrap();
+            self.bands[band] = frame_minus_dark.scale(mean_flat).unwrap().divide(&flat_field.bands[band]).unwrap();
+
+        }  else if ! flat_field.is_empty() && dark_field.is_empty() { 
+
+            let mean_flat = flat_field.bands[band].mean();
+            self.bands[band] = self.bands[band].scale(mean_flat).unwrap().divide(&flat_field.bands[band]).unwrap();
+
+        } else if flat_field.is_empty() && ! dark_field.is_empty() {
+
+            self.bands[band] = self.bands[band].subtract(&dark_field.bands[band]).unwrap();
+
+        }
+    }
+
+
+    pub fn calibrate(&mut self, flat_field:&RgbImage, dark_field:&RgbImage, dark_flat_field:&RgbImage) {
+        for i in 0..self.bands.len() {
+            self.calibrate_band(i, flat_field, dark_field, dark_flat_field);
+        }
+    }
 
     fn apply_flat_on_band(&mut self, band:usize, flat_buffer:&ImageBuffer) {
         let mean_flat = flat_buffer.mean();
@@ -227,6 +273,23 @@ impl RgbImage {
 
     pub fn flatfield(&mut self, flat:&RgbImage) {
         self.apply_flat(flat);
+    }
+
+    pub fn calc_center_of_mass_offset(&self, threshold:f32, band:usize) -> Offset {
+        check_band_in_bounds!(band, self);
+
+        self.bands[band].calc_center_of_mass_offset(threshold)
+    }
+
+    pub fn shift_band(&mut self, horiz:i32, vert:i32, band:usize) {
+        check_band_in_bounds!(band, self);
+        self.bands[band] = self.bands[band].shift(horiz, vert).unwrap();
+    }
+
+    pub fn shift(&mut self, horiz:i32, vert:i32) {
+        for i in 0..self.bands.len() {
+            self.shift_band(horiz, vert, i);
+        }
     }
 
     pub fn compand(&mut self, ilt:&[u32; 256]) {
@@ -296,6 +359,20 @@ impl RgbImage {
         }
         self.width = width;
         self.height = height;
+    }
+
+    pub fn rotate_band(&mut self, rotation_radians:f32, band:usize) {
+        if band >= self.bands.len() {
+            panic!("Band index {} out of bounds", band);
+        }
+
+        self.bands[band] = imagerot::rotate(&self.bands[band], rotation_radians).expect("Error rotating image");
+    }
+
+    pub fn rotate(&mut self, rotation_radians:f32) {
+        for i in 0..self.bands.len() {
+            self.rotate_band(rotation_radians, i);
+        }
     }
 
     fn is_pixel_grayscale(&self, x:usize, y:usize) -> bool { 
