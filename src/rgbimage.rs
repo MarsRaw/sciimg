@@ -281,12 +281,14 @@ impl RgbImage {
         self.bands[band].calc_center_of_mass_offset(threshold)
     }
 
-    pub fn shift_band(&mut self, horiz:i32, vert:i32, band:usize) {
+    pub fn shift_band(&mut self, horiz:f32, vert:f32, band:usize) {
         check_band_in_bounds!(band, self);
-        self.bands[band] = self.bands[band].shift(horiz, vert).unwrap();
+
+        // Shifting using fractional amounts. It's not perfectly implemented yet, but I'll leave it until I think of how to improve it.
+        self.bands[band] = self.bands[band].shift_interpolated(horiz, vert).unwrap();
     }
 
-    pub fn shift(&mut self, horiz:i32, vert:i32) {
+    pub fn shift(&mut self, horiz:f32, vert:f32) {
         for i in 0..self.bands.len() {
             self.shift_band(horiz, vert, i);
         }

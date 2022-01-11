@@ -2,8 +2,7 @@
 use crate::{
     error, 
     imagebuffer::ImageBuffer, 
-    rgbimage::RgbImage,
-    enums
+    rgbimage::RgbImage
 };
 
 // G at R locations

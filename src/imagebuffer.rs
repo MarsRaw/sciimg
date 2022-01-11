@@ -24,8 +24,8 @@ pub struct ImageBuffer {
 }
 
 pub struct Offset {
-    pub h: i32,
-    pub v: i32,
+    pub h: f32,
+    pub v: f32,
 }
 
 pub struct MinMax {
@@ -387,6 +387,35 @@ impl ImageBuffer {
         }
     }
 
+    pub fn get_interpolated(&self, x:f32, y:f32)-> error::Result<f32> {
+        if x < self.width as f32 && y < self.height as f32 {
+
+            let xf = x.floor();
+            let xc = xf + 1.0;
+
+            let yf = y.floor();
+            let yc = yf + 1.0;
+
+            let xd = x - xf;
+            let yd = y - yf;
+
+            let v00 = self.get(xf as usize, yf as usize).unwrap();
+            let v01 = self.get(xc as usize, yf as usize).unwrap();
+            let v10 = self.get(xf as usize, yc as usize).unwrap();
+            let v11 = self.get(xc as usize, yc as usize).unwrap();
+
+            let v0 = v10 * yd + v00 * (1.0 - yd);
+            let v1 = v11 * yd + v01 * (1.0 - yd);
+            let v = v1 * xd + v0 * (1.0 - xd);
+
+            Ok(v)
+        } else {
+            panic!("Invalid pixel coordinates");
+        }
+
+    }
+
+
     pub fn is_empty(&self) -> bool {
         self.empty
     }
@@ -684,7 +713,10 @@ impl ImageBuffer {
             oy = (self.height as f32 / 2.0) - (oy / (count as f32));
         }
     
-        Offset{h:ox.round() as i32, v:oy.round() as i32}
+        Offset{
+            h:ox, 
+            v:oy
+        }
     }
 
     pub fn paste_mut(&mut self, src:&ImageBuffer, tl_x:usize, tl_y:usize) {
@@ -729,6 +761,30 @@ impl ImageBuffer {
                 
                     if shift_x >= 0 && shift_y >= 0 && shift_x < w  && shift_y < h {
                         shifted_buffer.put(shift_x as usize, shift_y as usize, self.get(x as usize, y as usize).unwrap());
+                    }
+                }
+            }
+        }
+        Ok(shifted_buffer)
+    }
+
+    pub fn shift_interpolated(&self, horiz:f32, vert:f32) -> error::Result<ImageBuffer> {
+        let mut shifted_buffer = ImageBuffer::new_with_mask(self.width, self.height, &self.mask).unwrap();
+
+        let h = self.height as i32 - 1;
+        let w = self.width as i32 - 1;
+
+        let hf = horiz - horiz.floor();
+        let vf = vert - vert.floor();
+
+        for y in 0..h {
+            for x in 0..w {
+                if self.get_mask_at_point(x as usize, y as usize).unwrap() {
+                    let shift_x = x as f32 + horiz.floor();
+                    let shift_y = y as f32 + vert.floor();
+                
+                    if shift_x >= 0.0 && shift_y >= 0.0 && shift_x < w as f32  && shift_y < h as f32 {
+                        shifted_buffer.put(shift_x as usize, shift_y as usize, self.get_interpolated(x as f32 - (1.0 - hf), y as f32 - (1.0 - vf)).unwrap());
                     }
                 }
             }
