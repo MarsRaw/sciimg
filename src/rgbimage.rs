@@ -181,6 +181,25 @@ impl RgbImage {
         }
     }
 
+    pub fn levels(&mut self, black_level:f32, white_level:f32, gamma:f32) {
+        for b in 0..self.bands.len() {
+            let mm = self.bands[b].get_min_max().unwrap();
+            
+            let rng = match self.mode {
+                enums::ImageMode::U8BIT => 256.0,
+                enums::ImageMode::U16BIT => 65535.0,
+                enums::ImageMode::U12BIT => 2033.0  // I know, not really. Will need to adjust later for NSYT ILT
+            };
+            
+            let norm_min = (rng * black_level) + mm.min;
+            let norm_max = (rng * white_level) + mm.min;
+            
+            self.bands[b].clip_mut(norm_min, norm_max);
+            self.bands[b].power_mut(gamma);
+            self.bands[b] = self.bands[b].normalize(mm.min, mm.max).unwrap();
+        }
+    }
+
     pub fn put(&mut self, x:usize, y:usize, value:f32, band:usize) {
         if x < self.width && y < self.height {
             self.bands[band].put(x, y, value);

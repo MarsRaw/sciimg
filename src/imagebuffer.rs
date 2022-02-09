@@ -681,6 +681,10 @@ impl ImageBuffer {
         self.normalize_force_minmax(min, max, minmax.min, minmax.max)
     }
 
+    pub fn normalize_mut(&mut self, min:f32, max:f32) {
+        self.buffer = self.normalize(min, max).unwrap().buffer;
+    }
+
 
     pub fn crop(&self, height:usize, width:usize) -> error::Result<ImageBuffer> {
         let cropped_buffer = crop_array(&self.buffer, self.width, self.height, width, height);
@@ -690,6 +694,63 @@ impl ImageBuffer {
             None => None,
         };
         ImageBuffer::new_from_op(cropped_buffer, width, height, &cropped_mask, self.mode)
+    }
+
+    pub fn clip(&self, clip_min:f32, clip_max:f32) -> error::Result<ImageBuffer> {
+        let need_len = self.width * self.height;
+        let mut v:Vec<f32> = Vec::with_capacity(need_len);
+        v.resize(need_len, 0.0);
+
+        for i in 0..need_len {
+            if self.get_mask_at_index(i).unwrap() {
+                let value = self.buffer[i];
+                if value < clip_min {
+                    v[i] = clip_min;
+                } else if value > clip_max {
+                    v[i] = clip_max;
+                } else {
+                    v[i] = value;
+                }
+            }
+        }
+
+        Ok(ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode).unwrap())
+    }
+
+    pub fn clip_mut(&mut self, clip_min:f32, clip_max:f32) {
+        for i in 0..self.buffer.len() {
+            if self.get_mask_at_index(i).unwrap() {
+                let value = self.buffer[i];
+                if value < clip_min {
+                    self.buffer[i] = clip_min;
+                } else if value > clip_max {
+                    self.buffer[i] = clip_max;
+                } 
+            }
+        }
+    }
+
+    pub fn power(&self, power:f32) -> error::Result<ImageBuffer> {
+        let need_len = self.width * self.height;
+        let mut v:Vec<f32> = Vec::with_capacity(need_len);
+        v.resize(need_len, 0.0);
+
+        for i in 0..need_len {
+            if self.get_mask_at_index(i).unwrap() {
+                let value = self.buffer[i];
+                v[i] = value.powf(power);
+            }
+        }
+
+        Ok(ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode).unwrap())
+    }
+
+    pub fn power_mut(&mut self, power:f32) {
+        for i in 0..self.buffer.len() {
+            if self.get_mask_at_index(i).unwrap() {
+                self.buffer[i] = self.buffer[i].powf(power);
+            }
+        }
     }
 
     pub fn calc_center_of_mass_offset(&self, threshold:f32) -> Offset {
