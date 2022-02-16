@@ -23,6 +23,10 @@ pub fn string_is_valid_i32(s:&str) -> bool {
     string_is_valid_num::<i32>(s)
 }
 
+pub fn string_is_valid_u16(s:&str) -> bool {
+    string_is_valid_num::<u16>(s)
+}
+
 pub fn filename_char_at_pos(filename:&str, pos:usize) -> char {
     let bn = path::basename(&filename);
     bn.chars().nth(pos).unwrap()
