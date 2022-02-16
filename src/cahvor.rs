@@ -121,7 +121,7 @@ impl Cahvor {
         p.add(&l)
     }
 
-    fn rotation_matrix(&self, _w:f64, _o:f64, _k:f64) -> Matrix {
+    pub fn rotation_matrix(&self, _w:f64, _o:f64, _k:f64) -> Matrix {
         let w = radians(_w);
         let o = radians(_o);
         let k = radians(_k);

@@ -23,11 +23,13 @@ pub struct ImageBuffer {
     pub mode: enums::ImageMode
 }
 
+#[derive(Debug, Clone)]
 pub struct Offset {
     pub h: f32,
     pub v: f32,
 }
 
+#[derive(Debug, Clone)]
 pub struct MinMax {
     pub min: f32,
     pub max: f32,
@@ -162,7 +164,7 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec_u8(v_u8:Vec<u8>, width:usize, height:usize) -> error::Result<ImageBuffer> {
+    pub fn from_vec_u8(v_u8:&Vec<u8>, width:usize, height:usize) -> error::Result<ImageBuffer> {
 
         if v_u8.len() != (width * height) {
             panic!("Dimensions to not match vector length");
@@ -183,7 +185,7 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec_u8_with_mask(v_u8:Vec<u8>, width:usize, height:usize, mask:&Option<Vec<bool>>) -> error::Result<ImageBuffer> {
+    pub fn from_vec_u8_with_mask(v_u8:&Vec<u8>, width:usize, height:usize, mask:&Option<Vec<bool>>) -> error::Result<ImageBuffer> {
 
         if v_u8.len() != (width * height) {
             panic!("Dimensions to not match vector length");
@@ -192,6 +194,48 @@ impl ImageBuffer {
         let mut v = vec![0.0_f32; width * height];
         for i in 0..v_u8.len() {
             v[i] = v_u8[i] as f32;
+        }
+
+        Ok(ImageBuffer{buffer:v,
+                    width:width,
+                    height:height,
+                    empty:false,
+                    mask: if *mask != None { Some(mask.as_ref().unwrap().to_owned()) } else { None },
+                    mode: enums::ImageMode::U16BIT
+        })
+    }
+
+    // Creates a new image buffer at the requested width, height and data
+    pub fn from_vec_u16(v_u16:&Vec<u16>, width:usize, height:usize) -> error::Result<ImageBuffer> {
+
+        if v_u16.len() != (width * height) {
+            panic!("Dimensions to not match vector length");
+        }
+
+        let mut v = vec![0.0_f32; width * height];
+        for i in 0..v_u16.len() {
+            v[i] = v_u16[i] as f32;
+        }
+
+        Ok(ImageBuffer{buffer:v,
+                    width,
+                    height,
+                    empty:false,
+                    mask:None,
+                    mode: enums::ImageMode::U16BIT
+        })
+    }
+
+        // Creates a new image buffer at the requested width, height and data
+    pub fn from_vec_u16_with_mask(v_u16:&Vec<u16>, width:usize, height:usize, mask:&Option<Vec<bool>>) -> error::Result<ImageBuffer> {
+
+        if v_u16.len() != (width * height) {
+            panic!("Dimensions to not match vector length");
+        }
+
+        let mut v = vec![0.0_f32; width * height];
+        for i in 0..v_u16.len() {
+            v[i] = v_u16[i] as f32;
         }
 
         Ok(ImageBuffer{buffer:v,
@@ -363,6 +407,37 @@ impl ImageBuffer {
         let slice = self.buffer[start_index..stop_index].to_vec();
 
         ImageBuffer::from_vec(slice, self.width, len)
+    }
+
+    pub fn to_vector_u8(&self) -> Vec<u8> {
+        let need_len = self.buffer.len();
+        let mut v:Vec<u8> = Vec::with_capacity(need_len);
+        v.resize(need_len, 0);
+
+        for i in 0..need_len {
+            v[i] = match self.mode {
+                enums::ImageMode::U8BIT => self.buffer[i] as u8,
+                enums::ImageMode::U12BIT => (self.buffer[i] / 2033.0 * 255.0) as u8,
+                enums::ImageMode::U16BIT => (self.buffer[i] / 65535.0 * 255.0) as u8
+                
+            }
+        }
+        v
+    }
+
+    pub fn to_vector_u16(&self) -> Vec<u16> {
+        let need_len = self.buffer.len();
+        let mut v:Vec<u16> = Vec::with_capacity(need_len);
+        v.resize(need_len, 0);
+
+        for i in 0..need_len {
+            v[i] = self.buffer[i] as u16;
+        }
+        v
+    }
+
+    pub fn to_vector(&self) -> Vec<f32> {
+        self.buffer.clone()
     }
 
     pub fn get_subframe(&self, left_x:usize, top_y:usize, width:usize, height:usize) -> error::Result<ImageBuffer> {
@@ -586,6 +661,14 @@ impl ImageBuffer {
         }
     }
 
+    pub fn add_across_mut(&mut self, other:f32) {
+        for i in 0..self.buffer.len() {
+            if self.get_mask_at_index(i).unwrap() {
+                self.buffer[i] = self.buffer[i] + other;
+            }
+        }
+    }
+
     pub fn add(&self, other:&ImageBuffer) -> error::Result<ImageBuffer> {
 
         if self.width != other.width || self.height != other.height {
@@ -614,6 +697,14 @@ impl ImageBuffer {
         for i in 0..self.buffer.len() {
             if self.get_mask_at_index(i).unwrap() {
                 self.buffer[i] = self.buffer[i] - other.buffer[i];
+            }
+        }
+    }
+
+    pub fn subtract_across_mut(&mut self, other:f32) {
+        for i in 0..self.buffer.len() {
+            if self.get_mask_at_index(i).unwrap() {
+                self.buffer[i] = self.buffer[i] - other;
             }
         }
     }

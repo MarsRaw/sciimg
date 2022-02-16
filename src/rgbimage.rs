@@ -84,6 +84,34 @@ impl RgbImage {
         RgbImage::open(&String::from(file_path))
     }
 
+    pub fn open16(file_path:&String) -> error::Result<RgbImage> {
+        if !path::file_exists(file_path.as_str()) {
+            panic!("File not found: {}", file_path);
+        }
+
+        let image_data = open(&file_path).unwrap().into_rgb16();
+        let dims = image_data.dimensions();
+
+        let width = dims.0 as usize;
+        let height = dims.1 as usize;
+
+        let mut rgbimage = RgbImage::new_with_bands(width, height, 3, enums::ImageMode::U16BIT).unwrap();
+
+        for y in 0..height {
+            for x in 0..width {
+                let pixel = image_data.get_pixel(x as u32, y as u32);
+                let red = pixel[0] as f32;
+                let green = pixel[1] as f32;
+                let blue = pixel[2] as f32;
+                rgbimage.put(x, y, red, 0);
+                rgbimage.put(x, y, green, 1);
+                rgbimage.put(x, y, blue, 2);
+            }
+        }
+
+        Ok(rgbimage)
+    }
+
     pub fn open(file_path:&String) -> error::Result<RgbImage> {
         if !path::file_exists(file_path.as_str()) {
             panic!("File not found: {}", file_path);

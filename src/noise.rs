@@ -1,5 +1,4 @@
 
-use fastblur::gaussian_blur;
 extern crate lab;
 use lab::{
     rgbs_to_labs,
@@ -10,37 +9,32 @@ use lab::{
 use crate::{
     rgbimage::RgbImage,
     enums,
-    imagebuffer::ImageBuffer
+    imagebuffer::ImageBuffer,
+    blur
 };
 
 struct SplitLab {
-    l: Vec<[u8; 3]>,
-    a: Vec<[u8; 3]>,
-    b: Vec<[u8; 3]>
+    l: Vec<u16>,
+    a: Vec<u16>,
+    b: Vec<u16>
 }
 
 fn split_lab_channels(lab_array:&[Lab]) -> SplitLab {
-    let mut l: Vec<[u8; 3]> = Vec::with_capacity(lab_array.len());
-    l.resize(lab_array.len(), [0, 0, 0]);
+    let mut l: Vec<u16> = Vec::with_capacity(lab_array.len());
+    l.resize(lab_array.len(), 0);
 
-    let mut a: Vec<[u8; 3]> = Vec::with_capacity(lab_array.len());
-    a.resize(lab_array.len(), [0, 0, 0]);
+    let mut a: Vec<u16> = Vec::with_capacity(lab_array.len());
+    a.resize(lab_array.len(), 0);
 
-    let mut b: Vec<[u8; 3]> = Vec::with_capacity(lab_array.len());
-    b.resize(lab_array.len(), [0, 0, 0]);
+    let mut b: Vec<u16> = Vec::with_capacity(lab_array.len());
+    b.resize(lab_array.len(), 0);
 
     for i in 0..lab_array.len() {
-        l[i][0] = lab_array[i].l as u8;
-        l[i][1] = lab_array[i].l as u8;
-        l[i][2] = lab_array[i].l as u8;
+        l[i] = lab_array[i].l as u16;
 
-        a[i][0] = lab_array[i].a as u8;
-        a[i][1] = lab_array[i].a as u8;
-        a[i][2] = lab_array[i].a as u8;
+        a[i] = lab_array[i].a as u16;
 
-        b[i][0] = lab_array[i].b as u8;
-        b[i][1] = lab_array[i].b as u8;
-        b[i][2] = lab_array[i].b as u8;
+        b[i] = lab_array[i].b as u16;
     }
 
     SplitLab{l, 
@@ -55,9 +49,9 @@ fn combine_lab_channels(splitlab:&SplitLab) -> Vec<Lab> {
     lab_array.resize(splitlab.a.len(), Lab{l:0.0, a:0.0, b:0.0});
 
     for i in 0..splitlab.a.len() {
-        lab_array[i].l = splitlab.l[i][0] as f32;
-        lab_array[i].a = splitlab.a[i][0] as f32;
-        lab_array[i].b = splitlab.b[i][0] as f32;
+        lab_array[i].l = splitlab.l[i] as f32;
+        lab_array[i].a = splitlab.a[i] as f32;
+        lab_array[i].b = splitlab.b[i] as f32;
     }
 
     lab_array
@@ -85,8 +79,8 @@ pub fn color_noise_reduction(image:&mut RgbImage, amount:i32) -> RgbImage {
     let labs = rgbs_to_labs(&data);
 
     let mut split_channels = split_lab_channels(&labs);
-    gaussian_blur(&mut split_channels.a, image.width, image.height, amount as f32);
-    gaussian_blur(&mut split_channels.b, image.width, image.height, amount as f32);
+    split_channels.a = blur::blur_vec_u16(&split_channels.a, image.width, image.height, amount as f32);
+    split_channels.b = blur::blur_vec_u16(&split_channels.b, image.width, image.height, amount as f32);
     
     let labs_recombined = combine_lab_channels(&split_channels);
 

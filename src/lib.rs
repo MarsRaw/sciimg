@@ -15,3 +15,4 @@ pub mod enums;
 pub mod path;
 pub mod util;
 pub mod imagerot;
+pub mod blur;
