@@ -14,30 +14,29 @@ use crate::{
 };
 
 struct SplitLab {
-    l: Vec<u16>,
-    a: Vec<u16>,
-    b: Vec<u16>
+    l: Vec<u8>,
+    a: Vec<u8>,
+    b: Vec<u8>
 }
 
 fn split_lab_channels(lab_array:&[Lab]) -> SplitLab {
-    let mut l: Vec<u16> = Vec::with_capacity(lab_array.len());
+    let mut l: Vec<u8> = Vec::with_capacity(lab_array.len());
     l.resize(lab_array.len(), 0);
 
-    let mut a: Vec<u16> = Vec::with_capacity(lab_array.len());
+    let mut a: Vec<u8> = Vec::with_capacity(lab_array.len());
     a.resize(lab_array.len(), 0);
 
-    let mut b: Vec<u16> = Vec::with_capacity(lab_array.len());
+    let mut b: Vec<u8> = Vec::with_capacity(lab_array.len());
     b.resize(lab_array.len(), 0);
 
     for i in 0..lab_array.len() {
-        l[i] = lab_array[i].l as u16;
-
-        a[i] = lab_array[i].a as u16;
-
-        b[i] = lab_array[i].b as u16;
+        l[i] = lab_array[i].l as u8;
+        a[i] = lab_array[i].a as u8;
+        b[i] = lab_array[i].b as u8;
     }
 
-    SplitLab{l, 
+    SplitLab{
+        l, 
         a, 
         b
     }
@@ -60,7 +59,6 @@ fn combine_lab_channels(splitlab:&SplitLab) -> Vec<Lab> {
 pub fn color_noise_reduction(image:&mut RgbImage, amount:i32) -> RgbImage {
     // We're juggling a couple different data structures here so we need to
     // convert the imagebuffer to a vec that's expected by lab and fastblur...
-
     let mut data: Vec<[u8; 3]> = Vec::with_capacity(image.width * image.height);
     data.resize(image.width * image.height, [0, 0, 0]);
 
@@ -79,8 +77,9 @@ pub fn color_noise_reduction(image:&mut RgbImage, amount:i32) -> RgbImage {
     let labs = rgbs_to_labs(&data);
 
     let mut split_channels = split_lab_channels(&labs);
-    split_channels.a = blur::blur_vec_u16(&split_channels.a, image.width, image.height, amount as f32);
-    split_channels.b = blur::blur_vec_u16(&split_channels.b, image.width, image.height, amount as f32);
+    
+    split_channels.a = blur::blur_vec_u8(&split_channels.a, image.width, image.height, amount as f32);
+    split_channels.b = blur::blur_vec_u8(&split_channels.b, image.width, image.height, amount as f32);
     
     let labs_recombined = combine_lab_channels(&split_channels);
 

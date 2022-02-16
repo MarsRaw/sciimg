@@ -503,6 +503,7 @@ impl RgbImage {
     pub fn normalize_to_8bit_with_max(&mut self, max:f32) {
         for i in 0..self.bands.len() {
             self.bands[i] = self.bands[i].normalize_force_minmax(0.0, 255.0, 0.0, max).unwrap();
+            self.bands[i].clip_mut(0.0, 255.0);
         }
         self.mode = enums::ImageMode::U8BIT;
     }
@@ -517,6 +518,7 @@ impl RgbImage {
     pub fn normalize_to_16bit_with_max(&mut self, max:f32) {
         for i in 0..self.bands.len() {
             self.bands[i] = self.bands[i].normalize_force_minmax(0.0, 65535.0, 0.0, max).unwrap();
+            self.bands[i].clip_mut(0.0, 65535.0);
         }
         self.mode = enums::ImageMode::U16BIT;
     }

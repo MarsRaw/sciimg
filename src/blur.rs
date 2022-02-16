@@ -10,6 +10,31 @@ use crate::{
 };
 
 
+pub fn blur_vec_u8(v:&Vec<u8>, width:usize, height:usize, amount:f32) -> Vec<u8> {
+    let mut out_img = DynamicImage::new_rgba8(width as u32, height as u32).into_rgba16();
+    for y in 0..height {
+        for x in 0..width {
+            let i = y * width + x;
+            out_img.put_pixel(x as u32, y as u32, Rgba([v[i] as u16, v[i] as u16, v[i] as u16, 255]));
+        }
+    }
+    let blurred = blur(&out_img, amount);
+
+    let mut blurred_v:Vec<u8> = Vec::with_capacity(width * height);
+    blurred_v.resize(width * height, 0);
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = blurred.get_pixel(x as u32, y as u32);
+            let value = pixel[0] as u8;
+            let idx = y * width + x;
+            blurred_v[idx] = value;
+        }
+    }
+
+    blurred_v
+}
+
 pub fn blur_vec_u16(v:&Vec<u16>, width:usize, height:usize, amount:f32) -> Vec<u16> {
     let mut out_img = DynamicImage::new_rgba16(width as u32, height as u32).into_rgba16();
     for y in 0..height {
