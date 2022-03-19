@@ -172,6 +172,19 @@ impl RgbImage {
         &self.bands[band]
     }
 
+    pub fn set_band(&mut self, buffer:&ImageBuffer, band:usize) {
+        if self.bands.len() <= band {
+            panic!("Invalid band specified");
+        }
+
+        self.bands[band] = buffer.clone();
+    }
+
+    pub fn push_band(&mut self, buffer:&ImageBuffer) -> usize {
+        self.bands.push(buffer.clone());
+        self.num_bands()
+    }
+
     pub fn divide_from_each(&mut self, other:&ImageBuffer) {
         if self.width != other.width || self.height != other.height {
             panic!("Array size mismatch");
