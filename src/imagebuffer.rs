@@ -450,6 +450,27 @@ impl ImageBuffer {
         ImageBuffer::new_from_op(subframed_buffer, width, height, &subframed_mask, self.mode)
     }
 
+    pub fn isolate_window(&self, window_size:usize, x:usize, y:usize) -> Vec<f32> {
+        let mut v:Vec<f32> = Vec::with_capacity(window_size * window_size);
+        let start = window_size as i32 / 2 * -1;
+        let end = window_size as i32 / 2 + 1;
+        for _y in start..end as i32 {
+            for _x in start..end as i32 {
+                let get_x = x as i32 + _x;
+                let get_y = y as i32 + _y;
+                if get_x >= 0 
+                    && get_x < self.width as i32 
+                    && get_y >= 0 
+                    && get_y < self.height as i32
+                    && self.get_mask_at_point(get_x as usize, get_y as usize).unwrap()
+                    {
+                    v.push(self.get(get_x as usize, get_y as usize).unwrap());
+                }
+            }
+        }
+        v
+    }
+
     pub fn get(&self, x:usize, y:usize) -> error::Result<f32> {
         if x < self.width && y < self.height {
             if ! self.get_mask_at_point(x, y).unwrap() {
