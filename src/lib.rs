@@ -18,3 +18,4 @@ pub mod imagerot;
 pub mod blur;
 pub mod lowpass;
 pub mod quality;
+pub mod prelude;
