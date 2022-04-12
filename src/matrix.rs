@@ -1,9 +1,7 @@
 
 use crate::{
-    stats::radians,
     vector::Vector,
     error,
-    ok,
     enums::Axis
 };
 
@@ -17,25 +15,28 @@ impl Matrix {
 
     pub fn default() -> Matrix {
         Matrix{
-            m:vec![0.0, 0.0, 0.0,
-                   0.0, 0.0, 0.0,
-                   0.0, 0.0, 0.0]
+            m:vec![0.0, 0.0, 0.0, 0.0,
+                   0.0, 0.0, 0.0, 0.0,
+                   0.0, 0.0, 0.0, 0.0,
+                   0.0, 0.0, 0.0, 0.0]
         }
     }
 
     pub fn identity() -> Matrix {
         Matrix{
-            m:vec![1.0, 0.0, 0.0,
-                   0.0, 1.0, 0.0,
-                   0.0, 0.0, 1.0]
+            m:vec![1.0, 0.0, 0.0, 0.0,
+                   0.0, 1.0, 0.0, 0.0,
+                   0.0, 0.0, 1.0, 0.0,
+                   0.0, 0.0, 0.0, 1.0]
         }
     }
 
     pub fn new_with_fill(f:f64) -> Matrix {
         Matrix{
-            m:vec![f, f, f,
-                   f, f, f,
-                   f, f, f]
+            m:vec![f, f, f, f,
+                   f, f, f, f,
+                   f, f, f, f, 
+                   f, f, f, f]
         }
     }
 
@@ -66,23 +67,22 @@ impl Matrix {
     }
 
     fn index(&self, x:usize, y:usize) -> usize {
-        y * 3 + x
+        y * 4 + x
     }
 
-    pub fn set(&mut self, x:usize, y:usize, v:f64) -> error::Result<&str> {
+    pub fn set(&mut self, x:usize, y:usize, v:f64)  {
         let i = self.index(x, y);
-        if i < 162{
+        if i < 16 {
             self.m[i] = v;
-            ok!()
         } else {
             panic!("Invalid pixel coordinates");
         }
     }
 
-    pub fn get(&self, x:usize, y:usize) -> error::Result<f64> {
+    pub fn get(&self, x:usize, y:usize) -> f64 {
         let i = self.index(x, y);
-        if i < 12 {
-            Ok(self.m[i])
+        if i < 16 {
+            self.m[i]
         } else {
             panic!("Invalid pixel coordinates");
         }
@@ -144,28 +144,33 @@ impl Matrix {
     pub fn rotate(angle:f64, axis:Axis) -> Matrix {
         let mut m = Matrix::identity();
 
-        let _a = radians(if axis != Axis::YAxis { angle } else { angle * -1.0});
+        let _a = if axis != Axis::YAxis { 
+            angle 
+        } else { 
+            angle * -1.0
+        };
+
         let c = _a.cos();
         let s = _a.sin();
 
         match axis {
             Axis::XAxis => {
-                m.set(1, 1, c).unwrap();
-                m.set(2, 2, c).unwrap();
-                m.set(2, 1, -s).unwrap();
-                m.set(1, 2, s).unwrap();
+                m.set(1, 1, c);
+                m.set(2, 2, c);
+                m.set(2, 1, -s);
+                m.set(1, 2, s);
             },
             Axis::YAxis => {
-                m.set(0, 0, c).unwrap();
-                m.set(2, 2, c).unwrap();
-                m.set(2, 0, s).unwrap();
-                m.set(0, 2, -s).unwrap();
+                m.set(0, 0, c);
+                m.set(2, 2, c);
+                m.set(2, 0, s);
+                m.set(0, 2, -s);
             },
             Axis::ZAxis => {
-                m.set(0, 0, c).unwrap();
-                m.set(1, 1, c).unwrap();
-                m.set(0, 1, s).unwrap();
-                m.set(1, 0, -s).unwrap();
+                m.set(0, 0, c);
+                m.set(1, 1, c);
+                m.set(0, 1, s);
+                m.set(1, 0, -s);
             }
         }
 

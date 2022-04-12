@@ -1,13 +1,11 @@
 
 use crate::{
-    stats::degrees,
-    stats::radians,
     error,
     enums::Axis,
     util::string_is_valid_f64
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector {
     pub x: f64,
     pub y: f64,
@@ -70,10 +68,12 @@ impl Vector {
         (self.x.powi(2) + self.y.powi(2) + self.z.powi(2)).sqrt()
     }
 
-    pub fn scale(&mut self, scalar:f64) {
-        self.x *= scalar;
-        self.y *= scalar;
-        self.z *= scalar;
+    pub fn scale(&self, scalar:f64) -> Vector {
+        Vector {
+            x: self.x * scalar,
+            y: self.y * scalar,
+            z: self.z * scalar
+        }
     }
 
     pub fn distance_to(&self, other:&Vector) -> f64 {
@@ -144,7 +144,7 @@ impl Vector {
 
     pub fn angle(&self, other:&Vector) -> f64 {
         let dot = self.dot_product(other);
-        degrees(radians(dot).acos())
+        dot.acos()
     }
     
     pub fn subtract(&self, other:&Vector) -> Vector {
@@ -178,7 +178,7 @@ impl Vector {
 
     pub fn rotate_x(&self, angle:f64) -> Vector {
         if angle > 0.0 {
-            let x = radians(self.x);
+            let x = self.x;
 
             let cos_x = x.cos();
             let sin_x = x.sin();
@@ -199,14 +199,14 @@ impl Vector {
 
     pub fn rotate_y(&self, angle:f64) -> Vector {
         if angle > 0.0 {
-            let y = radians(self.y);
+            let y = self.y;
 
             let cos_y = y.cos();
             let sin_y = y.sin();
 
             let rx = cos_y * self.x + sin_y * self.z;
             let rz = -sin_y * self.x + cos_y * self.z;
-
+            
             Vector{
                 x:rx,
                 y:self.y,
@@ -219,7 +219,7 @@ impl Vector {
 
     pub fn rotate_z(&self, angle:f64) -> Vector {
         if angle > 0.0 {
-            let z = radians(self.z);
+            let z = self.z;
             
             let cos_z = z.cos();
             let sin_z = z.sin();
@@ -259,6 +259,43 @@ impl Vector {
 
         let cp = b0.cross_product(&b1);
         cp.normalized()
+    }
+
+    pub fn get_az(&self) -> f64 {
+        self.y.atan2(self.x)
+    }
+
+    pub fn set_az(&self, az:f64) -> Vector {
+        let rc = self.get_range() * self.get_el().cos();
+        Vector {
+            x: rc * az.cos(),
+            y: rc * az.sin(),
+            z: self.z
+        }
+    }
+
+    pub fn get_el(&self) -> f64 {
+        self.z.atan2((self.x * self.x + self.y * self.y).sqrt())
+    }
+
+    pub fn set_el(&self, el:f64) -> Vector {
+        Vector {
+            x: self.get_az(),
+            y: el,
+            z: self.get_range()
+        }
+    }
+
+    pub fn get_range(&self) -> f64 {
+        self.len()
+    }
+
+    pub fn set_range(&self, range:f64) -> Vector {
+        Vector{
+            x: self.get_az(),
+            y: self.get_el(),
+            z: range
+        }
     }
 
 }

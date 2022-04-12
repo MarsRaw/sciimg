@@ -11,6 +11,7 @@ pub mod noise;
 pub mod rgbimage;
 pub mod stats;
 pub mod vector;
+pub mod quaternion;
 pub mod enums;
 pub mod path;
 pub mod util;
