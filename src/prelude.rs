@@ -8,3 +8,6 @@ pub use crate::enums::ImageMode;
 pub use crate::error;
 pub use crate::ok;
 pub use crate::not_implemented;
+pub use crate::camera::model::*;
+pub use crate::camera::cahv::*;
+pub use crate::camera::cahvor::*;

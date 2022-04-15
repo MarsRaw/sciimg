@@ -1,5 +1,5 @@
 
-pub mod cahvor;
+pub mod camera;
 pub mod debayer;
 pub mod decompanding;
 pub mod error;

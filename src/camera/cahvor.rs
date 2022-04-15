@@ -1,7 +1,9 @@
 
 use crate::{
+    error,
     vector::Vector,
-    matrix::Matrix
+    matrix::Matrix,
+    camera::model::*
 };
 
 use serde::{
@@ -9,46 +11,9 @@ use serde::{
     Serialize
 };
 
-static EPSILON:f64 = 1.0e-15;
-static CONV:f64 = 1.0e-6;
-static MAXITER:u8 = 20;
-
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Mode {
-    Cahvor,
-    Cahv
-}
-impl Default for Mode {
-    fn default() -> Self {
-        Mode::Cahv
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Point {
-    pub i: f64,
-    pub j: f64
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct ImageCoordinate {
-    pub line: f64,
-    pub sample: f64
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct LookVector {
-    pub origin:Vector,
-    pub look_direction:Vector
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Cahvor {
-    
-    
-    #[serde(skip_deserializing)]
-    #[serde(default)]
-    pub mode: Mode,
 
     // Camera center vector C
     #[serde(with = "crate::vector::vector_format")]
@@ -75,7 +40,18 @@ pub struct Cahvor {
     pub r: Vector
 }
 
+
 impl Cahvor {
+    pub fn default() -> Self {
+        Cahvor{
+            c:Vector::default(),
+            a:Vector::default(),
+            h:Vector::default(),
+            v:Vector::default(),
+            o:Vector::default(),
+            r:Vector::default()
+        }
+    }
 
     pub fn hc(&self) -> f64 {
         self.a.dot_product(&self.h)
@@ -91,9 +67,6 @@ impl Cahvor {
     }
 
     // Alias to hs() for focal length
-    pub fn f(&self) -> f64 {
-        self.hs()
-    }
 
     pub fn vs(&self) -> f64 {
         let cp = self.a.cross_product(&self.v);
@@ -146,10 +119,10 @@ impl Cahvor {
         )
     }
 
-    pub fn project_object_to_image_point(&self, p:&Vector) -> Point {
-        Point{
-            i:self.i(&p),
-            j:self.j(&p)
+    pub fn project_object_to_image_point(&self, p:&Vector) -> ImageCoordinate {
+        ImageCoordinate{
+            sample:self.i(&p),
+            line:self.j(&p)
         }
     } 
 
@@ -168,23 +141,48 @@ impl Cahvor {
         let b = pmc.dot_product(&self.a);
         a / b
     }
+}
 
-    pub fn pixel_angle_horiz(&self) -> f64 {
-        let a = self.v.dot_product(&self.a);
-        let s = self.a.scale(a);
-        let f = self.v.subtract(&s).len();
-        (1.0 / f).atan()
+impl CameraModelTrait for Cahvor {
+
+    fn model_type(&self) -> ModelType {
+        ModelType::CAHVOR
     }
 
-    pub fn pixel_angle_vert(&self) -> f64 {
-        let a = self.h.dot_product(&self.a);
-        let s = self.a.scale(a);
-        let f = self.h.subtract(&s).len();
-        (1.0 / f).atan()
+    fn c(&self) -> Vector {
+        self.c.clone()
+    }
+
+    fn a(&self) -> Vector {
+        self.c.clone()
+    }
+
+    fn h(&self) -> Vector {
+        self.c.clone()
+    }
+
+    fn v(&self) -> Vector {
+        self.c.clone()
+    }
+
+    fn o(&self) -> Vector {
+        self.c.clone()
+    }
+
+    fn r(&self) -> Vector {
+        self.c.clone()
+    }
+
+    fn box_clone(&self) -> Box<dyn CameraModelTrait + 'static> {
+        Box::new((*self).clone())
+    }
+
+    fn f(&self) -> f64 {
+        self.hs()
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVOR.java
-    pub fn ls_to_look_vector(&self, coordinate:&ImageCoordinate) -> LookVector {
+    fn ls_to_look_vector(&self, coordinate:&ImageCoordinate) -> error::Result<LookVector> {
         let line = coordinate.line;
         let sample = coordinate.sample;
 
@@ -212,14 +210,14 @@ impl Cahvor {
 
         for i in 0..(MAXITER+1) {
             if i >= MAXITER {
-                panic!("cahvor 2d to 3d: Too many iterations");
+                return Err("cahvor 2d to 3d: Too many iterations");
             }
 
             let u_2 = u * u;
             let poly = ((k5 * u_2 + k3) * u_2 + k1) * u - 1.0;
             let deriv = (5.0 * k5 * u_2 + 3.0 * k3) * u_2 + k1;
-            if deriv < EPSILON {
-                panic!("Cahvor 2d to 3d: Distortion is too negative");
+            if deriv <= EPSILON {
+                return Err("Cahvor 2d to 3d: Distortion is too negative");
             } else {
                 let du = poly / deriv;
                 u -= du;
@@ -233,14 +231,14 @@ impl Cahvor {
         let pp = lambda.scale(mu);
         let look_direction = rr.subtract(&pp).normalized();
 
-        LookVector{
+        Ok(LookVector{
             origin:origin,
             look_direction:look_direction
-        }
+        })
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVOR.java
-    pub fn xyz_to_ls(&self, xyz:&Vector, infinity:bool) -> ImageCoordinate {
+    fn xyz_to_ls(&self, xyz:&Vector, infinity:bool) -> ImageCoordinate {
         if infinity == true {
             let omega = xyz.dot_product(&self.o);
             let omega_2 = omega * omega;
@@ -281,4 +279,20 @@ impl Cahvor {
         }
     }
 
+    fn pixel_angle_horiz(&self) -> f64 {
+        let a = self.v.dot_product(&self.a);
+        let s = self.a.scale(a);
+        let f = self.v.subtract(&s).len();
+        (1.0 / f).atan()
+    }
+
+    fn pixel_angle_vert(&self) -> f64 {
+        let a = self.h.dot_product(&self.a);
+        let s = self.a.scale(a);
+        let f = self.h.subtract(&s).len();
+        (1.0 / f).atan()
+    }
+
 }
+
+
