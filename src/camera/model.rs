@@ -11,7 +11,8 @@ pub static MAXITER:u8 = 20;
 #[derive(PartialEq, Eq)]
 pub enum ModelType {
     CAHV,
-    CAHVOR
+    CAHVOR,
+    CAHVORE
 }
 
 
@@ -41,6 +42,7 @@ pub trait CameraModelTrait {
     fn v(&self) -> Vector;
     fn o(&self) -> Vector;
     fn r(&self) -> Vector;
+    fn e(&self) -> Vector;
 }
 
 

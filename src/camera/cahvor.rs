@@ -154,23 +154,27 @@ impl CameraModelTrait for Cahvor {
     }
 
     fn a(&self) -> Vector {
-        self.c.clone()
+        self.a.clone()
     }
 
     fn h(&self) -> Vector {
-        self.c.clone()
+        self.h.clone()
     }
 
     fn v(&self) -> Vector {
-        self.c.clone()
+        self.v.clone()
     }
 
     fn o(&self) -> Vector {
-        self.c.clone()
+        self.o.clone()
     }
 
     fn r(&self) -> Vector {
-        self.c.clone()
+        self.r.clone()
+    }
+
+    fn e(&self) -> Vector {
+        Vector::default()
     }
 
     fn box_clone(&self) -> Box<dyn CameraModelTrait + 'static> {
@@ -246,16 +250,15 @@ impl CameraModelTrait for Cahvor {
             let lambda = xyz.subtract(&wo);
             let tau = lambda.dot_product(&lambda) / omega_2;
             let mu = self.r.x + (self.r.y * tau) + (self.r.z * tau * tau);
-            let pp_c = lambda.scale(mu);
-            let pp_c2 = pp_c.add(&pp_c);
+            let pp_c = xyz.add(&lambda.scale(mu));
 
-            let alpha = pp_c2.dot_product(&self.a);
-            let beta = pp_c2.dot_product(&self.h);
-            let gamma = pp_c2.dot_product(&self.v);
+            let alpha = pp_c.dot_product(&self.a);
+            let beta = pp_c.dot_product(&self.h);
+            let gamma = pp_c.dot_product(&self.v);
 
             ImageCoordinate{
-                line: beta / alpha,
-                sample: gamma / alpha
+                sample: beta / alpha,
+                line: gamma / alpha
             }
         } else {
             let p_c = xyz.subtract(&self.c);
@@ -265,7 +268,7 @@ impl CameraModelTrait for Cahvor {
             let lambda = p_c.subtract(&wo);
             let tau = lambda.dot_product(&lambda) / omega_2;
             let mu = self.r.x + (self.r.y * tau) + (self.r.z * tau * tau);
-            let pp = lambda.scale(mu);
+            let pp = xyz.add(&lambda.scale(mu));
 
             let pp_c = pp.subtract(&self.c);
             let alpha = pp_c.dot_product(&self.a);
@@ -273,8 +276,8 @@ impl CameraModelTrait for Cahvor {
             let gamma = pp_c.dot_product(&self.v);
 
             ImageCoordinate{
-                line: beta / alpha,
-                sample: gamma / alpha
+                sample: beta / alpha,
+                line: gamma / alpha
             }
         }
     }

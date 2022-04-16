@@ -53,15 +53,15 @@ impl CameraModelTrait for Cahv {
     }
 
     fn a(&self) -> Vector {
-        self.c.clone()
+        self.a.clone()
     }
 
     fn h(&self) -> Vector {
-        self.c.clone()
+        self.h.clone()
     }
 
     fn v(&self) -> Vector {
-        self.c.clone()
+        self.v.clone()
     }
 
     fn o(&self) -> Vector {
@@ -72,12 +72,16 @@ impl CameraModelTrait for Cahv {
         Vector::default()
     }
 
+    fn e(&self) -> Vector {
+        Vector::default()
+    }
+
     fn box_clone(&self) -> Box<dyn CameraModelTrait + 'static> {
         Box::new((*self).clone())
     }
 
     fn f(&self) -> f64 {
-        0.0
+        self.a.cross_product(&self.h).len()
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHV.java
