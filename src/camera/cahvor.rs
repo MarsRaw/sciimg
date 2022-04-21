@@ -3,7 +3,10 @@ use crate::{
     error,
     vector::Vector,
     matrix::Matrix,
-    camera::model::*
+    camera::model::*,
+    camera::cahv::*,
+    min,
+    max
 };
 
 use serde::{
@@ -141,6 +144,8 @@ impl Cahvor {
         let b = pmc.dot_product(&self.a);
         a / b
     }
+
+
 }
 
 impl CameraModelTrait for Cahvor {
@@ -298,4 +303,111 @@ impl CameraModelTrait for Cahvor {
 
 }
 
+//  Adapted from https://github.com/digimatronics/ComputerVision/blob/master/src/vw/Camera/CAHVORModel.cc
+pub fn linearize(camera_model:&Cahvor, cahvor_width:usize, cahvor_height:usize, cahv_width:usize, cahv_height:usize) -> Cahv {
+    let minfov = true;
+
+    let mut output_camera = Cahv::default();
+    output_camera.c = camera_model.c.clone();
+
+    let hpts = vec![
+        Vector::default(),
+        Vector::new(0.0, (cahvor_height as f64 - 1.0) / 2.0, 0.0),
+        Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
+        Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
+        Vector::new(cahvor_width as f64 - 1.0, (cahvor_height as f64 - 1.0) / 2.0, 0.0),
+        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0).subtract(&Vector::new(1.0, 1.0, 0.0))
+    ];
+
+    let vpts = vec![
+        Vector::default(),
+        Vector::new((cahvor_width as f64 - 1.0)/2.0, 0.0, 0.0),
+        Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
+        Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
+        Vector::new((cahvor_width as f64 - 1.0) / 2.0, cahvor_height as f64 - 1.0, 0.0),
+        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0).subtract(&Vector::new(1.0, 1.0, 0.0))
+    ];
+
+    for local in vpts.iter() {
+        match camera_model.ls_to_look_vector(&ImageCoordinate{
+            line:local.y,
+            sample:local.x
+        }) {
+            Ok(lv) => {
+                output_camera.a = output_camera.a.add(&lv.look_direction);
+            },
+            Err(_) => {}
+        }
+    }
+    for local in hpts.iter() {
+        match camera_model.ls_to_look_vector(&ImageCoordinate{
+            line:local.y,
+            sample:local.x
+        }) {
+            Ok(lv) => {
+                output_camera.a = output_camera.a.add(&lv.look_direction);
+            },
+            Err(_) => {}
+        }
+    }
+
+    output_camera.a = output_camera.a.normalized();
+
+    let mut dn = camera_model.a.cross_product(&camera_model.h).normalized();
+    let mut rt = dn.cross_product(&output_camera.a);
+    dn = output_camera.a.cross_product(&rt).normalized();
+    rt = rt.normalized();
+
+    let mut hmin = 1.0;
+    let mut hmax = -1.0;
+    for loop_ in hpts.iter() {
+        match camera_model.ls_to_look_vector(&ImageCoordinate{
+            line:loop_.y,
+            sample:loop_.x
+        }) {
+            Ok(lv) => {
+                let u3 = lv.look_direction;
+                let sn =  output_camera.a.cross_product(&u3.subtract(&dn.scale(dn.dot_product(&u3))).normalized()).len();
+                hmin = min!(hmin, sn);
+                hmax = max!(hmax, sn);
+            },
+            Err(_) => {}
+        }
+    }
+
+    let mut vmin = 1.0;
+    let mut vmax = -1.0;
+    for loop_ in vpts.iter() {
+        match camera_model.ls_to_look_vector(&ImageCoordinate{
+            line:loop_.y,
+            sample:loop_.x
+        }) {
+            Ok(lv) => {
+                let u3 = lv.look_direction;
+                let sn =  output_camera.a.cross_product(&u3.subtract(&rt.scale(rt.dot_product(&u3))).normalized()).len();
+                vmin = min!(vmin, sn);
+                vmax = max!(vmax, sn);
+            },
+            Err(_) => {}
+        }
+    }
+
+    println!("{}, {} -- {}, {}", hmin, hmax, vmin, vmax);
+    let image_center = Vector::new(cahv_width as f64, cahv_height as f64, 0.0).subtract(&Vector::new(1.0, 1.0, 0.0)).scale(0.5);
+    println!("image_center -> {:?}", image_center);
+    let image_center_2 = image_center.multiply(&image_center);
+    println!("image_center_2 -> {:?}", image_center_2);
+
+    let scale_factors = if minfov {
+        image_center_2.divide(&Vector::new(hmin*hmin, vmin*vmin, 0.0)).subtract(&image_center_2).sqrt()
+    } else {
+        image_center_2.divide(&Vector::new(hmax*hmax, vmax*vmax, 0.0)).subtract(&image_center_2).sqrt()
+    };
+
+    println!("scale_factors -> {:?}", scale_factors);
+    output_camera.h = rt.scale(scale_factors.x).add(&output_camera.a.scale(image_center.x));
+    output_camera.v = dn.scale(scale_factors.y).add(&output_camera.a.scale(image_center.y));
+    
+    output_camera
+}
 

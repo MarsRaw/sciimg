@@ -106,6 +106,30 @@ impl Vector {
         }
     }
 
+    pub fn multiply(&self, other:&Vector) -> Vector {
+        Vector::new(
+            self.x * other.x,
+            self.y * other.y,
+            self.z * other.z
+        )
+    }
+
+    pub fn divide(&self, other:&Vector) -> Vector {
+        Vector::new(
+            self.x / other.x,
+            self.y / other.y,
+            self.z / other.z
+        )
+    }
+
+    pub fn sqrt(&self) -> Vector {
+        Vector::new(
+            self.x.sqrt(),
+            self.y.sqrt(),
+            self.z.sqrt()
+        )
+    }
+
     pub fn normalize(&mut self) {
         let n = self.normalized();
         self.x = n.x;

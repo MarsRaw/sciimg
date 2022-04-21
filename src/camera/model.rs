@@ -1,7 +1,9 @@
 
 use crate::{
     error,
-    vector::Vector
+    vector::Vector,
+    camera::cahv::*,
+    camera::cahvor::*
 };
 
 pub static EPSILON:f64 = 1.0e-15;
@@ -122,6 +124,13 @@ impl CameraModel {
         }
     }
 
+    pub fn e(&self) -> Vector {
+        match &self.model {
+            Some(m) => m.e(),
+            None => Vector::default()
+        }
+    }
+
     pub fn f(&self) -> f64 {
         match &self.model {
             Some(m) => m.f(),
@@ -154,6 +163,32 @@ impl CameraModel {
         match &self.model {
             Some(m) => m.xyz_to_ls(&xyz, infinity),
             None => panic!("Camera model is not valid")
+        }
+    }
+
+    pub fn linearize(&self, cahvor_width:usize, cahvor_height:usize, cahv_width:usize, cahv_height:usize) -> error::Result<Cahv> {
+        match self.model_type() {
+            ModelType::CAHVOR => {
+
+                if let Some(m) = &self.model {
+                    let c = Cahvor{
+                        c: m.c(),
+                        a: m.a(),
+                        h: m.h(),
+                        v: m.v(),
+                        o: m.o(),
+                        r: m.r()
+                    };
+                    Ok(linearize(&c, cahvor_width, cahvor_height, cahv_width, cahv_height))
+                } else {
+                    Err("Wut?")
+                }
+
+                
+            },
+            _ => {
+                Err("Linearization supported only against CAHVOR model types")
+            }
         }
     }
 

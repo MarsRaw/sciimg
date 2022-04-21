@@ -114,25 +114,31 @@ impl CameraModelTrait for Cahvore {
     }
 
     fn f(&self) -> f64 {
+        self.a.cross_product(&self.h).len()
+    }
+
+    // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
+    fn ls_to_look_vector(&self, _coordinate:&ImageCoordinate) -> error::Result<LookVector> {
         panic!("Not yet implemented");
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
-    fn ls_to_look_vector(&self, coordinate:&ImageCoordinate) -> error::Result<LookVector> {
-        panic!("Not yet implemented");
-    }
-
-    // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
-    fn xyz_to_ls(&self, xyz:&Vector, infinity:bool) -> ImageCoordinate {
+    fn xyz_to_ls(&self, _xyz:&Vector, _infinity:bool) -> ImageCoordinate {
         panic!("Not yet implemented");
     }
 
     fn pixel_angle_horiz(&self) -> f64 {
-        panic!("Not yet implemented");
+        let a = self.v.dot_product(&self.a);
+        let s = self.a.scale(a);
+        let f = self.v.subtract(&s).len();
+        (1.0 / f).atan()
     }
 
     fn pixel_angle_vert(&self) -> f64 {
-        panic!("Not yet implemented");
+        let a = self.h.dot_product(&self.a);
+        let s = self.a.scale(a);
+        let f = self.h.subtract(&s).len();
+        (1.0 / f).atan()
     }
 
 }
