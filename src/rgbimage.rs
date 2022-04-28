@@ -327,7 +327,13 @@ impl RgbImage {
 
     pub fn apply_flat(&mut self, flat:&RgbImage)  {
         for i in 0..self.bands.len() {
-            self.apply_flat_on_band(i, &flat.get_band(0));
+            let flat_buffer = if flat.num_bands() > i {
+                flat.get_band(i)
+            } else {
+                flat.get_band(0)
+            };
+
+            self.apply_flat_on_band(i, &flat_buffer);
         }
     }
 
