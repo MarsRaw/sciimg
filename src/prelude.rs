@@ -11,3 +11,4 @@ pub use crate::not_implemented;
 pub use crate::camera::model::*;
 pub use crate::camera::cahv::*;
 pub use crate::camera::cahvor::*;
+pub use crate::camera::cahvore::*;

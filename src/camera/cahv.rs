@@ -1,7 +1,8 @@
 use crate::{
     error,
     vector::Vector,
-    camera::model::*
+    camera::model::*,
+    util::vec_to_str
 };
 
 use serde::{
@@ -138,5 +139,14 @@ impl CameraModelTrait for Cahv {
         let s = self.a.scale(a);
         let f = self.h.subtract(&s).len();
         (1.0 / f).atan()
+    }
+
+    fn serialize(&self) -> String {
+        format!("{};{};{};{}", 
+                                    vec_to_str(&self.c.to_vec()), 
+                                    vec_to_str(&self.a.to_vec()), 
+                                    vec_to_str(&self.h.to_vec()), 
+                                    vec_to_str(&self.v.to_vec())
+                                )
     }
 }

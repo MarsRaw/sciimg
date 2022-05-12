@@ -45,6 +45,7 @@ pub trait CameraModelTrait {
     fn o(&self) -> Vector;
     fn r(&self) -> Vector;
     fn e(&self) -> Vector;
+    fn serialize(&self) -> String;
 }
 
 
@@ -189,6 +190,13 @@ impl CameraModel {
             _ => {
                 Err("Linearization supported only against CAHVOR model types")
             }
+        }
+    }
+
+    pub fn serialize(&self) -> String {
+        match &self.model {
+            Some(m) => m.serialize(),
+            None => panic!("Camera model is not valid")
         }
     }
 

@@ -3,7 +3,8 @@ use crate::{
     error,
     vector::Vector,
     //matrix::Matrix,
-    camera::model::*
+    camera::model::*,
+    util::vec_to_str
 };
 
 use serde::{
@@ -139,6 +140,19 @@ impl CameraModelTrait for Cahvore {
         let s = self.a.scale(a);
         let f = self.h.subtract(&s).len();
         (1.0 / f).atan()
+    }
+
+    fn serialize(&self) -> String {
+        format!("{};{};{};{};{};{};{};{};0.0", 
+                                    vec_to_str(&self.c.to_vec()), 
+                                    vec_to_str(&self.a.to_vec()), 
+                                    vec_to_str(&self.h.to_vec()), 
+                                    vec_to_str(&self.v.to_vec()), 
+                                    vec_to_str(&self.o.to_vec()), 
+                                    vec_to_str(&self.r.to_vec()), 
+                                    vec_to_str(&self.e.to_vec()),
+                                    self.linearity
+                                )
     }
 
 }

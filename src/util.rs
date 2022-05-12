@@ -4,6 +4,7 @@ use crate::{
 };
 
 use std::str::FromStr;
+use string_builder::Builder;
 
 pub fn string_is_valid_num<T:FromStr>(s:&str) -> bool {
     let num = s.parse::<T>();
@@ -87,4 +88,21 @@ pub fn replace_image_extension(input_file:&str, append:&str) -> String {
                              .replace(".tif", append)
                              .replace(".TIF", append);
     String::from(out_file)
+}
+
+
+pub fn vec_to_str(v:&[f64]) -> String {
+    let mut b = Builder::default();
+
+    for item in v {
+        b.append(format!("{},", item));
+    }
+
+    let mut s = b.string().unwrap();
+    if !s.is_empty() {
+        s.remove(s.len()-1);
+    }
+    
+
+    format!("({})", s)
 }
