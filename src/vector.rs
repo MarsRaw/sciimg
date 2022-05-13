@@ -153,16 +153,14 @@ impl Vector {
     }
 
     pub fn dot_product(&self, other:&Vector) -> f64 {
-        let v0 = self.normalized();
-        let v1 = other.normalized();
-        v0.x * v1.x + v0.y * v1.y + v0.z * v1.z
+        self.x * other.x + self.y * other.y + self.z * other.z
     }
 
     pub fn cross_product(&self, other:&Vector) -> Vector {
         Vector{
-            x: self.y * other.z - other.y * self.z,
-            y: self.z * other.x - other.z * self.x,
-            z: self.x * other.y - other.x * self.y
+            x: self.y * other.z - self.z * other.y,
+            y: self.z * other.x - self.x * other.z,
+            z: self.x * other.y - self.y * other.x
         }
     }
 

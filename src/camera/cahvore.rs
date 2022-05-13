@@ -119,8 +119,85 @@ impl CameraModelTrait for Cahvore {
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
-    fn ls_to_look_vector(&self, _coordinate:&ImageCoordinate) -> error::Result<LookVector> {
-        panic!("Not yet implemented");
+    fn ls_to_look_vector(&self, coordinate:&ImageCoordinate) -> error::Result<LookVector> {
+        let line = coordinate.line;
+        let samp = coordinate.sample;
+
+        let f = self.v.subtract(&self.a.scale(line));
+        let g = self.h.subtract(&self.a.scale(samp));
+        let w3 = f.cross_product(&g);
+
+        let inv_adotf = 1.0 / self.a.dot_product(&self.v.cross_product(&self.h));
+        let rp = w3.scale(inv_adotf);
+
+        let zetap = rp.dot_product(&self.o);
+
+        let lambdap = rp.subtract(&self.o.scale(zetap));
+        let chip = lambdap.len() / zetap;
+
+        let (center_point, ray_of_incidence) = match chip < CHIP_LIMIT {
+            true => {
+                (self.c.clone(), self.o.clone())
+            },
+            false => {
+                let mut chi = chip;
+
+                for x in 1..=NEWTON_ITERATION_MAX {
+                    let chi2 = chi * chi;
+                    let chi3 = chi2 * chi;
+                    let chi4 = chi3 * chi;
+                    let chi5 = chi4 * chi;
+
+                    let deriv = (1.0 + self.r.x) + (3.0 * self.r.y * chi2) + (5.0 * self.r.z * chi4);
+                    
+                    let dchi = if deriv == 0.0 { 0.0 } else {
+                        ((1.0 + self.r.x) * chi) + (self.r.y * chi3) + ((self.r.z * chi5) - chip) / deriv 
+                    };
+                    
+                    chi = chi - dchi;
+
+                    if dchi.abs() < CHIP_LIMIT {
+                        break;
+                    }
+
+                    if x >= NEWTON_ITERATION_MAX {
+                        eprintln!("CAHVORE: Too many iterations without sufficient convergence");
+                        break;
+                    }
+                };
+
+                let linchi = self.linearity * chi;
+                let theta = if self.linearity < (-1.0 * EPSILON) {
+                    linchi.asin() / self.linearity
+                } else if self.linearity < EPSILON {
+                    linchi.atan() / self.linearity
+                } else {
+                    chi
+                };
+
+                let theta2 = theta * theta;
+                let theta3 = theta2 * theta;
+                let theta4 = theta3 * theta;
+
+                // compute the shift of the entrance pupil
+                let s = ((theta / theta.sin()) - 1.0) * (self.e.x + self.e.y * theta2 + self.e.z * theta4);
+
+                let center_point = self.c.add(&self.o.scale(s));
+
+                let f2 = lambdap.normalized().scale(theta.sin());
+                let g = self.o.scale(theta.cos());
+                let ray_of_incidence = f2.add(&g);
+                
+                
+
+                (center_point, ray_of_incidence)
+            }
+        };
+
+        Ok(LookVector {
+            origin:center_point,
+            look_direction:ray_of_incidence
+        })
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
