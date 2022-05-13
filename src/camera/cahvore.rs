@@ -201,8 +201,89 @@ impl CameraModelTrait for Cahvore {
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
-    fn xyz_to_ls(&self, _xyz:&Vector, _infinity:bool) -> ImageCoordinate {
-        panic!("Not yet implemented");
+    fn xyz_to_ls(&self, xyz:&Vector, _infinity:bool) -> ImageCoordinate {
+
+        let p_c = xyz.subtract(&self.c);
+        let zeta = p_c.dot_product(&self.o);
+        let f = self.o.scale(zeta);
+        let lambda = p_c.subtract(&f);
+        let lamda_mag = lambda.len();
+
+        let mut theta = lamda_mag.atan2(zeta);
+
+
+        for x in 1..=NEWTON_ITERATION_MAX {
+
+            let cos_theta = theta.cos();
+            let sin_theta = theta.sin();
+            let theta2 = theta * theta;
+            let theta3 = theta2 * theta;
+            let theta4 = theta3 * theta;
+
+            let upsilon = (zeta * cos_theta) + (lamda_mag * sin_theta)
+                        - (( 1.0 - cos_theta) * (self.e.x + self.e.y * theta2 + self.e.z * theta4))
+                        - ((theta - sin_theta) * (self.e.x + 2.0 * self.e.y * theta + 4.0 * self.e.z * theta3));
+            let dtheta = ((zeta * sin_theta - lamda_mag * cos_theta) -
+                            (theta - sin_theta) * (self.e.x + self.e.y * theta2 + self.e.z * theta4)) /
+                            upsilon;
+            theta = theta - dtheta;
+        
+            if dtheta.abs() < CHIP_LIMIT {
+                break;
+            }
+
+            if x >= NEWTON_ITERATION_MAX {
+                eprintln!("CAHVORE: Too many iterations without sufficient convergence");
+                break;
+            }
+        }
+
+        if theta * self.linearity.abs() > (std::f64::consts::PI / 2.0) {
+            eprintln!("CAVHORE: theta out of bounds");
+            return ImageCoordinate{
+                sample: 0.0,
+                line: 0.0
+            };
+            //panic!("CAVHORE: theta out of bounds");
+        }
+
+        let rp = if theta < CHIP_LIMIT {
+            p_c
+        } else {
+            let linth = self.linearity * theta;
+            let chi = if self.linearity < (-1.0 * EPSILON) {
+                linth.sin() / self.linearity
+            } else if self.linearity > EPSILON {
+                linth.tan() / self.linearity
+            } else {
+                theta
+            };
+
+            let chi2 = chi * chi;
+            let chi3 = chi2 * chi;
+            let chi4 = chi3 * chi;
+
+            let zetap = lamda_mag / chi;
+
+            let mu = self.r.x + self.r.y * chi2 + self.r.z * chi4;
+
+            let f = self.o.scale(zetap);
+            let g = lambda.scale(1.0 + mu);
+
+            f.add(&g)
+        };
+
+        let alpha = rp.dot_product(&self.a);
+        let beta = rp.dot_product(&self.h);
+        let gamma = rp.dot_product(&self.v);
+
+        let samp = beta / alpha;
+        let line = gamma / alpha;
+
+        ImageCoordinate{
+            sample: samp,
+            line: line
+        }
     }
 
     fn pixel_angle_horiz(&self) -> f64 {
