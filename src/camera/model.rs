@@ -30,6 +30,37 @@ pub struct LookVector {
     pub look_direction:Vector
 }
 
+
+impl LookVector {
+
+
+    pub fn intersect_to_plane(&self, ground:&Vector) -> Option<Vector> {
+        let normal = Vector::new(0.0, 0.0, -1.0);
+        
+        let dot = self.look_direction.dot_product(&normal);
+        if dot == 0.0 {
+            return Some(self.look_direction.clone());
+        }
+    
+        let ratio = ground.subtract(&self.origin).dot_product(&normal) / dot;
+    
+        let intersect_point = self.origin.add(&self.look_direction.scale(ratio));
+        
+        if ratio < 0.0 {
+            None
+        } else {
+            Some(intersect_point)
+        }
+    
+    }
+
+    pub fn intersect_to_sphere(&self, radius:f64) -> Vector {
+        self.look_direction.normalized().scale(radius).add(&self.origin)
+    }
+
+}
+
+
 pub trait CameraModelTrait {
     fn model_type(&self) -> ModelType;
     fn f(&self) -> f64;
