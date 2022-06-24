@@ -70,6 +70,25 @@ impl RgbImage {
         })
     }
 
+    pub fn new_with_bands_masked(width:usize, height:usize, num_bands:usize, mode:enums::ImageMode, mask_value:bool) -> error::Result<RgbImage> {
+
+        let mut bands : Vec<ImageBuffer> = vec!();
+        for _ in 0..num_bands {
+            bands.push(ImageBuffer::new_with_mask_as(width, height, mask_value).unwrap());
+        }
+
+        let mut mask:Vec<bool> = Vec::with_capacity(width * height);
+        mask.resize(width * height, true);
+
+        Ok(RgbImage{
+            bands,
+            width,
+            height,
+            mode:mode,
+            empty:false
+        })
+    }
+
     pub fn new_empty() -> error::Result<RgbImage> {
         Ok(RgbImage{
             bands:vec!(),
@@ -89,23 +108,28 @@ impl RgbImage {
             panic!("File not found: {}", file_path);
         }
 
-        let image_data = open(&file_path).unwrap().into_rgb16();
+        let image_data = open(&file_path).unwrap().into_rgba16();
         let dims = image_data.dimensions();
 
         let width = dims.0 as usize;
         let height = dims.1 as usize;
 
-        let mut rgbimage = RgbImage::new_with_bands(width, height, 3, enums::ImageMode::U16BIT).unwrap();
+        let mut rgbimage = RgbImage::new_with_bands_masked(width, height, 3, enums::ImageMode::U16BIT, true).unwrap();
 
         for y in 0..height {
             for x in 0..width {
                 let pixel = image_data.get_pixel(x as u32, y as u32);
+                //println!("Pixel: {}", pixel.len());
                 let red = pixel[0] as f32;
                 let green = pixel[1] as f32;
                 let blue = pixel[2] as f32;
+                let alpha: f32 = pixel[3] as f32;
+
                 rgbimage.put(x, y, red, 0);
                 rgbimage.put(x, y, green, 1);
                 rgbimage.put(x, y, blue, 2);
+
+                rgbimage.put_mask(x, y, alpha > 0.0, 0);
             }
         }
 
@@ -117,14 +141,14 @@ impl RgbImage {
             panic!("File not found: {}", file_path);
         }
 
-        let image_data = open(&file_path).unwrap().into_rgb8();
+        let image_data = open(&file_path).unwrap().into_rgba8();
         let dims = image_data.dimensions();
 
         let width = dims.0 as usize;
         let height = dims.1 as usize;
 
         // TODO: Don't assume 8-bit
-        let mut rgbimage = RgbImage::new_with_bands(width, height, 3, enums::ImageMode::U8BIT).unwrap();
+        let mut rgbimage = RgbImage::new_with_bands_masked(width, height, 3, enums::ImageMode::U8BIT, true).unwrap();
 
         for y in 0..height {
             for x in 0..width {
@@ -132,9 +156,13 @@ impl RgbImage {
                 let red = pixel[0] as f32;
                 let green = pixel[1] as f32;
                 let blue = pixel[2] as f32;
+                let alpha: f32 = pixel[3] as f32;
+
                 rgbimage.put(x, y, red, 0);
                 rgbimage.put(x, y, green, 1);
                 rgbimage.put(x, y, blue, 2);
+                
+                rgbimage.put_mask(x, y, alpha > 0.0, 0);
             }
         }
 
@@ -249,10 +277,28 @@ impl RgbImage {
         }
     }
 
+    pub fn put_mask(&mut self, x:usize, y:usize, value:bool, band:usize) {
+        if x < self.width && y < self.height {
+            self.bands[band].put_mask(x, y, value);
+        } else {
+            panic!("Invalid pixel coordinates");
+        }
+    }
+
     pub fn paste(&mut self, src:&RgbImage, tl_x:usize, tl_y:usize) {
         for i in 0..self.bands.len() {
             self.bands[i].paste_mut(src.get_band(i), tl_x, tl_y);
         }
+    }
+
+
+    pub fn get_mask_at(&self, x:usize, y:usize) -> bool {
+        for i in 0..self.bands.len() {
+            if ! self.bands[i].get_mask_at_point(x, y).unwrap() {
+                return false;
+            }
+        }
+        true
     }
 
     pub fn apply_mask_to_band(&mut self, mask:&ImageBuffer, band:usize) {
@@ -260,21 +306,9 @@ impl RgbImage {
         self.bands[band].set_mask(mask);
     }
 
-    pub fn apply_mask(&mut self, mask:&ImageBuffer) {
-        for i in 0..self.bands.len() {
-            self.apply_mask_to_band(mask, i);
-        }
-    }
-
     pub fn clear_mask_on_band(&mut self, band:usize) {
         check_band_in_bounds!(band, self);
         self.bands[band].clear_mask();
-    }
-
-    pub fn clear_mask(&mut self) {
-        for i in 0..self.bands.len() {
-            self.clear_mask_on_band(i);
-        }
     }
 
     pub fn copy_mask_from(&mut self, src:&ImageBuffer) {
@@ -603,7 +637,7 @@ impl RgbImage {
                 let r = self.bands[0].get(x, y).unwrap().round() as u16;
                 let g = self.bands[1].get(x, y).unwrap().round() as u16;
                 let b = self.bands[2].get(x, y).unwrap().round() as u16;
-                let a = if self.bands[0].get_mask_at_point(x, y).unwrap() { 65535 } else { 0 };
+                let a = if self.bands[0].get_mask_at_point(x, y).unwrap() || self.bands[1].get_mask_at_point(x, y).unwrap() || self.bands[2].get_mask_at_point(x, y).unwrap() { 65535 } else { 0 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([r, g, b, a]));
             }
         }
@@ -656,7 +690,7 @@ impl RgbImage {
                 let r = self.bands[0].get(x, y).unwrap().round() as u8;
                 let g = self.bands[1].get(x, y).unwrap().round() as u8;
                 let b = self.bands[2].get(x, y).unwrap().round() as u8;
-                let a = if self.bands[0].get_mask_at_point(x, y).unwrap() { 255 } else { 0 };
+                let a = if self.bands[0].get_mask_at_point(x, y).unwrap() || self.bands[1].get_mask_at_point(x, y).unwrap() || self.bands[2].get_mask_at_point(x, y).unwrap() { 255 } else { 0 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([r, g, b, a]));
             }
         }

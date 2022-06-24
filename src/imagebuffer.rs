@@ -116,6 +116,23 @@ impl ImageBuffer {
         })
     }
 
+    pub fn new_with_mask_as(width:usize, height:usize, mask_value:bool) -> error::Result<ImageBuffer> {
+
+        let mut v:Vec<f32> = Vec::with_capacity(width * height);
+        v.resize(width * height, 0.0);
+
+        let mut mask:Vec<bool> = Vec::with_capacity(width * height);
+        mask.resize(width * height, mask_value);
+
+        Ok(ImageBuffer{buffer:v,
+            width,
+            height,
+            empty:false,
+            mask: Some(mask),
+            mode: enums::ImageMode::U16BIT
+        })
+    }
+
     fn new_with_mask_as_mode(width:usize, height:usize, mask:&Option<Vec<bool>>, mode:enums::ImageMode) -> error::Result<ImageBuffer> {
 
         let mut v:Vec<f32> = Vec::with_capacity(width * height);
@@ -525,6 +542,21 @@ impl ImageBuffer {
             if self.get_mask_at_point(x, y).unwrap() {
                 let index = y * self.width + x;
                 self.buffer[index] = val;
+            }
+        } else {
+            panic!("Invalid pixel coordinates");
+        }
+    }
+
+    pub fn put_mask(&mut self, x:usize, y:usize, m:bool) {
+        if self.mask == None {
+            panic!("Cannot apply mask value: no mask");
+        }
+
+        if x < self.width && y < self.height {
+            if let Some(mask) = &mut self.mask {
+                let index = y * self.width + x;
+                mask[index] = m;
             }
         } else {
             panic!("Invalid pixel coordinates");
