@@ -252,7 +252,7 @@ impl RgbImage {
 
     pub fn levels(&mut self, black_level:f32, white_level:f32, gamma:f32) {
         for b in 0..self.bands.len() {
-            let mm = self.bands[b].get_min_max().unwrap();
+            let mm = self.bands[b].get_min_max();
             
             let rng = match self.mode {
                 enums::ImageMode::U8BIT => 256.0,
@@ -540,7 +540,7 @@ impl RgbImage {
         let mut maxval = std::f32::MIN;
 
         for i in 0..self.bands.len() {
-            let mnmx = self.bands[i].get_min_max().unwrap();
+            let mnmx = self.bands[i].get_min_max();
             minval = min!(mnmx.min, minval);
             maxval = max!(mnmx.max, maxval);
         }
@@ -578,7 +578,7 @@ impl RgbImage {
 
     pub fn normalize_band_to_12bit(&mut self, band:usize, max12bit:f32) {
         check_band_in_bounds!(band, self);
-        let mnmx = self.bands[band].get_min_max().unwrap();
+        let mnmx = self.bands[band].get_min_max();
         self.normalize_to_12bit_with_max(max12bit, mnmx.max);
     }
 

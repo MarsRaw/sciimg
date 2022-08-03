@@ -2,7 +2,11 @@
 use crate::{
     error, 
     enums,
-    path
+    path, 
+    Dn,
+    DnVec, 
+    VecMath,
+    MinMax
 };
 
 extern crate image;
@@ -15,7 +19,7 @@ use image::{
 // A simple image raster buffer.
 #[derive(Debug, Clone)]
 pub struct ImageBuffer {
-    pub buffer: Vec<f32>,
+    pub buffer: DnVec,
     pub width: usize,
     pub height: usize,
     empty: bool,
@@ -25,46 +29,11 @@ pub struct ImageBuffer {
 
 #[derive(Debug, Clone)]
 pub struct Offset {
-    pub h: f32,
-    pub v: f32,
+    pub h: Dn,
+    pub v: Dn,
 }
 
-#[derive(Debug, Clone)]
-pub struct MinMax {
-    pub min: f32,
-    pub max: f32,
-}
 
-// Implements a center crop
-fn crop_array<T:Copy>(arr:&[T], from_width:usize, from_height:usize, to_width:usize, to_height:usize) -> Vec<T> {
-    let mut new_arr : Vec<T> = Vec::with_capacity(to_width * to_height);
- 
-    for y in 0..to_height {
-        for x in 0..to_width {
-    
-            let from_x = ((from_width - to_width) / 2) + x;
-            let from_y = ((from_height - to_height) / 2) + y;
-            let from_idx = from_y * from_width + from_x;
-
-            //let to_idx = y * to_width + x;
-            new_arr.push(arr[from_idx]);
-        }
-    }
-    
-    new_arr
-}
-
-fn subframe_array<T:Copy>(arr:&[T], from_width:usize, _from_height:usize, left_x:usize, top_y:usize, to_width:usize, to_height:usize) -> Vec<T> {
-    let mut new_arr : Vec<T> = Vec::with_capacity(to_width * to_height);
-
-    for y in 0..to_height {
-        for x in 0..to_width {
-            let from_idx = (top_y + y) * from_width + (left_x + x);
-            new_arr.push(arr[from_idx]);
-        }
-    }
-    new_arr
-}
 
 
 #[allow(dead_code)]
@@ -88,11 +57,7 @@ impl ImageBuffer {
 
     // Creates a new image buffer of the requested width and height
     pub fn new_with_fill_as_mode(width:usize, height:usize, fill_value:f32, mode:enums::ImageMode) -> error::Result<ImageBuffer> {
-
-        let mut v:Vec<f32> = Vec::with_capacity(width * height);
-        v.resize(width * height, fill_value);
-
-        Ok(ImageBuffer{buffer:v,
+        Ok(ImageBuffer{buffer:DnVec::fill(width * height, fill_value),
             width,
             height,
             empty:false,
@@ -103,11 +68,7 @@ impl ImageBuffer {
 
     // Creates a new image buffer of the requested width and height
     pub fn new_with_mask(width:usize, height:usize, mask:&Option<Vec<bool>>) -> error::Result<ImageBuffer> {
-
-        let mut v:Vec<f32> = Vec::with_capacity(width * height);
-        v.resize(width * height, 0.0);
-
-        Ok(ImageBuffer{buffer:v,
+        Ok(ImageBuffer{buffer:DnVec::zeros(width * height),
             width,
             height,
             empty:false,
@@ -117,14 +78,10 @@ impl ImageBuffer {
     }
 
     pub fn new_with_mask_as(width:usize, height:usize, mask_value:bool) -> error::Result<ImageBuffer> {
-
-        let mut v:Vec<f32> = Vec::with_capacity(width * height);
-        v.resize(width * height, 0.0);
-
         let mut mask:Vec<bool> = Vec::with_capacity(width * height);
         mask.resize(width * height, mask_value);
 
-        Ok(ImageBuffer{buffer:v,
+        Ok(ImageBuffer{buffer:DnVec::zeros(width * height),
             width,
             height,
             empty:false,
@@ -134,11 +91,7 @@ impl ImageBuffer {
     }
 
     fn new_with_mask_as_mode(width:usize, height:usize, mask:&Option<Vec<bool>>, mode:enums::ImageMode) -> error::Result<ImageBuffer> {
-
-        let mut v:Vec<f32> = Vec::with_capacity(width * height);
-        v.resize(width * height, 0.0);
-
-        Ok(ImageBuffer{buffer:v,
+        Ok(ImageBuffer{buffer:DnVec::zeros(width * height),
             width,
             height,
             empty:false,
@@ -159,19 +112,19 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec(v:Vec<f32>, width:usize, height:usize) -> error::Result<ImageBuffer> {
+    pub fn from_vec(v:&DnVec, width:usize, height:usize) -> error::Result<ImageBuffer> {
         ImageBuffer::from_vec_as_mode(v, width, height, enums::ImageMode::U16BIT)
     }
 
 
         // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec_as_mode(v:Vec<f32>, width:usize, height:usize, mode:enums::ImageMode) -> error::Result<ImageBuffer> {
+    pub fn from_vec_as_mode(v:&DnVec, width:usize, height:usize, mode:enums::ImageMode) -> error::Result<ImageBuffer> {
 
         if v.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
 
-        Ok(ImageBuffer{buffer:v,
+        Ok(ImageBuffer{buffer:v.clone(),
                     width,
                     height,
                     empty:false,
@@ -187,7 +140,7 @@ impl ImageBuffer {
             panic!("Dimensions to not match vector length");
         }
 
-        let mut v = vec![0.0_f32; width * height];
+        let mut v = DnVec::zeros(width * height);
         for i in 0..v_u8.len() {
             v[i] = v_u8[i] as f32;
         }
@@ -208,7 +161,7 @@ impl ImageBuffer {
             panic!("Dimensions to not match vector length");
         }
 
-        let mut v = vec![0.0_f32; width * height];
+        let mut v = DnVec::zeros(width * height);
         for i in 0..v_u8.len() {
             v[i] = v_u8[i] as f32;
         }
@@ -229,7 +182,7 @@ impl ImageBuffer {
             panic!("Dimensions to not match vector length");
         }
 
-        let mut v = vec![0.0_f32; width * height];
+        let mut v = DnVec::zeros(width * height);
         for i in 0..v_u16.len() {
             v[i] = v_u16[i] as f32;
         }
@@ -250,7 +203,7 @@ impl ImageBuffer {
             panic!("Dimensions to not match vector length");
         }
 
-        let mut v = vec![0.0_f32; width * height];
+        let mut v = DnVec::zeros(width * height);
         for i in 0..v_u16.len() {
             v[i] = v_u16[i] as f32;
         }
@@ -265,13 +218,13 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec_with_mask(v:Vec<f32>, width:usize, height:usize, mask:&Option<Vec<bool>>) -> error::Result<ImageBuffer> {
+    pub fn from_vec_with_mask(v:&DnVec, width:usize, height:usize, mask:&Option<Vec<bool>>) -> error::Result<ImageBuffer> {
 
         if v.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
 
-        Ok(ImageBuffer{buffer:v,
+        Ok(ImageBuffer{buffer:v.clone(),
                     width,
                     height,
                     empty:false,
@@ -287,8 +240,7 @@ impl ImageBuffer {
         let width = dims.0 as usize;
         let height = dims.1 as usize;
 
-        let mut v:Vec<f32> = Vec::with_capacity(width * height);
-        v.resize(width * height, 0.0);
+        let mut v = DnVec::zeros(width * height);
 
         for y in 0..height {
             for x in 0..width {
@@ -299,7 +251,7 @@ impl ImageBuffer {
             }
         }
 
-        ImageBuffer::from_vec_as_mode(v, width, height, enums::ImageMode::U16BIT)
+        ImageBuffer::from_vec_as_mode(&v, width, height, enums::ImageMode::U16BIT)
     }
 
     pub fn from_image_u16(image_data:&image::ImageBuffer<image::Rgba<u16>, std::vec::Vec<u16>>) -> error::Result<ImageBuffer> {
@@ -308,8 +260,7 @@ impl ImageBuffer {
         let width = dims.0 as usize;
         let height = dims.1 as usize;
 
-        let mut v:Vec<f32> = Vec::with_capacity(width * height);
-        v.resize(width * height, 0.0);
+        let mut v = DnVec::zeros(width * height);
 
         for y in 0..height {
             for x in 0..width {
@@ -320,7 +271,7 @@ impl ImageBuffer {
             }
         }
 
-        ImageBuffer::from_vec_as_mode(v, width, height, enums::ImageMode::U16BIT)
+        ImageBuffer::from_vec_as_mode(&v, width, height, enums::ImageMode::U16BIT)
     }
 
 
@@ -336,8 +287,7 @@ impl ImageBuffer {
         let width = dims.0 as usize;
         let height = dims.1 as usize;
 
-        let mut v:Vec<f32> = Vec::with_capacity(width * height);
-        v.resize(width * height, 0.0);
+        let mut v = DnVec::zeros(width * height);
 
         for y in 0..height {
             for x in 0..width {
@@ -348,15 +298,15 @@ impl ImageBuffer {
             }
         }
 
-        ImageBuffer::from_vec(v, width, height)
+        ImageBuffer::from_vec(&v, width, height)
     }
 
-    fn new_from_op(v:Vec<f32>, width:usize, height:usize, mask:&Option<Vec<bool>>, mode:enums::ImageMode) -> error::Result<ImageBuffer> {
+    fn new_from_op(v:&DnVec, width:usize, height:usize, mask:&Option<Vec<bool>>, mode:enums::ImageMode) -> error::Result<ImageBuffer> {
         if v.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
 
-        Ok(ImageBuffer{buffer:v,
+        Ok(ImageBuffer{buffer:v.clone(),
             width,
             height,
             empty:false,
@@ -423,7 +373,7 @@ impl ImageBuffer {
 
         let slice = self.buffer[start_index..stop_index].to_vec();
 
-        ImageBuffer::from_vec(slice, self.width, len)
+        ImageBuffer::from_vec(&slice, self.width, len)
     }
 
     pub fn to_vector_u8(&self) -> Vec<u8> {
@@ -459,33 +409,16 @@ impl ImageBuffer {
 
     pub fn get_subframe(&self, left_x:usize, top_y:usize, width:usize, height:usize) -> error::Result<ImageBuffer> {
 
-        let subframed_buffer = subframe_array(&self.buffer, self.width, self.height, left_x, top_y, width, height);
+        let subframed_buffer = self.buffer.crop_2d(self.width, self.height, left_x, top_y, width, height);
         let subframed_mask = match &self.mask {
-            Some(m) => Some(subframe_array(&m, self.width, self.height, left_x, top_y, width, height)),
+            Some(m) => Some(crate::crop_2d(&m, self.width, self.height, left_x, top_y, width, height)),
             None => None,
         };
-        ImageBuffer::new_from_op(subframed_buffer, width, height, &subframed_mask, self.mode)
+        ImageBuffer::new_from_op(&subframed_buffer, width, height, &subframed_mask, self.mode)
     }
 
-    pub fn isolate_window(&self, window_size:usize, x:usize, y:usize) -> Vec<f32> {
-        let mut v:Vec<f32> = Vec::with_capacity(window_size * window_size);
-        let start = window_size as i32 / 2 * -1;
-        let end = window_size as i32 / 2 + 1;
-        for _y in start..end as i32 {
-            for _x in start..end as i32 {
-                let get_x = x as i32 + _x;
-                let get_y = y as i32 + _y;
-                if get_x >= 0 
-                    && get_x < self.width as i32 
-                    && get_y >= 0 
-                    && get_y < self.height as i32
-                    && self.get_mask_at_point(get_x as usize, get_y as usize).unwrap()
-                    {
-                    v.push(self.get(get_x as usize, get_y as usize).unwrap());
-                }
-            }
-        }
-        v
+    pub fn isolate_window(&self, window_size:usize, x:usize, y:usize) -> DnVec {
+        self.buffer.isolate_window_2d(self.width, self.height, window_size, x, y)
     }
 
     pub fn get(&self, x:usize, y:usize) -> error::Result<f32> {
@@ -564,232 +497,73 @@ impl ImageBuffer {
     }
 
     // Computes the mean of all pixel values
-    pub fn mean(&self) -> f32 {
-
-        let mut total:f32 = 0.0;
-        let mut count:f32 = 0.0;
-
-        // It is *soooo* inefficient to keep doing this...
-        for y in 0..self.height {
-            for x in 0..self.width {
-                if self.get_mask_at_point(x, y).unwrap() {
-                    let pixel_value = self.get(x, y).unwrap();
-                    if pixel_value > 0.0 {
-                        total += pixel_value;
-                        count += 1.0;
-                    }
-                }   
-            }
-        }
-
-        if count > 0.0 { // Prevent divide-by-zero on fully-masked images
-            total / count
-        } else {
-            0.0
-        }
+    pub fn mean(&self) -> Dn {
+        self.buffer.mean()
     }
 
     pub fn divide_mut(&mut self, other:&ImageBuffer) {
-
-        if self.width != other.width || self.height != other.height {
-            panic!("Array size mismatch");
-        }
-
-        for i in 0..self.buffer.len() {
-            if self.get_mask_at_index(i).unwrap() {
-                self.buffer[i] = if other.buffer[i] != 0.0 { self.buffer[i] / other.buffer[i] } else { 0.0 };
-            }
-        }
+        self.buffer.divide_mut(&other.buffer);
     }
 
     pub fn divide(&self, other:&ImageBuffer) -> error::Result<ImageBuffer> {
-
-        if self.width != other.width || self.height != other.height {
-            panic!("Array size mismatch");
-        }
-
-        let need_len = self.width * self.height;
-        let mut v:Vec<f32> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0.0);
-
-        for i in 0..need_len {
-            if self.get_mask_at_index(i).unwrap() {
-                let quotient = if other.buffer[i] != 0.0 { self.buffer[i] / other.buffer[i] } else { 0.0 };
-                v[i] = quotient;
-            }
-        }
-
-        ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode)
+        ImageBuffer::new_from_op(&self.buffer.divide(&other.buffer), self.width, self.height, &self.mask, self.mode)
     }
 
-    pub fn divide_into_mut(&mut self, divisor:f32) {
-        for i in 0..self.buffer.len() {
-            if self.get_mask_at_index(i).unwrap() {
-                self.buffer[i] = if self.buffer[i] != 0.0 { divisor / self.buffer[i] } else { 0.0 };
-            }
-        }
+    pub fn divide_into_mut(&mut self, divisor:Dn) {
+        self.buffer.divide_into_mut(divisor);
     }
 
-    pub fn divide_into(&self, divisor:f32) -> error::Result<ImageBuffer> {
-        
-        let need_len = self.width * self.height;
-        let mut v:Vec<f32> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0.0);
-
-        for i in 0..need_len {
-            if self.get_mask_at_index(i).unwrap() {
-                let quotient = if self.buffer[i] != 0.0 { divisor / self.buffer[i] } else { 0.0 };
-                v[i] = quotient;
-            }
-        }
-
-        ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode)
+    pub fn divide_into(&self, divisor:Dn) -> error::Result<ImageBuffer> {
+        ImageBuffer::new_from_op(&self.buffer.divide_into(divisor), self.width, self.height, &self.mask, self.mode)
     }
 
-    pub fn scale_mut(&mut self, scalar:f32) {
-        for i in 0..self.buffer.len() {
-            if self.get_mask_at_index(i).unwrap() {
-                self.buffer[i] = self.buffer[i] * scalar;
-            }
-        }
+    pub fn scale_mut(&mut self, scalar:Dn) {
+        self.buffer.scale_mut(scalar);
     }
 
-    pub fn scale(&self, scalar:f32) -> error::Result<ImageBuffer> {
-        let need_len = self.width * self.height;
-        let mut v:Vec<f32> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0.0);
-
-        for i in 0..need_len {
-            if self.get_mask_at_index(i).unwrap() {
-                let product = self.buffer[i] * scalar;
-                v[i] = product;
-            }
-        }
-
-        ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode)
+    pub fn scale(&self, scalar:Dn) -> error::Result<ImageBuffer> {
+        ImageBuffer::new_from_op(&self.buffer.scale(scalar), self.width, self.height, &self.mask, self.mode)
     }
 
     pub fn multiply_mut(&mut self, other:&ImageBuffer) {
-
-        if self.width != other.width || self.height != other.height {
-            panic!("Array size mismatch");
-        }
-
-        for i in 0..self.buffer.len() {
-            if self.get_mask_at_index(i).unwrap() {
-                self.buffer[i] = self.buffer[i] * other.buffer[i];
-            }
-        }
+        self.buffer.multiply_mut(&other.buffer);
     }
 
     pub fn multiply(&self, other:&ImageBuffer) -> error::Result<ImageBuffer> {
-
-        if self.width != other.width || self.height != other.height {
-            panic!("Array size mismatch");
-        }
-
-        let need_len = self.width * self.height;
-        let mut v:Vec<f32> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0.0);
-
-        for i in 0..need_len {
-            if self.get_mask_at_index(i).unwrap() {
-                let product = self.buffer[i] * other.buffer[i];
-                v[i] = product;
-            }
-        }
-
-        ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode)
+        ImageBuffer::new_from_op(&self.buffer.multiply(&other.buffer), self.width, self.height, &self.mask, self.mode)
     }
 
     pub fn add_mut(&mut self, other:&ImageBuffer) {
-        if self.width != other.width || self.height != other.height {
-            panic!("Array size mismatch");
-        }
-
-        for i in 0..self.buffer.len() {
-            if self.get_mask_at_index(i).unwrap() {
-                self.buffer[i] = self.buffer[i] + other.buffer[i];
-            }
-        }
+        self.buffer.add_mut(&other.buffer);
     }
 
-    pub fn add_across_mut(&mut self, other:f32) {
-        for i in 0..self.buffer.len() {
-            if self.get_mask_at_index(i).unwrap() {
-                self.buffer[i] = self.buffer[i] + other;
-            }
-        }
+    pub fn add_across_mut(&mut self, other:Dn) {
+        self.buffer.add_across_mut(other);
     }
 
     pub fn add(&self, other:&ImageBuffer) -> error::Result<ImageBuffer> {
-
-        if self.width != other.width || self.height != other.height {
-            panic!("Array size mismatch");
-        }
-
-        let need_len = self.width * self.height;
-        let mut v:Vec<f32> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0.0);
-
-        for i in 0..need_len {
-            if self.get_mask_at_index(i).unwrap() {
-                let result = self.buffer[i] + other.buffer[i];
-                v[i] = result;
-            }
-        }
-
-        ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode)
+        ImageBuffer::new_from_op(&self.buffer.add(&other.buffer), self.width, self.height, &self.mask, self.mode)
     }
 
     pub fn subtract_mut(&mut self, other:&ImageBuffer) {
-        if self.width != other.width || self.height != other.height {
-            panic!("Array size mismatch");
-        }
-
-        for i in 0..self.buffer.len() {
-            if self.get_mask_at_index(i).unwrap() {
-                self.buffer[i] = self.buffer[i] - other.buffer[i];
-            }
-        }
+        self.buffer.subtract_mut(&other.buffer);
     }
 
-    pub fn subtract_across_mut(&mut self, other:f32) {
-        for i in 0..self.buffer.len() {
-            if self.get_mask_at_index(i).unwrap() {
-                self.buffer[i] = self.buffer[i] - other;
-            }
-        }
+    pub fn subtract_across_mut(&mut self, other:Dn) {
+        self.buffer.subtract_across_mut(other);
     }
 
     pub fn subtract(&self, other:&ImageBuffer) -> error::Result<ImageBuffer> {
-
-        if self.width != other.width || self.height != other.height {
-            panic!("Array size mismatch");
-        }
-
-        let need_len = self.width * self.height;
-        let mut v:Vec<f32> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0.0);
-
-        for i in 0..need_len {
-            if self.get_mask_at_index(i).unwrap() {
-                let difference = self.buffer[i] - other.buffer[i];
-                v[i] = difference;
-            }
-        }
-
-        ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode)
+        ImageBuffer::new_from_op(&self.buffer.subtract(&other.buffer), self.width, self.height, &self.mask, self.mode)
     }
 
 
     pub fn shift_to_min_zero(&self) -> error::Result<ImageBuffer> {
 
-        let minmax = self.get_min_max().unwrap();
+        let minmax = self.get_min_max();
 
         let need_len = self.width * self.height;
-        let mut v:Vec<f32> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0.0);
+        let mut v = DnVec::zeros(need_len);
 
         for i in 0..need_len {
             if self.get_mask_at_index(i).unwrap() {
@@ -802,26 +576,15 @@ impl ImageBuffer {
             }
         }
 
-        Ok(ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode).unwrap())
+        Ok(ImageBuffer::new_from_op(&v, self.width, self.height, &self.mask, self.mode).unwrap())
     }
 
     pub fn normalize_force_minmax(&self, min:f32, max:f32, forced_min:f32, forced_max:f32) -> error::Result<ImageBuffer> {
-        let need_len = self.width * self.height;
-        let mut v:Vec<f32> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0.0);
-
-        for i in 0..need_len {
-            if self.get_mask_at_index(i).unwrap() {
-                let value = ((self.buffer[i] - forced_min) / (forced_max- forced_min)) * (max - min) + min;
-                v[i] = value;
-            }
-        }
-
-        Ok(ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode).unwrap())
+        ImageBuffer::new_from_op(&self.buffer.normalize_force_minmax(min, max, forced_min, forced_max), self.width, self.height, &self.mask, self.mode)
     }
 
     pub fn normalize(&self, min:f32, max:f32) -> error::Result<ImageBuffer> {
-        let minmax = self.get_min_max().unwrap();
+        let minmax = self.get_min_max();
         self.normalize_force_minmax(min, max, minmax.min, minmax.max)
     }
 
@@ -831,91 +594,50 @@ impl ImageBuffer {
 
 
     pub fn crop(&self, height:usize, width:usize) -> error::Result<ImageBuffer> {
-        let cropped_buffer = crop_array(&self.buffer, self.width, self.height, width, height);
+        let cropped_buffer = crate::center_crop_2d(&self.buffer, self.width, self.height, width, height);
 
         let cropped_mask = match &self.mask {
-            Some(m) => Some(crop_array(&m, self.width, self.height, width, height)),
+            Some(m) => Some(crate::center_crop_2d(&m, self.width, self.height, width, height)),
             None => None,
         };
-        ImageBuffer::new_from_op(cropped_buffer, width, height, &cropped_mask, self.mode)
+        ImageBuffer::new_from_op(&cropped_buffer, width, height, &cropped_mask, self.mode)
     }
 
     pub fn clip(&self, clip_min:f32, clip_max:f32) -> error::Result<ImageBuffer> {
-        let need_len = self.width * self.height;
-        let mut v:Vec<f32> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0.0);
-
-        for i in 0..need_len {
-            if self.get_mask_at_index(i).unwrap() {
-                let value = self.buffer[i];
-                if value < clip_min {
-                    v[i] = clip_min;
-                } else if value > clip_max {
-                    v[i] = clip_max;
-                } else {
-                    v[i] = value;
-                }
-            }
-        }
-
-        Ok(ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode).unwrap())
+        ImageBuffer::new_from_op(&self.buffer.clip(clip_min, clip_max), self.width, self.height, &self.mask, self.mode)
     }
 
     pub fn clip_mut(&mut self, clip_min:f32, clip_max:f32) {
-        for i in 0..self.buffer.len() {
-            if self.get_mask_at_index(i).unwrap() {
-                let value = self.buffer[i];
-                if value < clip_min {
-                    self.buffer[i] = clip_min;
-                } else if value > clip_max {
-                    self.buffer[i] = clip_max;
-                } 
-            }
-        }
+        self.buffer.clip_mut(clip_min, clip_max);
     }
 
     pub fn power(&self, power:f32) -> error::Result<ImageBuffer> {
-        let need_len = self.width * self.height;
-        let mut v:Vec<f32> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0.0);
-
-        for i in 0..need_len {
-            if self.get_mask_at_index(i).unwrap() {
-                let value = self.buffer[i];
-                v[i] = value.powf(power);
-            }
-        }
-
-        Ok(ImageBuffer::new_from_op(v, self.width, self.height, &self.mask, self.mode).unwrap())
+        ImageBuffer::new_from_op(&self.buffer.power(power), self.width, self.height, &self.mask, self.mode)
     }
 
     pub fn power_mut(&mut self, power:f32) {
-        for i in 0..self.buffer.len() {
-            if self.get_mask_at_index(i).unwrap() {
-                self.buffer[i] = self.buffer[i].powf(power);
-            }
-        }
+        self.buffer.power_mut(power);
     }
 
-    pub fn calc_center_of_mass_offset(&self, threshold:f32) -> Offset {
-        let mut ox: f32 = 0.0;
-        let mut oy: f32 = 0.0;
+    pub fn calc_center_of_mass_offset(&self, threshold:Dn) -> Offset {
+        let mut ox: Dn = 0.0;
+        let mut oy: Dn = 0.0;
         let mut count: u32 = 0;
     
         for y in 0..self.height {
             for x in 0..self.width {
                 let val = self.get(x, y).unwrap();
                 if val >= threshold {
-                    ox = ox + (x as f32);
-                    oy = oy + (y as f32);
+                    ox = ox + (x as Dn);
+                    oy = oy + (y as Dn);
                     count = count + 1;
                 }   
             }
         }
     
         if count > 0 {
-            ox = (self.width as f32 / 2.0) - (ox / (count as f32));
-            oy = (self.height as f32 / 2.0) - (oy / (count as f32));
+            ox = (self.width as Dn / 2.0) - (ox / (count as Dn));
+            oy = (self.height as Dn / 2.0) - (oy / (count as Dn));
         }
     
         Offset{
@@ -925,29 +647,11 @@ impl ImageBuffer {
     }
 
     pub fn paste_mut(&mut self, src:&ImageBuffer, tl_x:usize, tl_y:usize) {
-        for y in 0..src.height {
-            for x in 0..src.width {
-
-                let dest_x = tl_x + x;
-                let dest_y = tl_y + y;
-
-                self.put(dest_x, dest_y, src.get(x, y).unwrap());
-            }
-        }
+        self.buffer.paste_mut_2d(self.width, self.height, &src.buffer, src.width, src.height, tl_x, tl_y);
     }
 
     pub fn paste(&self, src:&ImageBuffer, tl_x:usize, tl_y:usize) -> error::Result<ImageBuffer> {
-        let mut new_buffer = ImageBuffer::from_vec_with_mask(self.buffer.clone(), self.width, self.height, &self.mask).unwrap();
-        for y in 0..src.height {
-            for x in 0..src.width {
-
-                let dest_x = tl_x + x;
-                let dest_y = tl_y + y;
-
-                new_buffer.put(dest_x, dest_y, src.get(x, y).unwrap());
-            }
-        }
-        Ok(new_buffer)
+        ImageBuffer::from_vec_with_mask(&self.buffer.paste_2d(self.width, self.height, &src.buffer, src.width, src.height, tl_x, tl_y), self.width, self.height, &self.mask)
     }
 
 
@@ -997,22 +701,8 @@ impl ImageBuffer {
         Ok(shifted_buffer)
     }
 
-    pub fn get_min_max(&self) -> error::Result<MinMax> {
-        
-        let mut mx:f32 = std::f32::MIN;
-        let mut mn:f32 = std::f32::MAX;
-
-        for y in 0..self.height {
-            for x in 0..self.width {
-                if self.get_mask_at_point(x, y).unwrap() {
-                    let val = self.get(x, y).unwrap() as f32;
-                    mx = if val > mx { val } else { mx };
-                    mn = if val < mn { val } else { mn };
-                }
-            }
-        }
-        
-        Ok(MinMax{min:mn, max:mx})
+    pub fn get_min_max(&self) -> MinMax {
+        self.buffer.get_min_max()
     }
 
 
