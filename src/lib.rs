@@ -24,8 +24,8 @@ pub mod prelude;
 
 
 // Dn -> Digital number / image pixel value as 32 bit floating point.
-type Dn = f32;
-type DnVec = Vec<Dn>;
+pub type Dn = f32;
+pub type DnVec = Vec<Dn>;
 
 pub fn center_crop_2d<T:Copy>(from_array:&Vec<T>, from_width:usize, from_height:usize, to_width:usize, to_height:usize) -> Vec<T> {
     let mut new_arr : Vec<T> = Vec::with_capacity(to_width * to_height);
@@ -65,6 +65,11 @@ pub struct MinMax {
     pub min: Dn,
     pub max: Dn,
 }
+
+
+//////////////////////////////////////////////////
+/// Dn Vector (Unmasked)
+//////////////////////////////////////////////////
 
 pub trait VecMath {
     fn fill(capacity:usize, fill_value:Dn) -> DnVec;
@@ -448,3 +453,37 @@ impl VecMath for DnVec {
     }
 
 }
+
+//////////////////////////////////////////////////
+/// Mask
+//////////////////////////////////////////////////
+
+pub type MaskVec = Vec<bool>;
+pub trait Mask {
+    fn new(capacity:usize) -> MaskVec;
+    fn fill(capacity:usize, fill_value:bool) -> MaskVec;
+}
+
+impl Mask for MaskVec {
+    fn new(capacity:usize) -> MaskVec {
+        Self::fill(capacity, false)
+    }
+
+    fn fill(capacity:usize, fill_value:bool) -> MaskVec {
+        let mut v:MaskVec = Vec::with_capacity(capacity);
+        v.resize(capacity, fill_value);
+        v
+    }
+}
+
+
+//////////////////////////////////////////////////
+/// Dn Vector (Masked)
+//////////////////////////////////////////////////
+
+pub trait MaskedDnVec {
+    fn fill(capacity:usize, fill_value:Dn, mask:&MaskVec) -> Self;
+    fn zeros(capacity:usize, mask:&MaskVec) -> Self;
+}
+
+// ...
