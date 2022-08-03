@@ -63,6 +63,8 @@ fn test_maskeddnvec() {
 
     v.mask[50] = false;
     assert_eq!(v[50], 0.0);
+    v[50] = 30.0;
+    assert_eq!(v[50], 0.0);
     assert_eq!(v.min(), 0.0);
     assert_eq!(v.max(), 20.0);
     assert_eq!(v.get_min_max().min, 0.0);
@@ -80,5 +82,13 @@ fn test_maskeddnvec() {
     assert_eq!(v.variance(), 28.509993);
     
 
+    v[50] = 40.0;
+    assert_eq!(v[50], 40.0);
+    assert_eq!(v.min(), 0.0);
+    assert_eq!(v.max(), 40.0);
+    assert_eq!(v.get_min_max().min, 0.0);
+    assert_eq!(v.get_min_max().max, 40.0);
+    assert_eq!(v.stddev(), 4.4317026);
+    assert_eq!(v.variance(), 19.63999);
     // And so ...
 }
