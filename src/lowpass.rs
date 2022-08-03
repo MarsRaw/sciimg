@@ -19,7 +19,7 @@ fn isolate_window(buffer:&ImageBuffer, window_size:usize, x:usize, y:usize) -> V
                 && get_x < buffer.width as i32 
                 && get_y >= 0 
                 && get_y < buffer.height as i32
-                && buffer.get_mask_at_point(get_x as usize, get_y as usize).unwrap()
+                && buffer.get_mask_at_point(get_x as usize, get_y as usize)
                 {
                 v.push(buffer.get(get_x as usize, get_y as usize).unwrap());
             }
@@ -36,7 +36,7 @@ fn mean_of_window(buffer:&ImageBuffer, window_size:usize, x:usize, y:usize) -> O
 
 pub fn lowpass_imagebuffer(imagebuff:&ImageBuffer, window_size:usize) -> ImageBuffer {
     
-    let mut lowpass_buffer = ImageBuffer::new_with_mask(imagebuff.width, imagebuff.height, &imagebuff.mask).unwrap();
+    let mut lowpass_buffer = ImageBuffer::new_with_mask(imagebuff.width, imagebuff.height, &imagebuff.to_mask()).unwrap();
 
     (0..lowpass_buffer.height).for_each(|y| {
 

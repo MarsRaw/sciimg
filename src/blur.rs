@@ -66,5 +66,5 @@ pub fn blur_imagebuffer(imagebuff:&ImageBuffer, amount:f32) -> ImageBuffer {
 
     let v_u16 = imagebuff.to_vector_u16();
     let blurred = blur_vec_u16(&v_u16, imagebuff.width, imagebuff.height, amount);
-    ImageBuffer::from_vec_u16_with_mask(&blurred, imagebuff.width, imagebuff.height, &imagebuff.mask).unwrap()
+    ImageBuffer::from_vec_u16_with_mask(&blurred, imagebuff.width, imagebuff.height, &imagebuff.to_mask()).unwrap()
 }

@@ -85,9 +85,9 @@ pub fn color_noise_reduction(image:&mut RgbImage, amount:i32) -> RgbImage {
 
     let rgbs = labs_to_rgbs(&labs_recombined);
 
-    let mut red = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(0).mask).unwrap();
-    let mut green = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(1).mask).unwrap();
-    let mut blue = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(2).mask).unwrap();
+    let mut red = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(0).to_mask()).unwrap();
+    let mut green = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(1).to_mask()).unwrap();
+    let mut blue = ImageBuffer::new_with_mask(image.width, image.height, &image.get_band(2).to_mask()).unwrap();
 
     for y in 0..image.height {
         for x in 0..image.width {

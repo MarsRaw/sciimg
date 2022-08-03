@@ -549,11 +549,26 @@ impl Iterator for MaskedDnVecIter<'_> {
 
 impl MaskedDnVec {
     
+    pub fn new() -> Self {
+        MaskedDnVec { 
+            vec: DnVec::new(), 
+            mask: MaskVec::new(), 
+            null: 0.0
+        }
+    }
     pub fn from_dnvec(vec:&DnVec) -> Self {
         MaskedDnVec { 
             vec: vec.clone(), 
             mask: MaskVec::new_mask(vec.len()), 
             null: 0.0 
+        }
+    }
+
+    pub fn from_maskvec(vec:&MaskVec) -> Self {
+        MaskedDnVec { 
+            vec: DnVec::zeros(vec.len()), 
+            mask: vec.clone(), 
+            null: 0.0
         }
     }
 
@@ -565,6 +580,43 @@ impl MaskedDnVec {
             vec: vec.clone(), 
             mask: mask.clone(), 
             null: 0.0
+        }
+    }
+
+    pub fn to_vector(&self) -> DnVec {
+        let mut v = self.vec.clone();
+        (0..v.len()).for_each(|i| {
+            if self.mask_at(i) {
+                v[i] = 0.0;
+            }
+        });
+        v
+    }
+
+    pub fn apply_mask(&mut self, mask:&MaskVec) {
+        if self.mask.len() != mask.len() {
+            panic!("DnVec and MaskVec are different lengths");
+        }
+        (0..self.mask.len()).for_each(|i| {
+            self.mask[i] = mask[i];
+        });
+    }
+
+    pub fn mask_at(&self, index:usize) -> bool {
+        self.mask[index]
+    }
+
+    pub fn clear_mask(&mut self) {
+        (0..self.mask.len()).for_each(|i| {
+            self.mask[i] = true;
+        });
+    }
+
+    pub fn fill_with_both(capacity:usize, dn_fill_value:Dn, mask_fill_value:bool) -> Self {
+        MaskedDnVec { 
+            vec: DnVec::fill(capacity, dn_fill_value), 
+            mask: MaskVec::fill_mask(capacity, mask_fill_value),
+            null : 0.0
         }
     }
 
@@ -595,8 +647,6 @@ impl MaskedDnVec {
     }
 
     pub fn iter(&self) -> MaskedDnVecIter<'_> {
-        //Iter::new(self)
-        //self.vec.iter()
         MaskedDnVecIter::new(&self)
     }
 }
@@ -612,6 +662,14 @@ impl Index<usize> for MaskedDnVec {
     }
 }
 
+impl Index<std::ops::Range<usize>> for MaskedDnVec {
+    type Output = [Dn];
+    fn index<'a>(&'a self, i: std::ops::Range<usize>) -> &'a [Dn] {
+        &self.vec[i.start..i.end]
+        // TODO: Actually mask the stuff
+    }
+}
+
 impl IndexMut<usize> for MaskedDnVec {
     fn index_mut<'a>(&'a mut self, i: usize) -> &'a mut Dn {
         if self.mask[i] {
@@ -619,6 +677,13 @@ impl IndexMut<usize> for MaskedDnVec {
         } else {
             &mut self.null
         }
+    }
+}
+
+impl IndexMut<std::ops::Range<usize>> for MaskedDnVec {
+    fn index_mut<'a>(&'a mut self, i: std::ops::Range<usize>) -> &'a mut [Dn] {
+        &mut self.vec[i.start..i.end]
+        // TODO: Actually mask the stuff
     }
 }
 

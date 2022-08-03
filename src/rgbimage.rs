@@ -294,7 +294,7 @@ impl RgbImage {
 
     pub fn get_mask_at(&self, x:usize, y:usize) -> bool {
         for i in 0..self.bands.len() {
-            if ! self.bands[i].get_mask_at_point(x, y).unwrap() {
+            if ! self.bands[i].get_mask_at_point(x, y) {
                 return false;
             }
         }
@@ -614,7 +614,7 @@ impl RgbImage {
             for x in 0..self.width {
 
                 let r = self.bands[band].get(x, y).unwrap().round() as u16;
-                let a = if self.bands[band].get_mask_at_point(x, y).unwrap() { 65535 } else { 0 };
+                let a = if self.bands[band].get_mask_at_point(x, y) { 65535 } else { 0 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([r, r, r, a]));
             }
         }
@@ -637,7 +637,7 @@ impl RgbImage {
                 let r = self.bands[0].get(x, y).unwrap().round() as u16;
                 let g = self.bands[1].get(x, y).unwrap().round() as u16;
                 let b = self.bands[2].get(x, y).unwrap().round() as u16;
-                let a = if self.bands[0].get_mask_at_point(x, y).unwrap() || self.bands[1].get_mask_at_point(x, y).unwrap() || self.bands[2].get_mask_at_point(x, y).unwrap() { 65535 } else { 0 };
+                let a = if self.bands[0].get_mask_at_point(x, y)|| self.bands[1].get_mask_at_point(x, y) || self.bands[2].get_mask_at_point(x, y) { 65535 } else { 0 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([r, g, b, a]));
             }
         }
@@ -668,7 +668,7 @@ impl RgbImage {
         for y in 0..self.height {
             for x in 0..self.width {
                 let r = self.bands[band].get(x, y).unwrap().round() as u8;
-                let a = if self.bands[band].get_mask_at_point(x, y).unwrap() { 255 } else { 0 };
+                let a = if self.bands[band].get_mask_at_point(x, y) { 255 } else { 0 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([r, r, r, a]));
             }
         }
@@ -690,7 +690,7 @@ impl RgbImage {
                 let r = self.bands[0].get(x, y).unwrap().round() as u8;
                 let g = self.bands[1].get(x, y).unwrap().round() as u8;
                 let b = self.bands[2].get(x, y).unwrap().round() as u8;
-                let a = if self.bands[0].get_mask_at_point(x, y).unwrap() || self.bands[1].get_mask_at_point(x, y).unwrap() || self.bands[2].get_mask_at_point(x, y).unwrap() { 255 } else { 0 };
+                let a = if self.bands[0].get_mask_at_point(x, y) || self.bands[1].get_mask_at_point(x, y) || self.bands[2].get_mask_at_point(x, y) { 255 } else { 0 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([r, g, b, a]));
             }
         }

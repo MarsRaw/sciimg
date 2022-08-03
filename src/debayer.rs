@@ -79,9 +79,9 @@ fn solve(data_5x5_window:&[f32; 25], mask_5x5_window:&[bool; 25], coefficients:&
 }
 
 pub fn debayer(buffer:&ImageBuffer) -> error::Result<RgbImage> {
-    let mut red = ImageBuffer::new_with_mask(buffer.width, buffer.height, &buffer.mask).unwrap();
-    let mut green = ImageBuffer::new_with_mask(buffer.width, buffer.height, &buffer.mask).unwrap();
-    let mut blue = ImageBuffer::new_with_mask(buffer.width, buffer.height, &buffer.mask).unwrap();
+    let mut red = ImageBuffer::new_with_mask(buffer.width, buffer.height, &buffer.to_mask()).unwrap();
+    let mut green = ImageBuffer::new_with_mask(buffer.width, buffer.height, &buffer.to_mask()).unwrap();
+    let mut blue = ImageBuffer::new_with_mask(buffer.width, buffer.height, &buffer.to_mask()).unwrap();
 
     let mut data_5x5_window : [f32; 25] =  [0.0; 25];
     let mut mask_5x5_window : [bool; 25] = [false; 25];

@@ -41,7 +41,7 @@ pub fn get_point_quality_estimation(image:&rgbimage::RgbImage, window_size:usize
 pub fn get_quality_estimation_on_buffer(image:&imagebuffer::ImageBuffer) -> f32 {
     let blurred = apply_blur(&image, 5);
     let diff = blurred.subtract(&image).unwrap();
-    match stats::std_deviation(&diff.buffer[..]) {
+    match stats::std_deviation(&diff.buffer.to_vector()) {
         Some(sd) => sd,
         None => 0.0
     }
