@@ -549,6 +549,25 @@ impl Iterator for MaskedDnVecIter<'_> {
 
 impl MaskedDnVec {
     
+    pub fn from_dnvec(vec:&DnVec) -> Self {
+        MaskedDnVec { 
+            vec: vec.clone(), 
+            mask: MaskVec::new_mask(vec.len()), 
+            null: 0.0 
+        }
+    }
+
+    pub fn from_dnvec_and_mask(vec:&DnVec, mask:&MaskVec) -> Self {
+        if vec.len() != mask.len() {
+            panic!("DnVec and MaskVec are different lengths");
+        }
+        MaskedDnVec { 
+            vec: vec.clone(), 
+            mask: mask.clone(), 
+            null: 0.0
+        }
+    }
+
     pub fn fill_with_mask(capacity:usize, fill_value:Dn, mask:&MaskVec) -> Self {
         if mask.len() != capacity {
             panic!("Mask length does not equal vector capacity");
