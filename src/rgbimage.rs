@@ -12,7 +12,9 @@ use crate::{
     hotpixel,
     min,
     max,
-    imagerot
+    imagerot,
+    Mask,
+    MaskVec
 };
 
 use image::{
@@ -25,6 +27,8 @@ use image::{
 #[derive(Debug, Clone)]
 pub struct RgbImage {
     bands : Vec<ImageBuffer>,
+    alpha: MaskVec,  // Intended to work as an alpha transparency band
+    uses_alpha: bool,
     pub width: usize,
     pub height: usize,
     mode: enums::ImageMode,
@@ -48,6 +52,8 @@ impl RgbImage {
 
         Ok(RgbImage{
             bands:vec!(),
+            alpha:MaskVec::new(),
+            uses_alpha: false,
             width,
             height,
             mode:mode,
@@ -63,6 +69,8 @@ impl RgbImage {
         }
         Ok(RgbImage{
             bands,
+            alpha:MaskVec::new(),
+            uses_alpha:false,
             width,
             height,
             mode:mode,
@@ -74,14 +82,13 @@ impl RgbImage {
 
         let mut bands : Vec<ImageBuffer> = vec!();
         for _ in 0..num_bands {
-            bands.push(ImageBuffer::new_with_mask_as(width, height, mask_value).unwrap());
+            bands.push(ImageBuffer::new(width, height).unwrap());
         }
-
-        let mut mask:Vec<bool> = Vec::with_capacity(width * height);
-        mask.resize(width * height, true);
 
         Ok(RgbImage{
             bands,
+            alpha:MaskVec::fill_mask(width*height, mask_value),
+            uses_alpha: true,
             width,
             height,
             mode:mode,
@@ -92,6 +99,8 @@ impl RgbImage {
     pub fn new_empty() -> error::Result<RgbImage> {
         Ok(RgbImage{
             bands:vec!(),
+            alpha:MaskVec::new(),
+            uses_alpha:false,
             width:0,
             height:0,
             mode:enums::ImageMode::U8BIT,
@@ -129,7 +138,7 @@ impl RgbImage {
                 rgbimage.put(x, y, green, 1);
                 rgbimage.put(x, y, blue, 2);
 
-                rgbimage.put_mask(x, y, alpha > 0.0, 0);
+                rgbimage.put_alpha(x, y, alpha > 0.0);
             }
         }
 
@@ -162,7 +171,7 @@ impl RgbImage {
                 rgbimage.put(x, y, green, 1);
                 rgbimage.put(x, y, blue, 2);
                 
-                rgbimage.put_mask(x, y, alpha > 0.0, 0);
+                rgbimage.put_alpha(x, y, alpha > 0.0);
             }
         }
 
@@ -172,6 +181,8 @@ impl RgbImage {
     pub fn new_from_buffers_rgb(red:&ImageBuffer, green:&ImageBuffer, blue:&ImageBuffer, mode:enums::ImageMode) -> error::Result<RgbImage> {
         Ok(RgbImage{
             bands:vec![red.clone(), green.clone(), blue.clone()],
+            alpha:MaskVec::new(),
+            uses_alpha:false,
             width:red.width,
             height:red.height,
             mode,
@@ -277,9 +288,9 @@ impl RgbImage {
         }
     }
 
-    pub fn put_mask(&mut self, x:usize, y:usize, value:bool, band:usize) {
+    pub fn put_alpha(&mut self, x:usize, y:usize, value:bool) {
         if x < self.width && y < self.height {
-            self.bands[band].put_mask(x, y, value);
+            self.alpha.put_2d(self.width, self.height, x, y, value);
         } else {
             panic!("Invalid pixel coordinates");
         }
@@ -292,13 +303,30 @@ impl RgbImage {
     }
 
 
-    pub fn get_mask_at(&self, x:usize, y:usize) -> bool {
-        for i in 0..self.bands.len() {
-            if ! self.bands[i].get_mask_at_point(x, y) {
-                return false;
-            }
+    pub fn get_alpha_at(&self, x:usize, y:usize) -> bool {
+        if self.uses_alpha {
+            self.alpha.get_2d(self.width, self.height, x, y)
+        } else {
+            true
         }
-        true
+    }
+
+    // Doesn't do anything if alpha is already enabled.
+    pub fn init_alpha(&mut self) {
+        if self.uses_alpha == false {
+            self.uses_alpha = true;
+            self.alpha = MaskVec::new_mask(self.width*self.height);
+        }
+    }
+
+    pub fn clear_alpha(&mut self) {
+        if self.uses_alpha {
+            self.alpha.clear_mask();
+        }
+    }
+
+    pub fn is_using_alpha(&self) -> bool {
+        self.uses_alpha
     }
 
     pub fn apply_mask_to_band(&mut self, mask:&ImageBuffer, band:usize) {
@@ -311,10 +339,8 @@ impl RgbImage {
         self.bands[band].clear_mask();
     }
 
-    pub fn copy_mask_from(&mut self, src:&ImageBuffer) {
-        for i in 0..self.bands.len() {
-            src.copy_mask_to(&mut self.bands[i]);
-        }
+    pub fn copy_alpha_from(&mut self, src:&ImageBuffer) {
+        self.alpha = ImageBuffer::buffer_to_mask(&src);
     }
 
     pub fn calibrate_band(&mut self, band:usize, flat_field:&RgbImage, dark_field:&RgbImage, dark_flat_field:&RgbImage) {
@@ -614,7 +640,7 @@ impl RgbImage {
             for x in 0..self.width {
 
                 let r = self.bands[band].get(x, y).unwrap().round() as u16;
-                let a = if self.bands[band].get_mask_at_point(x, y) { 65535 } else { 0 };
+                let a: u16 = if self.get_alpha_at(x, y) { 65535 } else { 0 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([r, r, r, a]));
             }
         }
@@ -637,7 +663,7 @@ impl RgbImage {
                 let r = self.bands[0].get(x, y).unwrap().round() as u16;
                 let g = self.bands[1].get(x, y).unwrap().round() as u16;
                 let b = self.bands[2].get(x, y).unwrap().round() as u16;
-                let a = if self.bands[0].get_mask_at_point(x, y)|| self.bands[1].get_mask_at_point(x, y) || self.bands[2].get_mask_at_point(x, y) { 65535 } else { 0 };
+                let a = if self.get_alpha_at(x, y) { 65535 } else { 0 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([r, g, b, a]));
             }
         }
@@ -668,7 +694,7 @@ impl RgbImage {
         for y in 0..self.height {
             for x in 0..self.width {
                 let r = self.bands[band].get(x, y).unwrap().round() as u8;
-                let a = if self.bands[band].get_mask_at_point(x, y) { 255 } else { 0 };
+                let a = if self.get_alpha_at(x, y) { 255 } else { 0 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([r, r, r, a]));
             }
         }
@@ -690,7 +716,7 @@ impl RgbImage {
                 let r = self.bands[0].get(x, y).unwrap().round() as u8;
                 let g = self.bands[1].get(x, y).unwrap().round() as u8;
                 let b = self.bands[2].get(x, y).unwrap().round() as u8;
-                let a = if self.bands[0].get_mask_at_point(x, y) || self.bands[1].get_mask_at_point(x, y) || self.bands[2].get_mask_at_point(x, y) { 255 } else { 0 };
+                let a = if self.get_alpha_at(x, y) { 255 } else { 0 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([r, g, b, a]));
             }
         }

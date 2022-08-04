@@ -486,6 +486,9 @@ pub type MaskVec = Vec<bool>;
 pub trait Mask {
     fn new_mask(capacity:usize) -> MaskVec;
     fn fill_mask(capacity:usize, fill_value:bool) -> MaskVec;
+    fn get_2d(&self, width_2d:usize, height_2d:usize, x:usize, y:usize) -> bool;
+    fn put_2d(&mut self, width_2d:usize, height_2d:usize, x:usize, y:usize, value:bool);
+    fn clear_mask(&mut self);
 }
 
 impl Mask for MaskVec {
@@ -497,6 +500,34 @@ impl Mask for MaskVec {
         let mut v:MaskVec = Vec::with_capacity(capacity);
         v.resize(capacity, fill_value);
         v
+    }
+
+    fn get_2d(&self, width_2d:usize, height_2d:usize, x:usize, y:usize) -> bool {
+        if x >= width_2d || y >= height_2d {
+            panic!("Invalid pixel coordinates");
+        }
+        let idx = y * width_2d + x;
+        if idx >= self.len() {
+            panic!("Index outside array bounds");
+        }
+        self[idx]
+    }
+
+    fn put_2d(&mut self, width_2d:usize, height_2d:usize, x:usize, y:usize, value:bool) {
+        if x >= width_2d || y >= height_2d {
+            panic!("Invalid pixel coordinates");
+        }
+        let idx = y * width_2d + x;
+        if idx >= self.len() {
+            panic!("Index outside array bounds");
+        }
+        self[idx] = value;
+    }
+
+    fn clear_mask(&mut self) {
+        (0..self.len()).for_each(|i| {
+            self[i] = true;
+        });
     }
 }
 
