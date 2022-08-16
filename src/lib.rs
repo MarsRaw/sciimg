@@ -618,6 +618,8 @@ impl MaskedDnVec {
         let mut v = self.vec.clone();
         (0..v.len()).for_each(|i| {
             if self.mask_at(i) {
+                v[i] = self.vec[i];
+            } else {
                 v[i] = 0.0;
             }
         });
