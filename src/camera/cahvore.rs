@@ -4,7 +4,10 @@ use crate::{
     vector::Vector,
     //matrix::Matrix,
     camera::model::*,
-    util::vec_to_str
+    util::vec_to_str,
+    camera::cahv::*,
+    min,
+    max
 };
 
 use serde::{
@@ -316,3 +319,104 @@ impl CameraModelTrait for Cahvore {
 }
 
 
+
+//  Adapted from https://github.com/digimatronics/ComputerVision/blob/master/src/vw/Camera/CAHVOREModel.cc
+pub fn linearize(camera_model:&Cahvore, cahvor_width:usize, cahvor_height:usize, cahv_width:usize, cahv_height:usize) -> Cahv {
+    let limfov = std::f64::consts::PI * (3.0 / 4.0);
+    let minfov = true;
+
+    let mut output_camera = Cahv::default();
+    output_camera.c = camera_model.c.clone();
+
+    let hpts = vec![
+        Vector::default(),
+        Vector::new(0.0, (cahvor_height as f64 - 1.0) / 2.0, 0.0),
+        Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
+        Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
+        Vector::new(cahvor_width as f64 - 1.0, (cahvor_height as f64 - 1.0) / 2.0, 0.0),
+        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0).subtract(&Vector::new(1.0, 1.0, 0.0))
+    ];
+
+    let vpts = vec![
+        Vector::default(),
+        Vector::new((cahvor_width as f64 - 1.0)/2.0, 0.0, 0.0),
+        Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
+        Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
+        Vector::new((cahvor_width as f64 - 1.0) / 2.0, cahvor_height as f64 - 1.0, 0.0),
+        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0).subtract(&Vector::new(1.0, 1.0, 0.0))
+    ];
+
+    let p2_sample = (cahvor_width as f64 - 1.0) / 2.0;
+    let p2_line = (cahvor_height as f64 - 1.0) / 2.0;
+
+    output_camera.a = camera_model.ls_to_look_vector(&ImageCoordinate{line: p2_line as f64, sample: p2_sample as f64}).expect("Failed to project boresight").look_direction;
+
+    let mut dn = camera_model.a.cross_product(&camera_model.h);
+    //let mut rt = dn.cross_product(&camera_model.a).normalized();
+    dn = dn.normalized();
+
+    let mut rt = dn.cross_product(&output_camera.a);
+    dn = output_camera.a.cross_product(&rt).normalized();
+    rt = rt.normalized();
+
+    let mut hmin = 1.0;
+    let mut hmax = -1.0;
+    for local in hpts.iter() {
+        match camera_model.ls_to_look_vector(&ImageCoordinate{
+            line:local.y,
+            sample:local.x
+        }) {
+            Ok(lv) => {
+                let cs = output_camera.a.dot_product(&lv.look_direction.subtract(&dn.scale(dn.dot_product(&lv.look_direction))).normalized());
+                hmin = min!(hmin, cs);
+                hmax = max!(hmax, cs);
+            },
+            Err(_) => {}
+        }
+    }
+
+    let mut vmin = 1.0;
+    let mut vmax = -1.0;
+    for local in vpts.iter() {
+        match camera_model.ls_to_look_vector(&ImageCoordinate{
+            line:local.y,
+            sample:local.x
+        }) {
+            Ok(lv) => {
+                let cs = output_camera.a.dot_product(&lv.look_direction.subtract(&rt.scale(rt.dot_product(&lv.look_direction))).normalized());
+                vmin = min!(vmin, cs);
+                vmax = max!(vmax, cs);
+            },
+            Err(_) => {}
+        }
+    }
+
+    let cahv_image_size = Vector::new(cahv_height as f64, cahv_width as f64, 0.0);
+
+    let mut cosines = Vector::default();
+    cosines.z = 1.0;
+    if minfov {
+        cosines.x = hmax;
+        cosines.y = vmax;
+    } else {
+        cosines.x = hmin;
+        cosines.y = vmin; 
+    }
+
+    if cosines.x.acos() > limfov {
+        cosines.x = limfov.cos();
+    }
+    if cosines.y.acos() > limfov {
+        cosines.y = limfov.cos();
+    }
+    
+    let scalars = cahv_image_size.scale(0.5).multiply(&cosines).divide(&Vector::new(1.0, 1.0, 0.0).subtract(&cosines.multiply(&cosines)).sqrt());
+    
+    let centers = cahv_image_size.subtract(&Vector::new(1.0, 1.0, 0.0)).scale(0.5);
+    
+    output_camera.h = output_camera.a.scale(centers.x).add(&rt.scale(scalars.x));
+    output_camera.v = output_camera.a.scale(centers.y).add(&dn.scale(scalars.y));
+    
+    output_camera
+
+}

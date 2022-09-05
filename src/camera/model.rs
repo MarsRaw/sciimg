@@ -2,8 +2,9 @@
 use crate::{
     error,
     vector::Vector,
-    camera::cahv::*,
-    camera::cahvor::*
+    camera::cahv,
+    camera::cahvor,
+    camera::cahvore
 };
 
 pub static EPSILON:f64 = 1.0e-15;
@@ -198,12 +199,25 @@ impl CameraModel {
         }
     }
 
-    pub fn linearize(&self, cahvor_width:usize, cahvor_height:usize, cahv_width:usize, cahv_height:usize) -> error::Result<Cahv> {
+    pub fn linearize(&self, cahvor_width:usize, cahvor_height:usize, cahv_width:usize, cahv_height:usize) -> error::Result<cahv::Cahv> {
         match self.model_type() {
+            ModelType::CAHV => {
+                if let Some(m) = &self.model {
+                    let c = cahv::Cahv{
+                        c: m.c(),
+                        a: m.a(),
+                        h: m.h(),
+                        v: m.v()
+                    };
+                    Ok(c)
+                } else {
+                    Err("Wut?")
+                }
+            },
             ModelType::CAHVOR => {
 
                 if let Some(m) = &self.model {
-                    let c = Cahvor{
+                    let c = cahvor::Cahvor{
                         c: m.c(),
                         a: m.a(),
                         h: m.h(),
@@ -211,15 +225,33 @@ impl CameraModel {
                         o: m.o(),
                         r: m.r()
                     };
-                    Ok(linearize(&c, cahvor_width, cahvor_height, cahv_width, cahv_height))
+                    Ok(cahvor::linearize(&c, cahvor_width, cahvor_height, cahv_width, cahv_height))
                 } else {
                     Err("Wut?")
                 }
 
                 
             },
-            _ => {
-                Err("Linearization supported only against CAHVOR model types")
+            ModelType::CAHVORE => {
+
+                if let Some(m) = &self.model {
+                    let c = cahvore::Cahvore{
+                        c: m.c(),
+                        a: m.a(),
+                        h: m.h(),
+                        v: m.v(),
+                        o: m.o(),
+                        r: m.r(),
+                        e: m.e(),
+                        pupil_type: cahvore::PupilType::General,
+                        linearity: cahvore::LINEARITY_FISHEYE
+                    };
+                    Ok(cahvore::linearize(&c, cahvor_width, cahvor_height, cahv_width, cahv_height))
+                } else {
+                    Err("Wut?")
+                }
+
+                
             }
         }
     }
