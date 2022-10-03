@@ -117,9 +117,10 @@ impl Cahvor {
         let k = _k.to_radians();
 
         Matrix::new_with_values(
-                o.cos() * k.cos(), w.sin() * o.sin() * k.sin() + w.cos() * k.sin(), -(w.cos() * o.sin() * k.cos() + w.sin() * k.sin()),
-                -(o.cos() * k.sin()), -(w.sin() * o.sin() * k.sin() + w.cos() * k.cos()), w.cos() * o.sin() * k.sin() + w.sin() * k.cos(),
-                o.sin(), -(w.sin() * o.cos()), w.cos() * o.cos()
+                o.cos() * k.cos(), w.sin() * o.sin() * k.sin() + w.cos() * k.sin(), -(w.cos() * o.sin() * k.cos() + w.sin() * k.sin()), 0.0,
+                -(o.cos() * k.sin()), -(w.sin() * o.sin() * k.sin() + w.cos() * k.cos()), w.cos() * o.sin() * k.sin() + w.sin() * k.cos(), 0.0,
+                o.sin(), -(w.sin() * o.cos()), w.cos() * o.cos(), 0.0,
+                0.0, 0.0, 0.0, 1.0
         )
     }
 

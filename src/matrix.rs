@@ -41,7 +41,7 @@ impl Matrix {
     }
 
     pub fn new_from_vec(m:&Vec<f64>) -> error::Result<Matrix> {
-        if m.len() == 12 {
+        if m.len() == 16 {
             Ok(Matrix{
                 m:m.clone()
             })
@@ -56,13 +56,15 @@ impl Matrix {
         }
     }
 
-    pub fn new_with_values(v00:f64, v01:f64, v02:f64,
-                           v10:f64, v11:f64, v12:f64,
-                           v20:f64, v21:f64, v22:f64) -> Matrix {
+    pub fn new_with_values(v00:f64, v01:f64, v02:f64, v03:f64,
+                           v10:f64, v11:f64, v12:f64, v13:f64,
+                           v20:f64, v21:f64, v22:f64, v23:f64,
+                           v30:f64, v31:f64, v32:f64, v33:f64) -> Matrix {
         Matrix{
-            m:vec![v00, v01, v02,
-                   v10, v11, v12,
-                   v20, v21, v22]
+            m:vec![v00, v01, v02, v03,
+                   v10, v11, v12, v13,
+                   v20, v21, v22, v23,
+                   v30, v31, v32, v33]
         }
     }
 
