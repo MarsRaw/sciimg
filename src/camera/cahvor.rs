@@ -1,24 +1,12 @@
-
 use crate::{
-    error,
+    camera::cahv::*, camera::model::*, error, matrix::Matrix, max, min, util::vec_to_str,
     vector::Vector,
-    matrix::Matrix,
-    camera::model::*,
-    camera::cahv::*,
-    min,
-    max,
-    util::vec_to_str
 };
 
-use serde::{
-    Deserialize, 
-    Serialize
-};
-
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Cahvor {
-
     // Camera center vector C
     #[serde(with = "crate::vector::vector_format")]
     pub c: Vector,
@@ -38,22 +26,21 @@ pub struct Cahvor {
     // Optical axis unit vector O
     #[serde(with = "crate::vector::vector_format")]
     pub o: Vector,
-    
+
     // Radial lens distortion coefficients
     #[serde(with = "crate::vector::vector_format")]
-    pub r: Vector
+    pub r: Vector,
 }
-
 
 impl Cahvor {
     pub fn default() -> Self {
-        Cahvor{
-            c:Vector::default(),
-            a:Vector::default(),
-            h:Vector::default(),
-            v:Vector::default(),
-            o:Vector::default(),
-            r:Vector::default()
+        Cahvor {
+            c: Vector::default(),
+            a: Vector::default(),
+            h: Vector::default(),
+            v: Vector::default(),
+            o: Vector::default(),
+            r: Vector::default(),
         }
     }
 
@@ -77,62 +64,73 @@ impl Cahvor {
         cp.len()
     }
 
-    pub fn zeta(&self, p:&Vector) -> f64 {
+    pub fn zeta(&self, p: &Vector) -> f64 {
         p.subtract(&self.c).dot_product(&self.o)
     }
 
-    pub fn _lambda(&self, p:&Vector, z:f64) -> Vector {
+    pub fn _lambda(&self, p: &Vector, z: f64) -> Vector {
         let o = self.o.scale(z);
         p.subtract(&self.c).subtract(&o)
     }
 
-
-    pub fn lambda(&self, p:&Vector) -> Vector {
+    pub fn lambda(&self, p: &Vector) -> Vector {
         let z = self.zeta(&p);
         self._lambda(&p, z)
     }
 
-    pub fn tau(&self, p:&Vector) -> f64 {
+    pub fn tau(&self, p: &Vector) -> f64 {
         let z = self.zeta(&p);
         let l = self._lambda(&p, z);
 
         l.dot_product(&l) / z.powi(2)
     }
 
-    pub fn mu(&self, p:&Vector) -> f64 {
+    pub fn mu(&self, p: &Vector) -> f64 {
         let t = self.tau(&p);
         self.r.x + self.r.y * t + self.r.z * t.powi(2)
     }
 
-    pub fn corrected_point(&self, p:&Vector) -> Vector {
+    pub fn corrected_point(&self, p: &Vector) -> Vector {
         let mut l = self.lambda(&p);
         let m = self.mu(&p);
         l = l.scale(m);
         p.add(&l)
     }
 
-    pub fn rotation_matrix(&self, _w:f64, _o:f64, _k:f64) -> Matrix {
+    pub fn rotation_matrix(&self, _w: f64, _o: f64, _k: f64) -> Matrix {
         let w = _w.to_radians();
         let o = _o.to_radians();
         let k = _k.to_radians();
 
         Matrix::new_with_values(
-                o.cos() * k.cos(), w.sin() * o.sin() * k.sin() + w.cos() * k.sin(), -(w.cos() * o.sin() * k.cos() + w.sin() * k.sin()), 0.0,
-                -(o.cos() * k.sin()), -(w.sin() * o.sin() * k.sin() + w.cos() * k.cos()), w.cos() * o.sin() * k.sin() + w.sin() * k.cos(), 0.0,
-                o.sin(), -(w.sin() * o.cos()), w.cos() * o.cos(), 0.0,
-                0.0, 0.0, 0.0, 1.0
+            o.cos() * k.cos(),
+            w.sin() * o.sin() * k.sin() + w.cos() * k.sin(),
+            -(w.cos() * o.sin() * k.cos() + w.sin() * k.sin()),
+            0.0,
+            -(o.cos() * k.sin()),
+            -(w.sin() * o.sin() * k.sin() + w.cos() * k.cos()),
+            w.cos() * o.sin() * k.sin() + w.sin() * k.cos(),
+            0.0,
+            o.sin(),
+            -(w.sin() * o.cos()),
+            w.cos() * o.cos(),
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
         )
     }
 
-    pub fn project_object_to_image_point(&self, p:&Vector) -> ImageCoordinate {
-        ImageCoordinate{
-            sample:self.i(&p),
-            line:self.j(&p)
+    pub fn project_object_to_image_point(&self, p: &Vector) -> ImageCoordinate {
+        ImageCoordinate {
+            sample: self.i(&p),
+            line: self.j(&p),
         }
-    } 
+    }
 
     // i -> column (origin at upper left)
-    pub fn i(&self, p:&Vector) -> f64 {
+    pub fn i(&self, p: &Vector) -> f64 {
         let pmc = p.subtract(&self.c);
         let a = pmc.dot_product(&self.h);
         let b = pmc.dot_product(&self.a);
@@ -140,18 +138,15 @@ impl Cahvor {
     }
 
     // j -> row (origin at upper left)
-    pub fn j(&self, p:&Vector) -> f64 {
+    pub fn j(&self, p: &Vector) -> f64 {
         let pmc = p.subtract(&self.c);
         let a = pmc.dot_product(&self.v);
         let b = pmc.dot_product(&self.a);
         a / b
     }
-
-
 }
 
 impl CameraModelTrait for Cahvor {
-
     fn model_type(&self) -> ModelType {
         ModelType::CAHVOR
     }
@@ -193,7 +188,7 @@ impl CameraModelTrait for Cahvor {
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVOR.java
-    fn ls_to_look_vector(&self, coordinate:&ImageCoordinate) -> error::Result<LookVector> {
+    fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> error::Result<LookVector> {
         let line = coordinate.line;
         let sample = coordinate.sample;
 
@@ -219,7 +214,7 @@ impl CameraModelTrait for Cahvor {
         let mut mu = self.r.x + k3 + k5;
         let mut u = 1.0 - mu;
 
-        for i in 0..(MAXITER+1) {
+        for i in 0..(MAXITER + 1) {
             if i >= MAXITER {
                 return Err("cahvor 2d to 3d: Too many iterations");
             }
@@ -242,14 +237,14 @@ impl CameraModelTrait for Cahvor {
         let pp = lambda.scale(mu);
         let look_direction = rr.subtract(&pp).normalized();
 
-        Ok(LookVector{
-            origin:origin,
-            look_direction:look_direction
+        Ok(LookVector {
+            origin: origin,
+            look_direction: look_direction,
         })
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVOR.java
-    fn xyz_to_ls(&self, xyz:&Vector, infinity:bool) -> ImageCoordinate {
+    fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> ImageCoordinate {
         if infinity == true {
             let omega = xyz.dot_product(&self.o);
             let omega_2 = omega * omega;
@@ -263,9 +258,9 @@ impl CameraModelTrait for Cahvor {
             let beta = pp_c.dot_product(&self.h);
             let gamma = pp_c.dot_product(&self.v);
 
-            ImageCoordinate{
+            ImageCoordinate {
                 sample: beta / alpha,
-                line: gamma / alpha
+                line: gamma / alpha,
             }
         } else {
             let p_c = xyz.subtract(&self.c);
@@ -282,9 +277,9 @@ impl CameraModelTrait for Cahvor {
             let beta = pp_c.dot_product(&self.h);
             let gamma = pp_c.dot_product(&self.v);
 
-            ImageCoordinate{
+            ImageCoordinate {
                 sample: beta / alpha,
-                line: gamma / alpha
+                line: gamma / alpha,
             }
         }
     }
@@ -304,20 +299,26 @@ impl CameraModelTrait for Cahvor {
     }
 
     fn serialize(&self) -> String {
-        format!("{};{};{};{};{};{}", 
-                                    vec_to_str(&self.c.to_vec()), 
-                                    vec_to_str(&self.a.to_vec()), 
-                                    vec_to_str(&self.h.to_vec()), 
-                                    vec_to_str(&self.v.to_vec()), 
-                                    vec_to_str(&self.o.to_vec()), 
-                                    vec_to_str(&self.r.to_vec())
-                                )
+        format!(
+            "{};{};{};{};{};{}",
+            vec_to_str(&self.c.to_vec()),
+            vec_to_str(&self.a.to_vec()),
+            vec_to_str(&self.h.to_vec()),
+            vec_to_str(&self.v.to_vec()),
+            vec_to_str(&self.o.to_vec()),
+            vec_to_str(&self.r.to_vec())
+        )
     }
-
 }
 
 //  Adapted from https://github.com/digimatronics/ComputerVision/blob/master/src/vw/Camera/CAHVORModel.cc
-pub fn linearize(camera_model:&Cahvor, cahvor_width:usize, cahvor_height:usize, cahv_width:usize, cahv_height:usize) -> Cahv {
+pub fn linearize(
+    camera_model: &Cahvor,
+    cahvor_width: usize,
+    cahvor_height: usize,
+    cahv_width: usize,
+    cahv_height: usize,
+) -> Cahv {
     let minfov = true;
 
     let mut output_camera = Cahv::default();
@@ -328,38 +329,48 @@ pub fn linearize(camera_model:&Cahvor, cahvor_width:usize, cahvor_height:usize, 
         Vector::new(0.0, (cahvor_height as f64 - 1.0) / 2.0, 0.0),
         Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
         Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
-        Vector::new(cahvor_width as f64 - 1.0, (cahvor_height as f64 - 1.0) / 2.0, 0.0),
-        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0).subtract(&Vector::new(1.0, 1.0, 0.0))
+        Vector::new(
+            cahvor_width as f64 - 1.0,
+            (cahvor_height as f64 - 1.0) / 2.0,
+            0.0,
+        ),
+        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0)
+            .subtract(&Vector::new(1.0, 1.0, 0.0)),
     ];
 
     let vpts = vec![
         Vector::default(),
-        Vector::new((cahvor_width as f64 - 1.0)/2.0, 0.0, 0.0),
+        Vector::new((cahvor_width as f64 - 1.0) / 2.0, 0.0, 0.0),
         Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
         Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
-        Vector::new((cahvor_width as f64 - 1.0) / 2.0, cahvor_height as f64 - 1.0, 0.0),
-        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0).subtract(&Vector::new(1.0, 1.0, 0.0))
+        Vector::new(
+            (cahvor_width as f64 - 1.0) / 2.0,
+            cahvor_height as f64 - 1.0,
+            0.0,
+        ),
+        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0)
+            .subtract(&Vector::new(1.0, 1.0, 0.0)),
     ];
 
     for local in vpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate{
-            line:local.y,
-            sample:local.x
+        match camera_model.ls_to_look_vector(&ImageCoordinate {
+            line: local.y,
+            sample: local.x,
         }) {
             Ok(lv) => {
                 output_camera.a = output_camera.a.add(&lv.look_direction);
-            },
+            }
             Err(_) => {}
         }
     }
     for local in hpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate{
-            line:local.y,
-            sample:local.x
+        match camera_model.ls_to_look_vector(&ImageCoordinate {
+            line: local.y,
+            sample: local.x,
         }) {
             Ok(lv) => {
                 output_camera.a = output_camera.a.add(&lv.look_direction);
-            },
+            }
             Err(_) => {}
         }
     }
@@ -374,16 +385,19 @@ pub fn linearize(camera_model:&Cahvor, cahvor_width:usize, cahvor_height:usize, 
     let mut hmin = 1.0;
     let mut hmax = -1.0;
     for loop_ in hpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate{
-            line:loop_.y,
-            sample:loop_.x
+        match camera_model.ls_to_look_vector(&ImageCoordinate {
+            line: loop_.y,
+            sample: loop_.x,
         }) {
             Ok(lv) => {
                 let u3 = lv.look_direction;
-                let sn =  output_camera.a.cross_product(&u3.subtract(&dn.scale(dn.dot_product(&u3))).normalized()).len();
+                let sn = output_camera
+                    .a
+                    .cross_product(&u3.subtract(&dn.scale(dn.dot_product(&u3))).normalized())
+                    .len();
                 hmin = min!(hmin, sn);
                 hmax = max!(hmax, sn);
-            },
+            }
             Err(_) => {}
         }
     }
@@ -391,36 +405,50 @@ pub fn linearize(camera_model:&Cahvor, cahvor_width:usize, cahvor_height:usize, 
     let mut vmin = 1.0;
     let mut vmax = -1.0;
     for loop_ in vpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate{
-            line:loop_.y,
-            sample:loop_.x
+        match camera_model.ls_to_look_vector(&ImageCoordinate {
+            line: loop_.y,
+            sample: loop_.x,
         }) {
             Ok(lv) => {
                 let u3 = lv.look_direction;
-                let sn =  output_camera.a.cross_product(&u3.subtract(&rt.scale(rt.dot_product(&u3))).normalized()).len();
+                let sn = output_camera
+                    .a
+                    .cross_product(&u3.subtract(&rt.scale(rt.dot_product(&u3))).normalized())
+                    .len();
                 vmin = min!(vmin, sn);
                 vmax = max!(vmax, sn);
-            },
+            }
             Err(_) => {}
         }
     }
 
     println!("{}, {} -- {}, {}", hmin, hmax, vmin, vmax);
-    let image_center = Vector::new(cahv_width as f64, cahv_height as f64, 0.0).subtract(&Vector::new(1.0, 1.0, 0.0)).scale(0.5);
+    let image_center = Vector::new(cahv_width as f64, cahv_height as f64, 0.0)
+        .subtract(&Vector::new(1.0, 1.0, 0.0))
+        .scale(0.5);
     println!("image_center -> {:?}", image_center);
     let image_center_2 = image_center.multiply(&image_center);
     println!("image_center_2 -> {:?}", image_center_2);
 
     let scale_factors = if minfov {
-        image_center_2.divide(&Vector::new(hmin*hmin, vmin*vmin, 0.0)).subtract(&image_center_2).sqrt()
+        image_center_2
+            .divide(&Vector::new(hmin * hmin, vmin * vmin, 0.0))
+            .subtract(&image_center_2)
+            .sqrt()
     } else {
-        image_center_2.divide(&Vector::new(hmax*hmax, vmax*vmax, 0.0)).subtract(&image_center_2).sqrt()
+        image_center_2
+            .divide(&Vector::new(hmax * hmax, vmax * vmax, 0.0))
+            .subtract(&image_center_2)
+            .sqrt()
     };
 
     println!("scale_factors -> {:?}", scale_factors);
-    output_camera.h = rt.scale(scale_factors.x).add(&output_camera.a.scale(image_center.x));
-    output_camera.v = dn.scale(scale_factors.y).add(&output_camera.a.scale(image_center.y));
-    
+    output_camera.h = rt
+        .scale(scale_factors.x)
+        .add(&output_camera.a.scale(image_center.x));
+    output_camera.v = dn
+        .scale(scale_factors.y)
+        .add(&output_camera.a.scale(image_center.y));
+
     output_camera
 }
-

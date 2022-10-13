@@ -1,10 +1,7 @@
+use sciimg::{hotpixel, imagebuffer};
 
-use sciimg::{
-    hotpixel,
-    imagebuffer
-};
-
-const MSL_ECAM_NRB_WITH_HOT_PIXELS : &str = "tests/testdata/NRB_670586006EDR_S0871444NCAM00545M_.jpg";
+const MSL_ECAM_NRB_WITH_HOT_PIXELS: &str =
+    "tests/testdata/NRB_670586006EDR_S0871444NCAM00545M_.jpg";
 
 #[test]
 fn test_hot_pixel_correction() {
@@ -17,6 +14,7 @@ fn test_hot_pixel_correction() {
     assert_eq!(hpc_results_2p5.replaced_pixels.len(), 8410);
 
     // Doesn't always get all of them and/or accidentally creates new ones via the replacement method...
-    let hpc_results_2p5_2nd_pass = hotpixel::hot_pixel_detection(&hpc_results_2p5.buffer, 6, 2.5).unwrap();
+    let hpc_results_2p5_2nd_pass =
+        hotpixel::hot_pixel_detection(&hpc_results_2p5.buffer, 6, 2.5).unwrap();
     assert_eq!(hpc_results_2p5_2nd_pass.replaced_pixels.len(), 2024);
 }

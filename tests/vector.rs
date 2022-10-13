@@ -1,6 +1,5 @@
 use sciimg::*;
 
-
 #[test]
 fn test_dnvec() {
     let mut v = DnVec::fill(100, 0.0);
@@ -9,7 +8,6 @@ fn test_dnvec() {
     assert_eq!(v.max(), 0.0);
     assert_eq!(v.get_min_max().min, 0.0);
     assert_eq!(v.get_min_max().max, 0.0);
-
 
     v[50] = 50.0;
     assert_eq!(v[50], 50.0);
@@ -29,10 +27,8 @@ fn test_dnvec() {
     assert_eq!(v.stddev(), 5.339475);
     assert_eq!(v.variance(), 28.509993);
 
-
     // And so ...
 }
-
 
 #[test]
 fn test_maskeddnvec() {
@@ -80,7 +76,6 @@ fn test_maskeddnvec() {
     assert_eq!(v.get_min_max().max, 50.0);
     assert_eq!(v.stddev(), 5.339475);
     assert_eq!(v.variance(), 28.509993);
-    
 
     v[50] = 40.0;
     assert_eq!(v[50], 40.0);

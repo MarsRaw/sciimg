@@ -1,36 +1,31 @@
-
 use crate::{
-    error,
-    vector::Vector,
+    camera::cahv::*,
     //matrix::Matrix,
     camera::model::*,
-    util::vec_to_str,
-    camera::cahv::*,
+    error,
+    max,
     min,
-    max
+    util::vec_to_str,
+    vector::Vector,
 };
 
-use serde::{
-    Deserialize, 
-    Serialize
-};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PupilType {
     Perspective,
     Fisheye,
-    General
+    General,
 }
 
-pub static CHIP_LIMIT : f64 = 1e-8;
-pub static NEWTON_ITERATION_MAX : usize = 100;
+pub static CHIP_LIMIT: f64 = 1e-8;
+pub static NEWTON_ITERATION_MAX: usize = 100;
 
-pub static LINEARITY_PERSPECTIVE:f64 = 1.0;
+pub static LINEARITY_PERSPECTIVE: f64 = 1.0;
 pub static LINEARITY_FISHEYE: f64 = 0.0;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Cahvore {
-
     // Camera center vector C
     #[serde(with = "crate::vector::vector_format")]
     pub c: Vector,
@@ -50,7 +45,7 @@ pub struct Cahvore {
     // Optical axis unit vector O
     #[serde(with = "crate::vector::vector_format")]
     pub o: Vector,
-    
+
     // Radial lens distortion coefficients
     #[serde(with = "crate::vector::vector_format")]
     pub r: Vector,
@@ -58,29 +53,28 @@ pub struct Cahvore {
     #[serde(with = "crate::vector::vector_format")]
     pub e: Vector,
 
-    pub pupil_type:PupilType,
+    pub pupil_type: PupilType,
 
-    pub linearity:f64
+    pub linearity: f64,
 }
 
 impl Cahvore {
     pub fn default() -> Self {
-        Cahvore { 
-            c:Vector::default(),
-            a:Vector::default(),
-            h:Vector::default(),
-            v:Vector::default(),
-            o:Vector::default(),
-            r:Vector::default(),
-            e:Vector::default(),
-            pupil_type:PupilType::General,
-            linearity:LINEARITY_FISHEYE
+        Cahvore {
+            c: Vector::default(),
+            a: Vector::default(),
+            h: Vector::default(),
+            v: Vector::default(),
+            o: Vector::default(),
+            r: Vector::default(),
+            e: Vector::default(),
+            pupil_type: PupilType::General,
+            linearity: LINEARITY_FISHEYE,
         }
     }
 }
 
 impl CameraModelTrait for Cahvore {
-
     fn model_type(&self) -> ModelType {
         ModelType::CAHVORE
     }
@@ -122,7 +116,7 @@ impl CameraModelTrait for Cahvore {
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
-    fn ls_to_look_vector(&self, coordinate:&ImageCoordinate) -> error::Result<LookVector> {
+    fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> error::Result<LookVector> {
         let line = coordinate.line;
         let samp = coordinate.sample;
 
@@ -139,9 +133,7 @@ impl CameraModelTrait for Cahvore {
         let chip = lambdap.len() / zetap;
 
         let (center_point, ray_of_incidence) = match chip < CHIP_LIMIT {
-            true => {
-                (self.c.clone(), self.o.clone())
-            },
+            true => (self.c.clone(), self.o.clone()),
             false => {
                 let mut chi = chip;
 
@@ -151,12 +143,17 @@ impl CameraModelTrait for Cahvore {
                     let chi4 = chi3 * chi;
                     let chi5 = chi4 * chi;
 
-                    let deriv = (1.0 + self.r.x) + (3.0 * self.r.y * chi2) + (5.0 * self.r.z * chi4);
-                    
-                    let dchi = if deriv == 0.0 { 0.0 } else {
-                        ((1.0 + self.r.x) * chi) + (self.r.y * chi3) + ((self.r.z * chi5) - chip) / deriv 
+                    let deriv =
+                        (1.0 + self.r.x) + (3.0 * self.r.y * chi2) + (5.0 * self.r.z * chi4);
+
+                    let dchi = if deriv == 0.0 {
+                        0.0
+                    } else {
+                        ((1.0 + self.r.x) * chi)
+                            + (self.r.y * chi3)
+                            + ((self.r.z * chi5) - chip) / deriv
                     };
-                    
+
                     chi = chi - dchi;
 
                     if dchi.abs() < CHIP_LIMIT {
@@ -167,7 +164,7 @@ impl CameraModelTrait for Cahvore {
                         eprintln!("CAHVORE: Too many iterations without sufficient convergence");
                         break;
                     }
-                };
+                }
 
                 let linchi = self.linearity * chi;
                 let theta = if self.linearity < (-1.0 * EPSILON) {
@@ -183,29 +180,27 @@ impl CameraModelTrait for Cahvore {
                 let theta4 = theta3 * theta;
 
                 // compute the shift of the entrance pupil
-                let s = ((theta / theta.sin()) - 1.0) * (self.e.x + self.e.y * theta2 + self.e.z * theta4);
+                let s = ((theta / theta.sin()) - 1.0)
+                    * (self.e.x + self.e.y * theta2 + self.e.z * theta4);
 
                 let center_point = self.c.add(&self.o.scale(s));
 
                 let f2 = lambdap.normalized().scale(theta.sin());
                 let g = self.o.scale(theta.cos());
                 let ray_of_incidence = f2.add(&g);
-                
-                
 
                 (center_point, ray_of_incidence)
             }
         };
 
         Ok(LookVector {
-            origin:center_point,
-            look_direction:ray_of_incidence
+            origin: center_point,
+            look_direction: ray_of_incidence,
         })
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
-    fn xyz_to_ls(&self, xyz:&Vector, _infinity:bool) -> ImageCoordinate {
-
+    fn xyz_to_ls(&self, xyz: &Vector, _infinity: bool) -> ImageCoordinate {
         let p_c = xyz.subtract(&self.c);
         let zeta = p_c.dot_product(&self.o);
         let f = self.o.scale(zeta);
@@ -214,9 +209,7 @@ impl CameraModelTrait for Cahvore {
 
         let mut theta = lamda_mag.atan2(zeta);
 
-
         for x in 1..=NEWTON_ITERATION_MAX {
-
             let cos_theta = theta.cos();
             let sin_theta = theta.sin();
             let theta2 = theta * theta;
@@ -224,13 +217,14 @@ impl CameraModelTrait for Cahvore {
             let theta4 = theta3 * theta;
 
             let upsilon = (zeta * cos_theta) + (lamda_mag * sin_theta)
-                        - (( 1.0 - cos_theta) * (self.e.x + self.e.y * theta2 + self.e.z * theta4))
-                        - ((theta - sin_theta) * (self.e.x + 2.0 * self.e.y * theta + 4.0 * self.e.z * theta3));
-            let dtheta = ((zeta * sin_theta - lamda_mag * cos_theta) -
-                            (theta - sin_theta) * (self.e.x + self.e.y * theta2 + self.e.z * theta4)) /
-                            upsilon;
+                - ((1.0 - cos_theta) * (self.e.x + self.e.y * theta2 + self.e.z * theta4))
+                - ((theta - sin_theta)
+                    * (self.e.x + 2.0 * self.e.y * theta + 4.0 * self.e.z * theta3));
+            let dtheta = ((zeta * sin_theta - lamda_mag * cos_theta)
+                - (theta - sin_theta) * (self.e.x + self.e.y * theta2 + self.e.z * theta4))
+                / upsilon;
             theta = theta - dtheta;
-        
+
             if dtheta.abs() < CHIP_LIMIT {
                 break;
             }
@@ -243,9 +237,9 @@ impl CameraModelTrait for Cahvore {
 
         if theta * self.linearity.abs() > (std::f64::consts::PI / 2.0) {
             eprintln!("CAVHORE: theta out of bounds");
-            return ImageCoordinate{
+            return ImageCoordinate {
                 sample: 0.0,
-                line: 0.0
+                line: 0.0,
             };
             //panic!("CAVHORE: theta out of bounds");
         }
@@ -283,9 +277,9 @@ impl CameraModelTrait for Cahvore {
         let samp = beta / alpha;
         let line = gamma / alpha;
 
-        ImageCoordinate{
+        ImageCoordinate {
             sample: samp,
-            line: line
+            line: line,
         }
     }
 
@@ -304,24 +298,28 @@ impl CameraModelTrait for Cahvore {
     }
 
     fn serialize(&self) -> String {
-        format!("{};{};{};{};{};{};{};{};0.0", 
-                                    vec_to_str(&self.c.to_vec()), 
-                                    vec_to_str(&self.a.to_vec()), 
-                                    vec_to_str(&self.h.to_vec()), 
-                                    vec_to_str(&self.v.to_vec()), 
-                                    vec_to_str(&self.o.to_vec()), 
-                                    vec_to_str(&self.r.to_vec()), 
-                                    vec_to_str(&self.e.to_vec()),
-                                    self.linearity
-                                )
+        format!(
+            "{};{};{};{};{};{};{};{};0.0",
+            vec_to_str(&self.c.to_vec()),
+            vec_to_str(&self.a.to_vec()),
+            vec_to_str(&self.h.to_vec()),
+            vec_to_str(&self.v.to_vec()),
+            vec_to_str(&self.o.to_vec()),
+            vec_to_str(&self.r.to_vec()),
+            vec_to_str(&self.e.to_vec()),
+            self.linearity
+        )
     }
-
 }
 
-
-
 //  Adapted from https://github.com/digimatronics/ComputerVision/blob/master/src/vw/Camera/CAHVOREModel.cc
-pub fn linearize(camera_model:&Cahvore, cahvor_width:usize, cahvor_height:usize, cahv_width:usize, cahv_height:usize) -> Cahv {
+pub fn linearize(
+    camera_model: &Cahvore,
+    cahvor_width: usize,
+    cahvor_height: usize,
+    cahv_width: usize,
+    cahv_height: usize,
+) -> Cahv {
     let limfov = std::f64::consts::PI * (3.0 / 4.0);
     let minfov = true;
 
@@ -333,23 +331,39 @@ pub fn linearize(camera_model:&Cahvore, cahvor_width:usize, cahvor_height:usize,
         Vector::new(0.0, (cahvor_height as f64 - 1.0) / 2.0, 0.0),
         Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
         Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
-        Vector::new(cahvor_width as f64 - 1.0, (cahvor_height as f64 - 1.0) / 2.0, 0.0),
-        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0).subtract(&Vector::new(1.0, 1.0, 0.0))
+        Vector::new(
+            cahvor_width as f64 - 1.0,
+            (cahvor_height as f64 - 1.0) / 2.0,
+            0.0,
+        ),
+        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0)
+            .subtract(&Vector::new(1.0, 1.0, 0.0)),
     ];
 
     let vpts = vec![
         Vector::default(),
-        Vector::new((cahvor_width as f64 - 1.0)/2.0, 0.0, 0.0),
+        Vector::new((cahvor_width as f64 - 1.0) / 2.0, 0.0, 0.0),
         Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
         Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
-        Vector::new((cahvor_width as f64 - 1.0) / 2.0, cahvor_height as f64 - 1.0, 0.0),
-        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0).subtract(&Vector::new(1.0, 1.0, 0.0))
+        Vector::new(
+            (cahvor_width as f64 - 1.0) / 2.0,
+            cahvor_height as f64 - 1.0,
+            0.0,
+        ),
+        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0)
+            .subtract(&Vector::new(1.0, 1.0, 0.0)),
     ];
 
     let p2_sample = (cahvor_width as f64 - 1.0) / 2.0;
     let p2_line = (cahvor_height as f64 - 1.0) / 2.0;
 
-    output_camera.a = camera_model.ls_to_look_vector(&ImageCoordinate{line: p2_line as f64, sample: p2_sample as f64}).expect("Failed to project boresight").look_direction;
+    output_camera.a = camera_model
+        .ls_to_look_vector(&ImageCoordinate {
+            line: p2_line as f64,
+            sample: p2_sample as f64,
+        })
+        .expect("Failed to project boresight")
+        .look_direction;
 
     let mut dn = camera_model.a.cross_product(&camera_model.h);
     //let mut rt = dn.cross_product(&camera_model.a).normalized();
@@ -362,15 +376,19 @@ pub fn linearize(camera_model:&Cahvore, cahvor_width:usize, cahvor_height:usize,
     let mut hmin = 1.0;
     let mut hmax = -1.0;
     for local in hpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate{
-            line:local.y,
-            sample:local.x
+        match camera_model.ls_to_look_vector(&ImageCoordinate {
+            line: local.y,
+            sample: local.x,
         }) {
             Ok(lv) => {
-                let cs = output_camera.a.dot_product(&lv.look_direction.subtract(&dn.scale(dn.dot_product(&lv.look_direction))).normalized());
+                let cs = output_camera.a.dot_product(
+                    &lv.look_direction
+                        .subtract(&dn.scale(dn.dot_product(&lv.look_direction)))
+                        .normalized(),
+                );
                 hmin = min!(hmin, cs);
                 hmax = max!(hmax, cs);
-            },
+            }
             Err(_) => {}
         }
     }
@@ -378,15 +396,19 @@ pub fn linearize(camera_model:&Cahvore, cahvor_width:usize, cahvor_height:usize,
     let mut vmin = 1.0;
     let mut vmax = -1.0;
     for local in vpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate{
-            line:local.y,
-            sample:local.x
+        match camera_model.ls_to_look_vector(&ImageCoordinate {
+            line: local.y,
+            sample: local.x,
         }) {
             Ok(lv) => {
-                let cs = output_camera.a.dot_product(&lv.look_direction.subtract(&rt.scale(rt.dot_product(&lv.look_direction))).normalized());
+                let cs = output_camera.a.dot_product(
+                    &lv.look_direction
+                        .subtract(&rt.scale(rt.dot_product(&lv.look_direction)))
+                        .normalized(),
+                );
                 vmin = min!(vmin, cs);
                 vmax = max!(vmax, cs);
-            },
+            }
             Err(_) => {}
         }
     }
@@ -400,7 +422,7 @@ pub fn linearize(camera_model:&Cahvore, cahvor_width:usize, cahvor_height:usize,
         cosines.y = vmax;
     } else {
         cosines.x = hmin;
-        cosines.y = vmin; 
+        cosines.y = vmin;
     }
 
     if cosines.x.acos() > limfov {
@@ -409,14 +431,19 @@ pub fn linearize(camera_model:&Cahvore, cahvor_width:usize, cahvor_height:usize,
     if cosines.y.acos() > limfov {
         cosines.y = limfov.cos();
     }
-    
-    let scalars = cahv_image_size.scale(0.5).multiply(&cosines).divide(&Vector::new(1.0, 1.0, 0.0).subtract(&cosines.multiply(&cosines)).sqrt());
-    
-    let centers = cahv_image_size.subtract(&Vector::new(1.0, 1.0, 0.0)).scale(0.5);
-    
+
+    let scalars = cahv_image_size.scale(0.5).multiply(&cosines).divide(
+        &Vector::new(1.0, 1.0, 0.0)
+            .subtract(&cosines.multiply(&cosines))
+            .sqrt(),
+    );
+
+    let centers = cahv_image_size
+        .subtract(&Vector::new(1.0, 1.0, 0.0))
+        .scale(0.5);
+
     output_camera.h = output_camera.a.scale(centers.x).add(&rt.scale(scalars.x));
     output_camera.v = output_camera.a.scale(centers.y).add(&dn.scale(scalars.y));
-    
-    output_camera
 
+    output_camera
 }

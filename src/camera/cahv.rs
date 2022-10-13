@@ -1,19 +1,9 @@
-use crate::{
-    error,
-    vector::Vector,
-    camera::model::*,
-    util::vec_to_str
-};
+use crate::{camera::model::*, error, util::vec_to_str, vector::Vector};
 
-use serde::{
-    Deserialize, 
-    Serialize
-};
-
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Cahv {
-
     // Camera center vector C
     #[serde(with = "crate::vector::vector_format")]
     pub c: Vector,
@@ -28,23 +18,21 @@ pub struct Cahv {
 
     // Vertical information vector V
     #[serde(with = "crate::vector::vector_format")]
-    pub v: Vector
+    pub v: Vector,
 }
 
 impl Cahv {
     pub fn default() -> Self {
-        Cahv{
-            c:Vector::default(),
-            a:Vector::default(),
-            h:Vector::default(),
-            v:Vector::default()
+        Cahv {
+            c: Vector::default(),
+            a: Vector::default(),
+            h: Vector::default(),
+            v: Vector::default(),
         }
     }
 }
 
-
 impl CameraModelTrait for Cahv {
-
     fn model_type(&self) -> ModelType {
         ModelType::CAHV
     }
@@ -86,7 +74,7 @@ impl CameraModelTrait for Cahv {
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHV.java
-    fn ls_to_look_vector(&self, coordinate:&ImageCoordinate) -> error::Result<LookVector> {
+    fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> error::Result<LookVector> {
         let line = coordinate.line;
         let samp = coordinate.sample;
 
@@ -102,19 +90,19 @@ impl CameraModelTrait for Cahv {
             look_direction = look_direction.inversed();
         }
 
-        Ok(LookVector{
-            origin:origin,
-            look_direction:look_direction
+        Ok(LookVector {
+            origin: origin,
+            look_direction: look_direction,
         })
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHV.java
-    fn xyz_to_ls(&self, xyz:&Vector, infinity:bool) -> ImageCoordinate {
+    fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> ImageCoordinate {
         if infinity {
             let x = xyz.dot_product(&self.a);
             ImageCoordinate {
                 sample: xyz.dot_product(&self.h) / x,
-                line: xyz.dot_product(&self.v) / x
+                line: xyz.dot_product(&self.v) / x,
             }
         } else {
             let d = xyz.subtract(&self.c);
@@ -122,7 +110,7 @@ impl CameraModelTrait for Cahv {
             let r_1 = 1.0 / range;
             ImageCoordinate {
                 sample: d.dot_product(&self.h) * r_1,
-                line: d.dot_product(&self.v) * r_1
+                line: d.dot_product(&self.v) * r_1,
             }
         }
     }
@@ -142,11 +130,12 @@ impl CameraModelTrait for Cahv {
     }
 
     fn serialize(&self) -> String {
-        format!("{};{};{};{}", 
-                                    vec_to_str(&self.c.to_vec()), 
-                                    vec_to_str(&self.a.to_vec()), 
-                                    vec_to_str(&self.h.to_vec()), 
-                                    vec_to_str(&self.v.to_vec())
-                                )
+        format!(
+            "{};{};{};{}",
+            vec_to_str(&self.c.to_vec()),
+            vec_to_str(&self.a.to_vec()),
+            vec_to_str(&self.h.to_vec()),
+            vec_to_str(&self.v.to_vec())
+        )
     }
 }
