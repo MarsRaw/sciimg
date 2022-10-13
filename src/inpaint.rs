@@ -6,7 +6,9 @@ use rayon::prelude::IntoParallelIterator;
 
 use crate::{enums, error, imagebuffer::ImageBuffer, rgbimage::RgbImage, stats};
 
-#[derive(Default, Debug, Clone)]
+//INFO: as you're doing a fair bit of comparitve number work you may want to look into the
+//comparison and ordering traits, many of them are available with #[derive(x,y,z)]
+#[derive(PartialEq, PartialOrd, Default, Debug, Clone)]
 struct Point {
     x: usize,
     y: usize,
@@ -81,6 +83,7 @@ fn get_num_good_neighbors(mask: &ImageBuffer, x: i32, y: i32) -> u32 {
 }
 
 // SOOOOOOooooooooo sloooooooooooooooow :-(
+// INFO: perhaps consider something like find_starting_point_par() below...
 fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
     for y in 0..mask.height {
         for x in 0..mask.width {
@@ -100,11 +103,9 @@ fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
 // This would probably be ok assuming you are ok with what may ?potentially? be a range of starting
 // points...
 fn find_starting_point_par(mask: &&ImageBuffer) -> Option<Point> {
-    // Note the call to into_par_iter(), it's SOO
-    // EASY when data-sharing between threads is required all of that goes out the window,
-    // but in this case, it's great!.
+    // Note the call to into_par_iter(), the parallel version of into_iter() from Rayon.
     _ = (0..mask.height).into_par_iter().map(|y| {
-        (0..mask.width).into_iter().map(|x| {
+        (0..mask.width).into_iter().map(move |x| {
             if let Ok(v) = mask.get(x, y) {
                 if v > 0.0 {
                     return Some(Point { x, y, score: 0 });
@@ -116,6 +117,9 @@ fn find_starting_point_par(mask: &&ImageBuffer) -> Option<Point> {
             }
         })
     });
+    // INFO:
+    // If you expect truly, truly large images, consider a Mutex<Point> and a threadpool via the
+    // Crossbeam or Rayon crates.
     None
 }
 
@@ -217,6 +221,9 @@ fn get_point_and_score_at_xy(mask: &ImageBuffer, x: i32, y: i32) -> Option<Point
 
 //INFO: simplified this a little, unsure why you went for an Option...
 //if there was a good reason (perhaps that you may not find a next point?)
+// helper functions like this are often (in numeriacly heavy libraries decorated with an inline
+// macro) NOTE: inline in rust is NOT like inline in c++, do the reading!
+#[inline(always)]
 fn find_larger(pt: Point, right: Point) -> Point {
     if pt.score > right.score {
         pt.clone()
@@ -226,21 +233,23 @@ fn find_larger(pt: Point, right: Point) -> Point {
 }
 
 fn find_next_point(mask: &ImageBuffer, x: i32, y: i32) -> Option<Point> {
-    //INFO: consider an iterator with .collect() you'll find it makes fewer allocations if you
-    //checkout the assembly.
-    let mut pts: Vec<Option<Point>> = Vec::with_capacity(8);
+    // INFO:
+    // If it's always this sort of construction perhaps consider something like below's
+    // Point::create_identity() method.
 
-    pts.push(get_point_and_score_at_xy(&mask, x, y - 1));
-    pts.push(get_point_and_score_at_xy(&mask, x - 1, y - 1));
-    pts.push(get_point_and_score_at_xy(&mask, x - 1, y));
-    pts.push(get_point_and_score_at_xy(&mask, x - 1, y + 1));
-    pts.push(get_point_and_score_at_xy(&mask, x, y + 1));
-    pts.push(get_point_and_score_at_xy(&mask, x + 1, y + 1));
-    pts.push(get_point_and_score_at_xy(&mask, x + 1, y));
-    pts.push(get_point_and_score_at_xy(&mask, x + 1, y - 1));
-
+    // let mut pts: Vec<Option<Point>> = Vec::with_capacity(8);
+    // QUESTION: some kind of identity matrix?
+    // YOURS:
+    // pts.push(get_point_and_score_at_xy(&mask, x, y - 1));
+    // pts.push(get_point_and_score_at_xy(&mask, x - 1, y - 1));
+    // pts.push(get_point_and_score_at_xy(&mask, x - 1, y));
+    // pts.push(get_point_and_score_at_xy(&mask, x - 1, y + 1));
+    // pts.push(get_point_and_score_at_xy(&mask, x, y + 1));
+    // pts.push(get_point_and_score_at_xy(&mask, x + 1, y + 1));
+    // pts.push(get_point_and_score_at_xy(&mask, x + 1, y));
+    // pts.push(get_point_and_score_at_xy(&mask, x + 1, y - 1));
+    //
     //let mut largest_score: Option<Point> = None;
-
     // for opt_pt in pts.iter() {
     //     match opt_pt {
     //         Some(pt) => {
@@ -249,32 +258,47 @@ fn find_next_point(mask: &ImageBuffer, x: i32, y: i32) -> Option<Point> {
     //         None => (),
     //     }
     // }
-    //INFO:
-    //consider pts.iter().filter_map() or pts.iter().flat_map() both of which can squash the match
-    //for you.
-    // almost everywhere these days...
 
-    // If you expect truly, truly large images, consider a Mutex<Point> and a threadpool via the
-    // Crossbeam or Rayon crates.
+    // MINE, if using your constructor with the ... push() calls
+    // You'll find rust's iterators, in general compile to tighter assembly than anything written
+    // in the python-like for loop syntax.
+    // If you want to use your Vec<Option<point>> impl
+    // pts.iter().fold(Some(Point::default()), |p1, p2| {
+    //     let p1_u = p1.unwrap();
+    //     let p2_u = p2.clone().unwrap();
+    //     Some(if p1_u.score > p2_u.score { p1_u } else { p2_u })
+    // })
 
-    //Point::default(); // #[derive(Default)] macros are available ..
-    //In this case you have a 'score' field which may mean it'd be best to have a custom
-    //implementation of Default, which would look something like this:
-    //impl Default for Point {
-    // fn default() -> Self{
-    //   Self{
-    //     x: 0,
-    //     y: 0,
-    //     score: 0
-    //   }
-    // }
-    //}
-    Some(pts.iter().fold(Point::default(), |a: Point, b: &Point| {
-        a.score.max(b.clone().score) // If you wanted to implement the Deref trait for Point, you
-                                     // could avoid the clone. (This is pretty trivial, just
-                                     // checkout Deref in the docs.)
+    // MINE:
+    // or else...using the preflattened in the create_identity constructors
+    let pts = Point::create_identity(&mask, x, y);
+    Some(pts.iter().fold(Point::default(), |p1, p2| {
+        if p1.score > p2.score {
+            p1
+        } else {
+            p2.clone() // You'll almost always see the .clone() call in folds.
+        }
     }))
 }
+
+impl Point {
+    fn create_identity(mask: &ImageBuffer, x: i32, y: i32) -> Vec<Point> {
+        let mut pts: Vec<Option<Point>> = Vec::with_capacity(8);
+
+        pts.push(get_point_and_score_at_xy(&mask, x, y - 1));
+        pts.push(get_point_and_score_at_xy(&mask, x - 1, y - 1));
+        pts.push(get_point_and_score_at_xy(&mask, x - 1, y));
+        pts.push(get_point_and_score_at_xy(&mask, x - 1, y + 1));
+        pts.push(get_point_and_score_at_xy(&mask, x, y + 1));
+        pts.push(get_point_and_score_at_xy(&mask, x + 1, y + 1));
+        pts.push(get_point_and_score_at_xy(&mask, x + 1, y));
+        pts.push(get_point_and_score_at_xy(&mask, x + 1, y - 1));
+
+        pts.into_iter().flat_map(|p| p).collect()
+    }
+}
+//INFO: I'll probably leave the rest here for you to decide whether or not you prefer these 'rusty'
+//changes.
 
 fn infill(buffer: &mut RgbVec, mask: &mut ImageBuffer, starting: &Point) {
     let mut current = starting.to_owned();
@@ -390,7 +414,7 @@ pub fn apply_inpaint_to_buffer_with_mask(
     // loop. Which is bad. Perhaps consider an alternate method here.
     loop {
         // TODO: Don't leave embedded match statements. I hate that as much as embedded case statements...
-        // for a two arm match most would advise an if-let destructuring. (esp if you hate match
+        // INFO: for a two arm match most would advise an if-let destructuring. (esp if you hate match
         // statements so...)
         if let Some(pt) = find_starting_point(&mask) {
             infill(&mut working_buffer, &mut mask, &pt);
