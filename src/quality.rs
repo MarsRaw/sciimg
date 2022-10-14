@@ -1,7 +1,7 @@
 use crate::{imagebuffer, lowpass, rgbimage, stats};
 
 fn apply_blur(image: &imagebuffer::ImageBuffer, amount: usize) -> imagebuffer::ImageBuffer {
-    lowpass::lowpass_imagebuffer(&image, amount)
+    lowpass::lowpass_imagebuffer(image, amount)
 }
 
 pub fn get_point_quality_estimation_on_diff_buffer(
@@ -11,10 +11,7 @@ pub fn get_point_quality_estimation_on_diff_buffer(
     y: usize,
 ) -> f32 {
     let window = diff.isolate_window(window_size, x, y);
-    match stats::std_deviation(&window) {
-        Some(sd) => sd,
-        None => 0.0,
-    }
+    stats::std_deviation(&window).unwrap_or(0.0)
 }
 
 pub fn get_point_quality_estimation_on_buffer(
@@ -23,8 +20,8 @@ pub fn get_point_quality_estimation_on_buffer(
     x: usize,
     y: usize,
 ) -> f32 {
-    let blurred = apply_blur(&image, 5);
-    let diff = blurred.subtract(&image).unwrap();
+    let blurred = apply_blur(image, 5);
+    let diff = blurred.subtract(image).unwrap();
     get_point_quality_estimation_on_diff_buffer(&diff, window_size, x, y)
 }
 
@@ -38,25 +35,19 @@ pub fn get_point_quality_estimation(
     for b in 0..image.num_bands() {
         let band = image.get_band(b);
         q.push(get_point_quality_estimation_on_buffer(
-            &band,
+            band,
             window_size,
             x,
             y,
         ));
     }
-    match stats::mean(&q) {
-        Some(m) => m,
-        None => 0.0,
-    }
+    stats::mean(&q).unwrap_or(0.0)
 }
 
 pub fn get_quality_estimation_on_buffer(image: &imagebuffer::ImageBuffer) -> f32 {
-    let blurred = apply_blur(&image, 5);
-    let diff = blurred.subtract(&image).unwrap();
-    match stats::std_deviation(&diff.buffer.to_vector()) {
-        Some(sd) => sd,
-        None => 0.0,
-    }
+    let blurred = apply_blur(image, 5);
+    let diff = blurred.subtract(image).unwrap();
+    stats::std_deviation(&diff.buffer.to_vector()).unwrap_or(0.0)
 }
 
 // A very simple image sharpness quantifier that computes the standard deviation of the difference between
@@ -65,10 +56,7 @@ pub fn get_quality_estimation(image: &rgbimage::RgbImage) -> f32 {
     let mut q: Vec<f32> = vec![];
     for b in 0..image.num_bands() {
         let band = image.get_band(b);
-        q.push(get_quality_estimation_on_buffer(&band));
+        q.push(get_quality_estimation_on_buffer(band));
     }
-    match stats::mean(&q) {
-        Some(m) => m,
-        None => 0.0,
-    }
+    stats::mean(&q).unwrap_or(0.0)
 }

@@ -10,14 +10,9 @@ struct SplitLab {
 }
 
 fn split_lab_channels(lab_array: &[Lab]) -> SplitLab {
-    let mut l: Vec<u8> = Vec::with_capacity(lab_array.len());
-    l.resize(lab_array.len(), 0);
-
-    let mut a: Vec<u8> = Vec::with_capacity(lab_array.len());
-    a.resize(lab_array.len(), 0);
-
-    let mut b: Vec<u8> = Vec::with_capacity(lab_array.len());
-    b.resize(lab_array.len(), 0);
+    let mut l: Vec<u8> = vec![0; lab_array.len()];
+    let mut a: Vec<u8> = vec![0; lab_array.len()];
+    let mut b: Vec<u8> = vec![0; lab_array.len()];
 
     for i in 0..lab_array.len() {
         l[i] = lab_array[i].l as u8;
@@ -39,10 +34,10 @@ fn combine_lab_channels(splitlab: &SplitLab) -> Vec<Lab> {
         },
     );
 
-    for i in 0..splitlab.a.len() {
-        lab_array[i].l = splitlab.l[i] as f32;
-        lab_array[i].a = splitlab.a[i] as f32;
-        lab_array[i].b = splitlab.b[i] as f32;
+    for (i, item) in lab_array.iter_mut().enumerate().take(splitlab.a.len()) {
+        item.l = splitlab.l[i] as f32;
+        item.a = splitlab.a[i] as f32;
+        item.b = splitlab.b[i] as f32;
     }
 
     lab_array

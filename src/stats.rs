@@ -37,8 +37,8 @@ pub fn std_deviation(data: &[f32]) -> Option<f32> {
 }
 
 pub fn z_score(pixel_value: f32, data: &[f32]) -> Option<f32> {
-    let data_mean = mean(&data);
-    let data_std_deviation = std_deviation(&data);
+    let data_mean = mean(data);
+    let data_std_deviation = std_deviation(data);
     let data_value = pixel_value;
 
     match (data_mean, data_std_deviation) {

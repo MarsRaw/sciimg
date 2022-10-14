@@ -74,25 +74,25 @@ impl Cahvor {
     }
 
     pub fn lambda(&self, p: &Vector) -> Vector {
-        let z = self.zeta(&p);
+        let z = self.zeta(p);
         self._lambda(&p, z)
     }
 
     pub fn tau(&self, p: &Vector) -> f64 {
-        let z = self.zeta(&p);
-        let l = self._lambda(&p, z);
+        let z = self.zeta(p);
+        let l = self._lambda(p, z);
 
         l.dot_product(&l) / z.powi(2)
     }
 
     pub fn mu(&self, p: &Vector) -> f64 {
-        let t = self.tau(&p);
+        let t = self.tau(p);
         self.r.x + self.r.y * t + self.r.z * t.powi(2)
     }
 
     pub fn corrected_point(&self, p: &Vector) -> Vector {
-        let mut l = self.lambda(&p);
-        let m = self.mu(&p);
+        let mut l = self.lambda(p);
+        let m = self.mu(p);
         l = l.scale(m);
         p.add(&l)
     }
@@ -124,8 +124,8 @@ impl Cahvor {
 
     pub fn project_object_to_image_point(&self, p: &Vector) -> ImageCoordinate {
         ImageCoordinate {
-            sample: self.i(&p),
-            line: self.j(&p),
+            sample: self.i(p),
+            line: self.j(p),
         }
     }
 
@@ -152,27 +152,27 @@ impl CameraModelTrait for Cahvor {
     }
 
     fn c(&self) -> Vector {
-        self.c.clone()
+        self.c
     }
 
     fn a(&self) -> Vector {
-        self.a.clone()
+        self.a
     }
 
     fn h(&self) -> Vector {
-        self.h.clone()
+        self.h
     }
 
     fn v(&self) -> Vector {
-        self.v.clone()
+        self.v
     }
 
     fn o(&self) -> Vector {
-        self.o.clone()
+        self.o
     }
 
     fn r(&self) -> Vector {
-        self.r.clone()
+        self.r
     }
 
     fn e(&self) -> Vector {
@@ -192,7 +192,7 @@ impl CameraModelTrait for Cahvor {
         let line = coordinate.line;
         let sample = coordinate.sample;
 
-        let origin = self.c.clone();
+        let origin = self.c;
 
         let f = self.v.subtract(&self.a.scale(line));
         let g = self.h.subtract(&self.a.scale(sample));
@@ -211,7 +211,7 @@ impl CameraModelTrait for Cahvor {
         let k1 = 1.0 + self.r.x;
         let k3 = self.r.y * tau;
         let k5 = self.r.z * tau * tau;
-        let mut mu = self.r.x + k3 + k5;
+        let mu = self.r.x + k3 + k5;
         let mut u = 1.0 - mu;
 
         for i in 0..(MAXITER + 1) {
@@ -233,19 +233,15 @@ impl CameraModelTrait for Cahvor {
             }
         }
 
-        mu = 1.0 - u;
-        let pp = lambda.scale(mu);
-        let look_direction = rr.subtract(&pp).normalized();
-
         Ok(LookVector {
-            origin: origin,
-            look_direction: look_direction,
+            origin,
+            look_direction: rr.subtract(&lambda.scale(1.0 - u)).normalized(),
         })
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVOR.java
     fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> ImageCoordinate {
-        if infinity == true {
+        if infinity {
             let omega = xyz.dot_product(&self.o);
             let omega_2 = omega * omega;
             let wo = self.o.scale(omega);
@@ -322,7 +318,7 @@ pub fn linearize(
     let minfov = true;
 
     let mut output_camera = Cahv::default();
-    output_camera.c = camera_model.c.clone();
+    output_camera.c = camera_model.c;
 
     let hpts = vec![
         Vector::default(),
@@ -353,25 +349,20 @@ pub fn linearize(
     ];
 
     for local in vpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate {
+        if let Ok(lv) = camera_model.ls_to_look_vector(&ImageCoordinate {
             line: local.y,
             sample: local.x,
         }) {
-            Ok(lv) => {
-                output_camera.a = output_camera.a.add(&lv.look_direction);
-            }
-            Err(_) => {}
+            output_camera.a = output_camera.a.add(&lv.look_direction);
         }
     }
+
     for local in hpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate {
+        if let Ok(lv) = camera_model.ls_to_look_vector(&ImageCoordinate {
             line: local.y,
             sample: local.x,
         }) {
-            Ok(lv) => {
-                output_camera.a = output_camera.a.add(&lv.look_direction);
-            }
-            Err(_) => {}
+            output_camera.a = output_camera.a.add(&lv.look_direction);
         }
     }
 
@@ -385,40 +376,34 @@ pub fn linearize(
     let mut hmin = 1.0;
     let mut hmax = -1.0;
     for loop_ in hpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate {
+        if let Ok(lv) = camera_model.ls_to_look_vector(&ImageCoordinate {
             line: loop_.y,
             sample: loop_.x,
         }) {
-            Ok(lv) => {
-                let u3 = lv.look_direction;
-                let sn = output_camera
-                    .a
-                    .cross_product(&u3.subtract(&dn.scale(dn.dot_product(&u3))).normalized())
-                    .len();
-                hmin = min!(hmin, sn);
-                hmax = max!(hmax, sn);
-            }
-            Err(_) => {}
+            let u3 = lv.look_direction;
+            let sn = output_camera
+                .a
+                .cross_product(&u3.subtract(&dn.scale(dn.dot_product(&u3))).normalized())
+                .len();
+            hmin = min!(hmin, sn);
+            hmax = max!(hmax, sn);
         }
     }
 
     let mut vmin = 1.0;
     let mut vmax = -1.0;
     for loop_ in vpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate {
+        if let Ok(lv) = camera_model.ls_to_look_vector(&ImageCoordinate {
             line: loop_.y,
             sample: loop_.x,
         }) {
-            Ok(lv) => {
-                let u3 = lv.look_direction;
-                let sn = output_camera
-                    .a
-                    .cross_product(&u3.subtract(&rt.scale(rt.dot_product(&u3))).normalized())
-                    .len();
-                vmin = min!(vmin, sn);
-                vmax = max!(vmax, sn);
-            }
-            Err(_) => {}
+            let u3 = lv.look_direction;
+            let sn = output_camera
+                .a
+                .cross_product(&u3.subtract(&rt.scale(rt.dot_product(&u3))).normalized())
+                .len();
+            vmin = min!(vmin, sn);
+            vmax = max!(vmax, sn);
         }
     }
 

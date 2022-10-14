@@ -211,7 +211,7 @@ impl Vector {
                 z: rz,
             }
         } else {
-            self.clone()
+            *self
         }
     }
 
@@ -231,7 +231,7 @@ impl Vector {
                 z: rz,
             }
         } else {
-            self.clone()
+            *self
         }
     }
 
@@ -251,7 +251,7 @@ impl Vector {
                 z: self.z,
             }
         } else {
-            self.clone()
+            *self
         }
     }
 

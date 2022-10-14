@@ -80,31 +80,31 @@ impl CameraModelTrait for Cahvore {
     }
 
     fn c(&self) -> Vector {
-        self.c.clone()
+        self.c
     }
 
     fn a(&self) -> Vector {
-        self.a.clone()
+        self.a
     }
 
     fn h(&self) -> Vector {
-        self.h.clone()
+        self.h
     }
 
     fn v(&self) -> Vector {
-        self.v.clone()
+        self.v
     }
 
     fn o(&self) -> Vector {
-        self.o.clone()
+        self.o
     }
 
     fn r(&self) -> Vector {
-        self.r.clone()
+        self.r
     }
 
     fn e(&self) -> Vector {
-        self.e.clone()
+        self.e
     }
 
     fn box_clone(&self) -> Box<dyn CameraModelTrait + 'static> {
@@ -133,7 +133,7 @@ impl CameraModelTrait for Cahvore {
         let chip = lambdap.len() / zetap;
 
         let (center_point, ray_of_incidence) = match chip < CHIP_LIMIT {
-            true => (self.c.clone(), self.o.clone()),
+            true => (self.c, self.o),
             false => {
                 let mut chi = chip;
 
@@ -154,7 +154,7 @@ impl CameraModelTrait for Cahvore {
                             + ((self.r.z * chi5) - chip) / deriv
                     };
 
-                    chi = chi - dchi;
+                    chi -= dchi;
 
                     if dchi.abs() < CHIP_LIMIT {
                         break;
@@ -223,7 +223,7 @@ impl CameraModelTrait for Cahvore {
             let dtheta = ((zeta * sin_theta - lamda_mag * cos_theta)
                 - (theta - sin_theta) * (self.e.x + self.e.y * theta2 + self.e.z * theta4))
                 / upsilon;
-            theta = theta - dtheta;
+            theta -= dtheta;
 
             if dtheta.abs() < CHIP_LIMIT {
                 break;
@@ -274,12 +274,9 @@ impl CameraModelTrait for Cahvore {
         let beta = rp.dot_product(&self.h);
         let gamma = rp.dot_product(&self.v);
 
-        let samp = beta / alpha;
-        let line = gamma / alpha;
-
         ImageCoordinate {
-            sample: samp,
-            line: line,
+            sample: beta / alpha,
+            line: gamma / alpha,
         }
     }
 
@@ -324,7 +321,7 @@ pub fn linearize(
     let minfov = true;
 
     let mut output_camera = Cahv::default();
-    output_camera.c = camera_model.c.clone();
+    output_camera.c = camera_model.c;
 
     let hpts = vec![
         Vector::default(),
@@ -376,40 +373,34 @@ pub fn linearize(
     let mut hmin = 1.0;
     let mut hmax = -1.0;
     for local in hpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate {
+        if let Ok(lv) = camera_model.ls_to_look_vector(&ImageCoordinate {
             line: local.y,
             sample: local.x,
         }) {
-            Ok(lv) => {
-                let cs = output_camera.a.dot_product(
-                    &lv.look_direction
-                        .subtract(&dn.scale(dn.dot_product(&lv.look_direction)))
-                        .normalized(),
-                );
-                hmin = min!(hmin, cs);
-                hmax = max!(hmax, cs);
-            }
-            Err(_) => {}
+            let cs = output_camera.a.dot_product(
+                &lv.look_direction
+                    .subtract(&dn.scale(dn.dot_product(&lv.look_direction)))
+                    .normalized(),
+            );
+            hmin = min!(hmin, cs);
+            hmax = max!(hmax, cs);
         }
     }
 
     let mut vmin = 1.0;
     let mut vmax = -1.0;
     for local in vpts.iter() {
-        match camera_model.ls_to_look_vector(&ImageCoordinate {
+        if let Ok(lv) = camera_model.ls_to_look_vector(&ImageCoordinate {
             line: local.y,
             sample: local.x,
         }) {
-            Ok(lv) => {
-                let cs = output_camera.a.dot_product(
-                    &lv.look_direction
-                        .subtract(&rt.scale(rt.dot_product(&lv.look_direction)))
-                        .normalized(),
-                );
-                vmin = min!(vmin, cs);
-                vmax = max!(vmax, cs);
-            }
-            Err(_) => {}
+            let cs = output_camera.a.dot_product(
+                &lv.look_direction
+                    .subtract(&rt.scale(rt.dot_product(&lv.look_direction)))
+                    .normalized(),
+            );
+            vmin = min!(vmin, cs);
+            vmax = max!(vmax, cs);
         }
     }
 

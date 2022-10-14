@@ -1,4 +1,4 @@
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum CalFileType {
     FlatField,
     InpaintMask,
@@ -7,7 +7,7 @@ pub enum CalFileType {
 
 // Image data value range. Doesn't enforce actual
 // value data types in the structs
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ImageMode {
     U8BIT,
     U12BIT,
@@ -24,7 +24,7 @@ impl ImageMode {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Axis {
     XAxis,
     YAxis,

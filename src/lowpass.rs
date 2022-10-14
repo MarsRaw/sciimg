@@ -22,7 +22,7 @@ fn isolate_window(buffer: &ImageBuffer, window_size: usize, x: usize, y: usize) 
 }
 
 fn mean_of_window(buffer: &ImageBuffer, window_size: usize, x: usize, y: usize) -> Option<f32> {
-    let window_values = isolate_window(&buffer, window_size, x, y);
+    let window_values = isolate_window(buffer, window_size, x, y);
     stats::mean(&window_values)
 }
 
@@ -50,7 +50,7 @@ pub fn lowpass(image: &RgbImage, window_size: usize) -> RgbImage {
 
     (0..image.num_bands()).for_each(|b| {
         let buffer = image.get_band(b);
-        let filtered_buffer = lowpass_imagebuffer(&buffer, window_size);
+        let filtered_buffer = lowpass_imagebuffer(buffer, window_size);
         lowpass_image.set_band(&filtered_buffer, b);
     });
 

@@ -27,7 +27,7 @@ pub type Dn = f32;
 pub type DnVec = Vec<Dn>;
 
 pub fn center_crop_2d<T: Copy>(
-    from_array: &Vec<T>,
+    from_array: &[T],
     from_width: usize,
     from_height: usize,
     to_width: usize,
@@ -49,7 +49,7 @@ pub fn center_crop_2d<T: Copy>(
 }
 
 pub fn crop_2d<T: Copy>(
-    from_array: &Vec<T>,
+    from_array: &[T],
     from_width: usize,
     from_height: usize,
     left_x: usize,
@@ -73,7 +73,7 @@ pub fn crop_2d<T: Copy>(
 }
 
 pub fn isolate_window_2d<T: Copy>(
-    from_array: &Vec<T>,
+    from_array: &[T],
     width_2d: usize,
     height_2d: usize,
     window_size: usize,
@@ -249,9 +249,7 @@ impl VecMath for DnVec {
         for n in 0..self.len() {
             s += (self[n] - m_x) * (other[n] - m_y)
         }
-        let c = 1.0 / self.len() as Dn * s / (v_x * v_y).sqrt();
-
-        c
+        1.0 / self.len() as Dn * s / (v_x * v_y).sqrt()
     }
 
     fn stddev(&self) -> Dn {
@@ -270,7 +268,7 @@ impl VecMath for DnVec {
         x: usize,
         y: usize,
     ) -> DnVec {
-        isolate_window_2d(&self, width_2d, height_2d, window_size, x, y)
+        isolate_window_2d(self, width_2d, height_2d, window_size, x, y)
     }
 
     fn get_2d(&self, width_2d: usize, height_2d: usize, x: usize, y: usize) -> Dn {
@@ -291,7 +289,7 @@ impl VecMath for DnVec {
         to_width: usize,
         to_height: usize,
     ) -> DnVec {
-        center_crop_2d(&self, from_width, from_height, to_width, to_height)
+        center_crop_2d(self, from_width, from_height, to_width, to_height)
     }
 
     fn crop_2d(
@@ -304,7 +302,7 @@ impl VecMath for DnVec {
         to_height: usize,
     ) -> DnVec {
         crop_2d(
-            &self,
+            self,
             from_width,
             from_height,
             left_x,
@@ -320,7 +318,7 @@ impl VecMath for DnVec {
         }
 
         let mut n = self.clone();
-        n.add_mut(&other);
+        n.add_mut(other);
         n
     }
 
@@ -341,9 +339,7 @@ impl VecMath for DnVec {
     }
 
     fn add_across_mut(&mut self, other: Dn) {
-        (0..self.len())
-            .into_iter()
-            .for_each(|i| self[i] = self[i] + other);
+        (0..self.len()).into_iter().for_each(|i| self[i] += other);
     }
 
     fn subtract(&self, other: &DnVec) -> DnVec {
@@ -352,7 +348,7 @@ impl VecMath for DnVec {
         }
 
         let mut n = self.clone();
-        n.subtract_mut(&other);
+        n.subtract_mut(other);
         n
     }
 
@@ -373,9 +369,7 @@ impl VecMath for DnVec {
     }
 
     fn subtract_across_mut(&mut self, other: Dn) {
-        (0..self.len())
-            .into_iter()
-            .for_each(|i| self[i] = self[i] - other);
+        (0..self.len()).into_iter().for_each(|i| self[i] -= other);
     }
 
     fn divide(&self, other: &DnVec) -> DnVec {
@@ -384,7 +378,7 @@ impl VecMath for DnVec {
         }
 
         let mut n = self.clone();
-        n.divide_mut(&other);
+        n.divide_mut(other);
         n
     }
 
@@ -406,7 +400,7 @@ impl VecMath for DnVec {
 
     fn divide_into_mut(&mut self, divisor: Dn) {
         (0..self.len()).into_iter().for_each(|i| {
-            self[i] = self[i] / divisor;
+            self[i] /= divisor;
         });
     }
 
@@ -418,7 +412,7 @@ impl VecMath for DnVec {
 
     fn scale_mut(&mut self, scalar: Dn) {
         (0..self.len()).into_iter().for_each(|i| {
-            self[i] = self[i] * scalar;
+            self[i] *= scalar;
         });
     }
 
@@ -428,7 +422,7 @@ impl VecMath for DnVec {
         }
 
         let mut n = self.clone();
-        n.multiply_mut(&other);
+        n.multiply_mut(other);
         n
     }
 
@@ -652,7 +646,7 @@ pub struct MaskedDnVecIter<'a> {
 impl MaskedDnVecIter<'_> {
     pub fn new(vec: &MaskedDnVec) -> MaskedDnVecIter<'_> {
         MaskedDnVecIter {
-            vec: vec,
+            vec,
             curr: 0,
             next: 1,
         }
@@ -678,6 +672,10 @@ impl Iterator for MaskedDnVecIter<'_> {
 }
 
 impl MaskedDnVec {
+    pub fn default() -> Self {
+        Self::new()
+    }
+
     pub fn new() -> Self {
         MaskedDnVec {
             vec: DnVec::new(),
@@ -777,14 +775,18 @@ impl MaskedDnVec {
         self.vec.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn iter(&self) -> MaskedDnVecIter<'_> {
-        MaskedDnVecIter::new(&self)
+        MaskedDnVecIter::new(self)
     }
 }
 
 impl Index<usize> for MaskedDnVec {
     type Output = Dn;
-    fn index<'a>(&'a self, i: usize) -> &'a Dn {
+    fn index<'a>(&'_ self, i: usize) -> &'_ Dn {
         if self.mask[i] {
             &self.vec[i]
         } else {
@@ -795,14 +797,14 @@ impl Index<usize> for MaskedDnVec {
 
 impl Index<std::ops::Range<usize>> for MaskedDnVec {
     type Output = [Dn];
-    fn index<'a>(&'a self, i: std::ops::Range<usize>) -> &'a [Dn] {
+    fn index<'a>(&'_ self, i: std::ops::Range<usize>) -> &'_ [Dn] {
         &self.vec[i.start..i.end]
         // TODO: Actually mask the stuff
     }
 }
 
 impl IndexMut<usize> for MaskedDnVec {
-    fn index_mut<'a>(&'a mut self, i: usize) -> &'a mut Dn {
+    fn index_mut<'a>(&'_ mut self, i: usize) -> &'_ mut Dn {
         if self.mask[i] {
             &mut self.vec[i]
         } else {
@@ -812,7 +814,7 @@ impl IndexMut<usize> for MaskedDnVec {
 }
 
 impl IndexMut<std::ops::Range<usize>> for MaskedDnVec {
-    fn index_mut<'a>(&'a mut self, i: std::ops::Range<usize>) -> &'a mut [Dn] {
+    fn index_mut<'a>(&'_ mut self, i: std::ops::Range<usize>) -> &'_ mut [Dn] {
         &mut self.vec[i.start..i.end]
         // TODO: Actually mask the stuff
     }
@@ -823,7 +825,7 @@ impl VecMath for MaskedDnVec {
         let mask = MaskVec::new_mask(capacity);
         MaskedDnVec {
             vec: DnVec::fill(capacity, fill_value),
-            mask: mask,
+            mask,
             null: 0.0,
         }
     }
@@ -867,9 +869,7 @@ impl VecMath for MaskedDnVec {
         for n in 0..self.len() {
             s += (self[n] - m_x) * (other[n] - m_y)
         }
-        let c = 1.0 / self.len() as Dn * s / (v_x * v_y).sqrt();
-
-        c
+        1.0 / self.len() as Dn * s / (v_x * v_y).sqrt()
     }
 
     fn stddev(&self) -> Dn {
@@ -964,7 +964,7 @@ impl VecMath for MaskedDnVec {
         }
 
         let mut n = self.clone();
-        n.add_mut(&other);
+        n.add_mut(other);
         n
     }
 
@@ -985,9 +985,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn add_across_mut(&mut self, other: Dn) {
-        (0..self.len())
-            .into_iter()
-            .for_each(|i| self[i] = self[i] + other);
+        (0..self.len()).into_iter().for_each(|i| self[i] += other);
     }
 
     fn subtract(&self, other: &MaskedDnVec) -> MaskedDnVec {
@@ -996,7 +994,7 @@ impl VecMath for MaskedDnVec {
         }
 
         let mut n = self.clone();
-        n.subtract_mut(&other);
+        n.subtract_mut(other);
         n
     }
 
@@ -1017,9 +1015,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn subtract_across_mut(&mut self, other: Dn) {
-        (0..self.len())
-            .into_iter()
-            .for_each(|i| self[i] = self[i] - other);
+        (0..self.len()).into_iter().for_each(|i| self[i] -= other);
     }
 
     fn divide(&self, other: &MaskedDnVec) -> MaskedDnVec {
@@ -1028,7 +1024,7 @@ impl VecMath for MaskedDnVec {
         }
 
         let mut n = self.clone();
-        n.divide_mut(&other);
+        n.divide_mut(other);
         n
     }
 
@@ -1050,7 +1046,7 @@ impl VecMath for MaskedDnVec {
 
     fn divide_into_mut(&mut self, divisor: Dn) {
         (0..self.len()).into_iter().for_each(|i| {
-            self[i] = self[i] / divisor;
+            self[i] /= divisor;
         });
     }
 
@@ -1062,7 +1058,7 @@ impl VecMath for MaskedDnVec {
 
     fn scale_mut(&mut self, scalar: Dn) {
         (0..self.len()).into_iter().for_each(|i| {
-            self[i] = self[i] * scalar;
+            self[i] *= scalar;
         });
     }
 
@@ -1072,7 +1068,7 @@ impl VecMath for MaskedDnVec {
         }
 
         let mut n = self.clone();
-        n.multiply_mut(&other);
+        n.multiply_mut(other);
         n
     }
 

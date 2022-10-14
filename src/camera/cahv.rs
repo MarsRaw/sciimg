@@ -38,19 +38,19 @@ impl CameraModelTrait for Cahv {
     }
 
     fn c(&self) -> Vector {
-        self.c.clone()
+        self.c
     }
 
     fn a(&self) -> Vector {
-        self.a.clone()
+        self.a
     }
 
     fn h(&self) -> Vector {
-        self.h.clone()
+        self.h
     }
 
     fn v(&self) -> Vector {
-        self.v.clone()
+        self.v
     }
 
     fn o(&self) -> Vector {
@@ -78,7 +78,7 @@ impl CameraModelTrait for Cahv {
         let line = coordinate.line;
         let samp = coordinate.sample;
 
-        let origin = self.c.clone();
+        let origin = self.c;
 
         let f = self.v.subtract(&self.a.scale(line));
         let g = self.h.subtract(&self.a.scale(samp));
@@ -91,8 +91,8 @@ impl CameraModelTrait for Cahv {
         }
 
         Ok(LookVector {
-            origin: origin,
-            look_direction: look_direction,
+            origin,
+            look_direction,
         })
     }
 

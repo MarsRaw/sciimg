@@ -28,7 +28,7 @@ impl Quaternion {
         let real_axis = axis.normalized();
 
         Quaternion {
-            q0: q0,
+            q0,
             q1: real_axis.x * sin_half_theta,
             q2: real_axis.y * sin_half_theta,
             q3: real_axis.z * sin_half_theta,
@@ -51,7 +51,7 @@ impl Quaternion {
             let q0 = s * 0.5;
             s = 0.5 / s;
             Quaternion {
-                q0: q0,
+                q0,
                 q1: (mat.get(2, 1) - mat.get(1, 2)) * s,
                 q2: (mat.get(0, 2) - mat.get(2, 0)) * s,
                 q3: (mat.get(1, 0) - mat.get(0, 1)) * s,
@@ -127,7 +127,7 @@ impl Quaternion {
     }
 
     pub fn times(&self, other: &Quaternion) -> Quaternion {
-        Quaternion::mul(&self, &other)
+        Quaternion::mul(self, other)
     }
 
     pub fn mul(a: &Quaternion, b: &Quaternion) -> Quaternion {
@@ -172,7 +172,7 @@ impl Quaternion {
     pub fn rotate_vector(&self, src: &Vector) -> Vector {
         let qvec = Vector::new(self.q1, self.q2, self.q3);
 
-        let mut q_cross_x = qvec.cross_product(&src);
+        let mut q_cross_x = qvec.cross_product(src);
         let mut q_cross_x_cross_q = q_cross_x.cross_product(&qvec);
 
         q_cross_x = q_cross_x.scale(2.0 * self.q0);

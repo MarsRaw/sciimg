@@ -56,7 +56,7 @@ impl ImageBuffer {
             width,
             height,
             empty: false,
-            mode: mode,
+            mode,
         })
     }
 
@@ -67,7 +67,7 @@ impl ImageBuffer {
         mask: &MaskVec,
     ) -> error::Result<ImageBuffer> {
         Ok(ImageBuffer {
-            buffer: MaskedDnVec::from_maskvec(&mask),
+            buffer: MaskedDnVec::from_maskvec(mask),
             width,
             height,
             empty: false,
@@ -96,11 +96,11 @@ impl ImageBuffer {
         mode: enums::ImageMode,
     ) -> error::Result<ImageBuffer> {
         Ok(ImageBuffer {
-            buffer: MaskedDnVec::from_maskvec(&mask),
+            buffer: MaskedDnVec::from_maskvec(mask),
             width,
             height,
             empty: false,
-            mode: mode,
+            mode,
         })
     }
 
@@ -140,11 +140,11 @@ impl ImageBuffer {
         }
 
         Ok(ImageBuffer {
-            buffer: MaskedDnVec::from_dnvec(&v),
+            buffer: MaskedDnVec::from_dnvec(v),
             width,
             height,
             empty: false,
-            mode: mode,
+            mode,
         })
     }
 
@@ -164,7 +164,7 @@ impl ImageBuffer {
             width,
             height,
             empty: false,
-            mode: mode,
+            mode,
         })
     }
 
@@ -205,9 +205,9 @@ impl ImageBuffer {
         }
 
         Ok(ImageBuffer {
-            buffer: MaskedDnVec::from_dnvec_and_mask(&v, &mask),
-            width: width,
-            height: height,
+            buffer: MaskedDnVec::from_dnvec_and_mask(&v, mask),
+            width,
+            height,
             empty: false,
             mode: enums::ImageMode::U16BIT,
         })
@@ -254,9 +254,9 @@ impl ImageBuffer {
         }
 
         Ok(ImageBuffer {
-            buffer: MaskedDnVec::from_dnvec_and_mask(&v, &mask),
-            width: width,
-            height: height,
+            buffer: MaskedDnVec::from_dnvec_and_mask(&v, mask),
+            width,
+            height,
             empty: false,
             mode: enums::ImageMode::U16BIT,
         })
@@ -274,7 +274,7 @@ impl ImageBuffer {
         }
 
         Ok(ImageBuffer {
-            buffer: MaskedDnVec::from_dnvec_and_mask(&v, &mask),
+            buffer: MaskedDnVec::from_dnvec_and_mask(v, mask),
             width,
             height,
             empty: false,
@@ -366,7 +366,7 @@ impl ImageBuffer {
             width,
             height,
             empty: false,
-            mode: mode,
+            mode,
         })
     }
 
@@ -381,11 +381,11 @@ impl ImageBuffer {
         }
 
         Ok(ImageBuffer {
-            buffer: MaskedDnVec::from_dnvec(&v),
+            buffer: MaskedDnVec::from_dnvec(v),
             width,
             height,
             empty: false,
-            mode: mode,
+            mode,
         })
     }
 
@@ -398,7 +398,7 @@ impl ImageBuffer {
     }
 
     pub fn set_mask(&mut self, buffer: &ImageBuffer) {
-        let mask = ImageBuffer::buffer_to_mask(&buffer);
+        let mask = ImageBuffer::buffer_to_mask(buffer);
         self.buffer.apply_mask(&mask);
     }
 
@@ -435,8 +435,7 @@ impl ImageBuffer {
 
     pub fn to_vector_u8(&self) -> Vec<u8> {
         let need_len = self.buffer.len();
-        let mut v: Vec<u8> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0);
+        let mut v: Vec<u8> = vec![0; need_len];
 
         for i in 0..need_len {
             v[i] = match self.mode {
@@ -450,8 +449,7 @@ impl ImageBuffer {
 
     pub fn to_vector_u16(&self) -> Vec<u16> {
         let need_len = self.buffer.len();
-        let mut v: Vec<u16> = Vec::with_capacity(need_len);
-        v.resize(need_len, 0);
+        let mut v: Vec<u16> = vec![0; need_len];
 
         for i in 0..need_len {
             v[i] = self.buffer[i] as u16;
@@ -727,9 +725,9 @@ impl ImageBuffer {
             for x in 0..self.width {
                 let val = self.get(x, y).unwrap();
                 if val >= threshold {
-                    ox = ox + (x as Dn);
-                    oy = oy + (y as Dn);
-                    count = count + 1;
+                    ox += x as Dn;
+                    oy += y as Dn;
+                    count += 1;
                 }
             }
         }
@@ -878,7 +876,7 @@ impl ImageBuffer {
             }
         }
 
-        if path::parent_exists_and_writable(&to_file) {
+        if path::parent_exists_and_writable(to_file) {
             out_img.save(to_file).unwrap();
         } else {
             panic!(
@@ -900,7 +898,7 @@ impl ImageBuffer {
             }
         }
 
-        if path::parent_exists_and_writable(&to_file) {
+        if path::parent_exists_and_writable(to_file) {
             out_img.save(to_file).unwrap();
         } else {
             panic!(

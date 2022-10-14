@@ -88,35 +88,45 @@ impl Matrix {
     }
 
     pub fn matmul4(a: &Matrix, b: &Matrix) -> Matrix {
-        let mut product = vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        let mut product = vec![
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        ];
 
         for row in 0..3 {
             let ai0 = a.m[(0 << 2) + row];
             let ai1 = a.m[(1 << 2) + row];
             let ai2 = a.m[(2 << 2) + row];
+            let ai3 = a.m[(3 << 2) + row];
 
-            product[(0 << 2) + row] =
-                ai0 * b.m[(0 << 2) + 0] + ai1 * b.m[(0 << 2) + 1] + ai2 * b.m[(0 << 2) + 2];
-            product[(1 << 2) + row] =
-                ai0 * b.m[(1 << 2) + 0] + ai1 * b.m[(1 << 2) + 1] + ai2 * b.m[(1 << 2) + 2];
-            product[(2 << 2) + row] =
-                ai0 * b.m[(2 << 2) + 0] + ai1 * b.m[(2 << 2) + 1] + ai2 * b.m[(2 << 2) + 2];
+            product[(0 << 2) + row] = ai0 * b.m[(0 << 2)]
+                + ai1 * b.m[(0 << 2) + 1]
+                + ai2 * b.m[(0 << 2) + 2]
+                + ai3 * b.m[(0 << 2) + 3];
+            product[(1 << 2) + row] = ai0 * b.m[(1 << 2)]
+                + ai1 * b.m[(1 << 2) + 1]
+                + ai2 * b.m[(1 << 2) + 2]
+                + ai3 * b.m[(1 << 2) + 3];
+            product[(2 << 2) + row] = ai0 * b.m[(2 << 2)]
+                + ai1 * b.m[(2 << 2) + 1]
+                + ai2 * b.m[(2 << 2) + 2]
+                + ai3 * b.m[(2 << 2) + 3];
+            product[(3 << 2) + row] = ai0 * b.m[(3 << 2)]
+                + ai1 * b.m[(3 << 2) + 1]
+                + ai2 * b.m[(3 << 2) + 2]
+                + ai3 * b.m[(3 << 2) + 3];
         }
 
         Matrix::new_from_vec(&product).unwrap()
     }
 
     pub fn multiply(&self, other: &Matrix) -> Matrix {
-        Matrix::matmul4(&self, &other)
+        Matrix::matmul4(self, other)
     }
 
     pub fn multiply_vector(&self, other: &Vector) -> Vector {
-        let x =
-            other.x * self.m[0 * 4 + 0] + other.y * self.m[1 * 4 + 0] + other.z * self.m[2 * 4 + 0];
-        let y =
-            other.x * self.m[0 * 4 + 1] + other.y * self.m[1 * 4 + 1] + other.z * self.m[2 * 4 + 1];
-        let z =
-            other.x * self.m[0 * 4 + 2] + other.y * self.m[1 * 4 + 2] + other.z * self.m[2 * 4 + 2];
+        let x = other.x * self.m[0] + other.y * self.m[4 + 0] + other.z * self.m[2 * 4 + 0];
+        let y = other.x * self.m[1] + other.y * self.m[4 + 1] + other.z * self.m[2 * 4 + 1];
+        let z = other.x * self.m[2] + other.y * self.m[4 + 2] + other.z * self.m[2 * 4 + 2];
         Vector::new(x, y, z)
     }
 

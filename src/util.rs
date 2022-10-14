@@ -25,7 +25,7 @@ pub fn string_is_valid_u16(s: &str) -> bool {
 }
 
 pub fn filename_char_at_pos(filename: &str, pos: usize) -> char {
-    let bn = path::basename(&filename);
+    let bn = path::basename(filename);
     bn.chars().nth(pos).unwrap()
 }
 
@@ -74,14 +74,13 @@ pub fn append_file_name(input_file: &str, append: &str) -> String {
 }
 
 pub fn replace_image_extension(input_file: &str, append: &str) -> String {
-    let out_file = input_file
+    input_file
         .replace(".png", append)
         .replace(".PNG", append)
         .replace(".jpg", append)
         .replace(".JPG", append)
         .replace(".tif", append)
-        .replace(".TIF", append);
-    String::from(out_file)
+        .replace(".TIF", append)
 }
 
 pub fn vec_to_str(v: &[f64]) -> String {

@@ -2,7 +2,7 @@ use image::{imageops::blur, DynamicImage, Rgba};
 
 use crate::imagebuffer::ImageBuffer;
 
-pub fn blur_vec_u8(v: &Vec<u8>, width: usize, height: usize, amount: f32) -> Vec<u8> {
+pub fn blur_vec_u8(v: &[u8], width: usize, height: usize, amount: f32) -> Vec<u8> {
     let mut out_img = DynamicImage::new_rgba8(width as u32, height as u32).into_rgba16();
     for y in 0..height {
         for x in 0..width {
@@ -16,8 +16,7 @@ pub fn blur_vec_u8(v: &Vec<u8>, width: usize, height: usize, amount: f32) -> Vec
     }
     let blurred = blur(&out_img, amount);
 
-    let mut blurred_v: Vec<u8> = Vec::with_capacity(width * height);
-    blurred_v.resize(width * height, 0);
+    let mut blurred_v: Vec<u8> = vec![0; width * height];
 
     for y in 0..height {
         for x in 0..width {
@@ -31,7 +30,7 @@ pub fn blur_vec_u8(v: &Vec<u8>, width: usize, height: usize, amount: f32) -> Vec
     blurred_v
 }
 
-pub fn blur_vec_u16(v: &Vec<u16>, width: usize, height: usize, amount: f32) -> Vec<u16> {
+pub fn blur_vec_u16(v: &[u16], width: usize, height: usize, amount: f32) -> Vec<u16> {
     let mut out_img = DynamicImage::new_rgba16(width as u32, height as u32).into_rgba16();
     for y in 0..height {
         for x in 0..width {
@@ -45,8 +44,7 @@ pub fn blur_vec_u16(v: &Vec<u16>, width: usize, height: usize, amount: f32) -> V
     }
     let blurred = blur(&out_img, amount);
 
-    let mut blurred_v: Vec<u16> = Vec::with_capacity(width * height);
-    blurred_v.resize(width * height, 0);
+    let mut blurred_v: Vec<u16> = vec![0; width * height];
 
     for y in 0..height {
         for x in 0..width {

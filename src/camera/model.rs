@@ -29,7 +29,7 @@ impl LookVector {
 
         let dot = self.look_direction.dot_product(&normal);
         if dot == 0.0 {
-            return Some(self.look_direction.clone());
+            return Some(self.look_direction);
         }
 
         let ratio = ground.subtract(&self.origin).dot_product(&normal) / dot;
@@ -84,10 +84,7 @@ impl CameraModel {
     }
 
     pub fn is_valid(&self) -> bool {
-        match self.model {
-            Some(_) => true,
-            None => false,
-        }
+        self.model.is_some()
     }
 
     pub fn model_type(&self) -> ModelType {
@@ -169,14 +166,14 @@ impl CameraModel {
 
     pub fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> error::Result<LookVector> {
         match &self.model {
-            Some(m) => m.ls_to_look_vector(&coordinate),
+            Some(m) => m.ls_to_look_vector(coordinate),
             None => panic!("Camera model is not valid"),
         }
     }
 
     pub fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> ImageCoordinate {
         match &self.model {
-            Some(m) => m.xyz_to_ls(&xyz, infinity),
+            Some(m) => m.xyz_to_ls(xyz, infinity),
             None => panic!("Camera model is not valid"),
         }
     }

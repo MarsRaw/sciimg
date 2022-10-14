@@ -84,7 +84,7 @@ pub fn debayer(buffer: &ImageBuffer) -> error::Result<RgbImage> {
 
     for y in 0..buffer.height {
         for x in 0..buffer.width {
-            extract_window(&buffer, x, y, &mut data_5x5_window, &mut mask_5x5_window);
+            extract_window(buffer, x, y, &mut data_5x5_window, &mut mask_5x5_window);
 
             let mut r = 0.0;
             let mut g = 0.0;

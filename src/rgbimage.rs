@@ -34,7 +34,7 @@ impl RgbImage {
             uses_alpha: false,
             width,
             height,
-            mode: mode,
+            mode,
             empty: false,
         })
     }
@@ -55,7 +55,7 @@ impl RgbImage {
             uses_alpha: false,
             width,
             height,
-            mode: mode,
+            mode,
             empty: false,
         })
     }
@@ -78,7 +78,7 @@ impl RgbImage {
             uses_alpha: true,
             width,
             height,
-            mode: mode,
+            mode,
             empty: false,
         })
     }
@@ -226,7 +226,7 @@ impl RgbImage {
         }
 
         for i in 0..self.bands.len() {
-            self.bands[i].divide_mut(&other);
+            self.bands[i].divide_mut(other);
         }
     }
 
@@ -236,7 +236,7 @@ impl RgbImage {
         }
 
         for i in 0..self.bands.len() {
-            self.bands[i].add_mut(&other);
+            self.bands[i].add_mut(other);
         }
     }
 
@@ -307,7 +307,7 @@ impl RgbImage {
 
     // Doesn't do anything if alpha is already enabled.
     pub fn init_alpha(&mut self) {
-        if self.uses_alpha == false {
+        if !self.uses_alpha {
             self.uses_alpha = true;
             self.alpha = MaskVec::new_mask(self.width * self.height);
         }
@@ -334,7 +334,7 @@ impl RgbImage {
     }
 
     pub fn copy_alpha_from(&mut self, src: &ImageBuffer) {
-        self.alpha = ImageBuffer::buffer_to_mask(&src);
+        self.alpha = ImageBuffer::buffer_to_mask(src);
     }
 
     pub fn calibrate_band(
@@ -399,7 +399,7 @@ impl RgbImage {
         self.bands[band] = self.bands[band]
             .scale(mean_flat)
             .unwrap()
-            .divide(&flat_buffer)
+            .divide(flat_buffer)
             .unwrap();
     }
 
@@ -411,7 +411,7 @@ impl RgbImage {
                 flat.get_band(0)
             };
 
-            self.apply_flat_on_band(i, &flat_buffer);
+            self.apply_flat_on_band(i, flat_buffer);
         }
     }
 
@@ -490,8 +490,7 @@ impl RgbImage {
         check_band_in_bounds!(band, self);
         self.bands[band] = hotpixel::hot_pixel_detection(&self.bands[band], window_size, threshold)
             .unwrap()
-            .buffer
-            .clone();
+            .buffer;
     }
 
     pub fn hot_pixel_correction(&mut self, window_size: i32, threshold: f32) {
@@ -561,8 +560,8 @@ impl RgbImage {
     }
 
     pub fn apply_inpaint_fix(&mut self, mask: &ImageBuffer) {
-        let fixed = inpaint::apply_inpaint_to_buffer(&self, &mask).unwrap();
-        self.bands = fixed.bands.clone();
+        let fixed = inpaint::apply_inpaint_to_buffer(self, mask).unwrap();
+        self.bands = fixed.bands;
 
         // let mut new_r = fixed.red().clone();
         // self._red.copy_mask_to(&mut new_r);
@@ -667,7 +666,7 @@ impl RgbImage {
             }
         }
 
-        if path::parent_exists_and_writable(&to_file) {
+        if path::parent_exists_and_writable(to_file) {
             out_img.save(to_file).unwrap();
         } else {
             panic!(
@@ -692,7 +691,7 @@ impl RgbImage {
             }
         }
 
-        if path::parent_exists_and_writable(&to_file) {
+        if path::parent_exists_and_writable(to_file) {
             out_img.save(to_file).unwrap();
         } else {
             panic!(
@@ -726,7 +725,7 @@ impl RgbImage {
             }
         }
 
-        if path::parent_exists_and_writable(&to_file) {
+        if path::parent_exists_and_writable(to_file) {
             out_img.save(to_file).unwrap();
         } else {
             panic!(
@@ -752,7 +751,7 @@ impl RgbImage {
             }
         }
 
-        if path::parent_exists_and_writable(&to_file) {
+        if path::parent_exists_and_writable(to_file) {
             out_img.save(to_file).unwrap();
         } else {
             panic!(
