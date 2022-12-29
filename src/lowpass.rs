@@ -51,7 +51,7 @@ pub fn lowpass(image: &RgbImage, window_size: usize) -> RgbImage {
     (0..image.num_bands()).for_each(|b| {
         let buffer = image.get_band(b);
         let filtered_buffer = lowpass_imagebuffer(buffer, window_size);
-        lowpass_image.set_band(&filtered_buffer, b);
+        lowpass_image.push_band(&filtered_buffer);
     });
 
     lowpass_image
