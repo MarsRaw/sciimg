@@ -1,6 +1,6 @@
 use crate::{
     debayer, decompanding, enums, error, hotpixel, imagebuffer::ImageBuffer, imagebuffer::Offset,
-    imagerot, inpaint, max, min, noise, path, Mask, MaskVec,
+    imagerot, inpaint, lowpass, max, min, noise, path, Mask, MaskVec,
 };
 
 use image::{open, DynamicImage, Rgba};
@@ -251,7 +251,6 @@ impl RgbImage {
                 true => i,
                 false => 0,
             };
-
             self.bands[i].add_mut(other.get_band(other_band));
         }
     }
@@ -605,6 +604,11 @@ impl RgbImage {
         self.mode = enums::ImageMode::U8BIT;
     }
 
+    pub fn normalize_to_8bit_decorrelated(&mut self) {
+        self.normalize_decorrelated(255.0);
+        self.mode = enums::ImageMode::U8BIT;
+    }
+
     pub fn normalize_to_12bit_with_max(&mut self, max12bit: f32, max: f32) {
         for i in 0..self.bands.len() {
             self.bands[i] = self.bands[i]
@@ -612,6 +616,52 @@ impl RgbImage {
                 .unwrap();
         }
         self.mode = enums::ImageMode::U12BIT;
+    }
+
+    fn color_range_determine_prep(&self) -> RgbImage {
+        let mut cloned = self.clone();
+
+        // Here we need to correct for energetic particle hits, hot pixels, and outlier values.
+        // To accomplish this, we perform a small-radius hot pixel correction and then a
+        // low-pass blur. This is only for range determination, and not for the output image.
+        // Testing will indicate whether this is more or less than we actually need to do to
+        // accomplish this goal.
+        cloned.hot_pixel_correction(4, 2.0);
+        cloned = lowpass::lowpass(&cloned, 5);
+
+        cloned
+    }
+
+    pub fn normalize_band_to_with_min_max(
+        &mut self,
+        band: usize,
+        to_min: f32,
+        to_max: f32,
+        from_min: f32,
+        from_max: f32,
+    ) {
+        self.set_band(
+            &self
+                .get_band(band)
+                .normalize_force_minmax(to_min, to_max, from_min, from_max)
+                .unwrap(),
+            band,
+        );
+    }
+
+    pub fn normalize_decorrelated(&mut self, max: f32) {
+        let prepped = self.color_range_determine_prep();
+        for b in 0..3 {
+            let mm = prepped.get_band(b).get_min_max();
+            self.normalize_band_to_with_min_max(b, 0.0, max, mm.min, mm.max);
+        }
+
+        self.set_mode(enums::ImageMode::U16BIT);
+    }
+
+    pub fn normalize_to_16bit_decorrelated(&mut self) {
+        self.normalize_decorrelated(65535.0);
+        self.mode = enums::ImageMode::U16BIT;
     }
 
     pub fn normalize_to_16bit_with_max(&mut self, max: f32) {

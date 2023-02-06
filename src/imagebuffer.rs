@@ -1,4 +1,4 @@
-use crate::{enums, error, path, Dn, DnVec, Mask, MaskVec, MaskedDnVec, MinMax, VecMath};
+use crate::{enums, error, max, min, path, Dn, DnVec, Mask, MaskVec, MaskedDnVec, MinMax, VecMath};
 
 extern crate image;
 use image::{open, DynamicImage, Rgba};
@@ -822,6 +822,20 @@ impl ImageBuffer {
 
     pub fn get_min_max(&self) -> MinMax {
         self.buffer.get_min_max()
+    }
+
+    pub fn get_min_max_ignore_black(&self) -> MinMax {
+        let mut mm = MinMax {
+            min: std::f32::MAX,
+            max: std::f32::MIN,
+        };
+        (0..self.buffer.len()).into_iter().for_each(|i| {
+            if self.buffer[i] != std::f32::INFINITY && self.buffer[i] > 0.0 {
+                mm.min = min!(mm.min, self.buffer[i]);
+                mm.max = max!(mm.max, self.buffer[i]);
+            }
+        });
+        mm
     }
 
     pub fn buffer_to_image_8bit(&self) -> image::ImageBuffer<image::Rgba<u8>, std::vec::Vec<u8>> {
