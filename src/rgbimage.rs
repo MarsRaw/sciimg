@@ -1,6 +1,6 @@
 use crate::{
     debayer, decompanding, enums, error, hotpixel, imagebuffer::ImageBuffer, imagebuffer::Offset,
-    imagerot, inpaint, lowpass, max, min, noise, path, Mask, MaskVec, resize
+    imagerot, inpaint, lowpass, max, min, noise, path, resize, Mask, MaskVec,
 };
 
 use image::{open, DynamicImage, Rgba};
@@ -842,10 +842,11 @@ impl RgbImage {
         };
     }
 
-    pub fn resize_to(&mut self, to_width:usize, to_height:usize) {
+    pub fn resize_to(&mut self, to_width: usize, to_height: usize) {
         for i in 0..self.bands.len() {
-            self.bands[i] = resize::resize_to(&self.bands[i], to_width, to_height).expect("Failed to resize image");
-        } 
+            self.bands[i] = resize::resize_to(&self.bands[i], to_width, to_height)
+                .expect("Failed to resize image");
+        }
         self.width = to_width;
         self.height = to_height;
     }

@@ -17,11 +17,11 @@ pub mod path;
 pub mod prelude;
 pub mod quality;
 pub mod quaternion;
+pub mod resize;
 pub mod rgbimage;
 pub mod stats;
 pub mod util;
 pub mod vector;
-pub mod resize;
 
 // Dn -> Digital number / image pixel value as 32 bit floating point.
 pub type Dn = f32;
