@@ -178,13 +178,133 @@ impl CameraModel {
         }
     }
 
+    pub fn convert_to_type(&self, model_type:ModelType) -> error::Result<CameraModel> {
+        match model_type {
+            ModelType::CAHV => {
+                if let Some(m) = &self.model {
+                    Ok(CameraModel::new(Box::new(cahv::Cahv {
+                        c: m.c(),
+                        a: m.a(),
+                        h: m.h(),
+                        v: m.v(),
+                    })))
+                } else {
+                    Err("Wut?")
+                }
+            },
+            ModelType::CAHVOR => {
+                if let Some(m) = &self.model {
+                    Ok(CameraModel::new(Box::new(cahvor::Cahvor {
+                        c: m.c(),
+                        a: m.a(),
+                        h: m.h(),
+                        v: m.v(),
+                        o: m.o(),
+                        r: m.r(),
+                    })))
+                } else {
+                    Err("Wut?")
+                }
+            },
+            ModelType::CAHVORE => {
+                if let Some(m) = &self.model {
+                    Ok(CameraModel::new(Box::new(cahvore::Cahvore {
+                        c: m.c(),
+                        a: m.a(),
+                        h: m.h(),
+                        v: m.v(),
+                        o: m.o(),
+                        r: m.r(),
+                        e: m.e(),
+                        pupil_type: cahvore::PupilType::General,
+                        linearity: cahvore::LINEARITY_FISHEYE,
+                    })))
+                } else {
+                    Err("Wut?")
+                }
+            }
+
+        }
+    }
+
+    pub fn linearize_force_type(
+        &self,
+        cahvor_width: usize,
+        cahvor_height: usize,
+        cahv_width: usize,
+        cahv_height: usize,
+        model_type:ModelType
+    ) -> error::Result<CameraModel> {
+        match model_type {
+            ModelType::CAHV => {
+                if let Some(m) = &self.model {
+                    let c = cahv::Cahv {
+                        c: m.c(),
+                        a: m.a(),
+                        h: m.h(),
+                        v: m.v(),
+                    };
+                    Ok(CameraModel::new(Box::new(c)))
+                } else {
+                    Err("Wut?")
+                }
+            },
+            ModelType::CAHVOR => {
+                if let Some(m) = &self.model {
+                    let c = cahvor::Cahvor {
+                        c: m.c(),
+                        a: m.a(),
+                        h: m.h(),
+                        v: m.v(),
+                        o: m.o(),
+                        r: m.r(),
+                    };
+                    Ok(CameraModel::new(Box::new(cahvor::linearize(
+                        &c,
+                        cahvor_width,
+                        cahvor_height,
+                        cahv_width,
+                        cahv_height,
+                    ))))
+                } else {
+                    Err("Wut?")
+                }
+            },
+            ModelType::CAHVORE => {
+                if let Some(m) = &self.model {
+                    let c = cahvore::Cahvore {
+                        c: m.c(),
+                        a: m.a(),
+                        h: m.h(),
+                        v: m.v(),
+                        o: m.o(),
+                        r: m.r(),
+                        e: m.e(),
+                        pupil_type: cahvore::PupilType::General,
+                        linearity: cahvore::LINEARITY_FISHEYE,
+                    };
+                    Ok(CameraModel::new(Box::new(cahvore::linearize(
+                        &c,
+                        cahvor_width,
+                        cahvor_height,
+                        cahv_width,
+                        cahv_height,
+                    ))))
+                } else {
+                    Err("Wut?")
+                }
+            }
+        }
+
+    }
+
     pub fn linearize(
         &self,
         cahvor_width: usize,
         cahvor_height: usize,
         cahv_width: usize,
         cahv_height: usize,
-    ) -> error::Result<cahv::Cahv> {
+    ) -> error::Result<CameraModel> {
         match self.model_type() {
             ModelType::CAHV => {
                 if let Some(m) = &self.model {
@@ -194,7 +314,7 @@ impl CameraModel {
                         h: m.h(),
                         v: m.v(),
                     };
-                    Ok(c)
+                    Ok(CameraModel::new(Box::new(c)))
                 } else {
                     Err("Wut?")
                 }
@@ -209,13 +329,13 @@ impl CameraModel {
                         o: m.o(),
                         r: m.r(),
                     };
-                    Ok(cahvor::linearize(
+                    Ok(CameraModel::new(Box::new(cahvor::linearize(
                         &c,
                         cahvor_width,
                         cahvor_height,
                         cahv_width,
                         cahv_height,
-                    ))
+                    ))))
                 } else {
                     Err("Wut?")
                 }
@@ -233,13 +353,13 @@ impl CameraModel {
                         pupil_type: cahvore::PupilType::General,
                         linearity: cahvore::LINEARITY_FISHEYE,
                     };
-                    Ok(cahvore::linearize(
+                    Ok(CameraModel::new(Box::new(cahvore::linearize(
                         &c,
                         cahvor_width,
                         cahvor_height,
                         cahv_width,
                         cahv_height,
-                    ))
+                    ))))
                 } else {
                     Err("Wut?")
                 }
