@@ -178,7 +178,7 @@ impl CameraModel {
         }
     }
 
-    pub fn convert_to_type(&self, model_type:ModelType) -> error::Result<CameraModel> {
+    pub fn convert_to_type(&self, model_type: ModelType) -> error::Result<CameraModel> {
         match model_type {
             ModelType::CAHV => {
                 if let Some(m) = &self.model {
@@ -191,7 +191,7 @@ impl CameraModel {
                 } else {
                     Err("Wut?")
                 }
-            },
+            }
             ModelType::CAHVOR => {
                 if let Some(m) = &self.model {
                     Ok(CameraModel::new(Box::new(cahvor::Cahvor {
@@ -205,7 +205,7 @@ impl CameraModel {
                 } else {
                     Err("Wut?")
                 }
-            },
+            }
             ModelType::CAHVORE => {
                 if let Some(m) = &self.model {
                     Ok(CameraModel::new(Box::new(cahvore::Cahvore {
@@ -223,7 +223,6 @@ impl CameraModel {
                     Err("Wut?")
                 }
             }
-
         }
     }
 
@@ -233,7 +232,7 @@ impl CameraModel {
         cahvor_height: usize,
         cahv_width: usize,
         cahv_height: usize,
-        model_type:ModelType
+        model_type: ModelType,
     ) -> error::Result<CameraModel> {
         match model_type {
             ModelType::CAHV => {
@@ -248,7 +247,7 @@ impl CameraModel {
                 } else {
                     Err("Wut?")
                 }
-            },
+            }
             ModelType::CAHVOR => {
                 if let Some(m) = &self.model {
                     let c = cahvor::Cahvor {
@@ -269,7 +268,7 @@ impl CameraModel {
                 } else {
                     Err("Wut?")
                 }
-            },
+            }
             ModelType::CAHVORE => {
                 if let Some(m) = &self.model {
                     let c = cahvore::Cahvore {
@@ -295,7 +294,6 @@ impl CameraModel {
                 }
             }
         }
-
     }
 
     pub fn linearize(
