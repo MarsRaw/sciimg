@@ -104,7 +104,7 @@ impl RgbImage {
             panic!("File not found: {}", file_path);
         }
 
-        let image_data = open(&file_path).unwrap().into_rgba16();
+        let image_data = open(file_path).unwrap().into_rgba16();
         let dims = image_data.dimensions();
 
         let width = dims.0 as usize;
@@ -139,7 +139,7 @@ impl RgbImage {
             panic!("File not found: {}", file_path);
         }
 
-        let image_data = open(&file_path).unwrap().into_rgba8();
+        let image_data = open(file_path).unwrap().into_rgba8();
         let dims = image_data.dimensions();
 
         let width = dims.0 as usize;

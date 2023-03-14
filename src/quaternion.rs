@@ -8,10 +8,8 @@ pub struct Quaternion {
     q3: f64,
 }
 
-// Adapted from some old code I wrote years ago: https://github.com/kmgill/jdem846/blob/master/jdem846/source/base/src/us/wthr/jdem846/math/Quaternion.java
-// which itself was adapter from something, I just forget from where.... Probably three.js
-impl Quaternion {
-    pub fn default() -> Self {
+impl Default for Quaternion {
+    fn default() -> Self {
         Quaternion {
             q0: 1.0,
             q1: 0.0,
@@ -19,7 +17,11 @@ impl Quaternion {
             q3: 0.0,
         }
     }
+}
 
+// Adapted from some old code I wrote years ago: https://github.com/kmgill/jdem846/blob/master/jdem846/source/base/src/us/wthr/jdem846/math/Quaternion.java
+// which itself was adapter from something, I just forget from where.... Probably three.js
+impl Quaternion {
     pub fn from_axis_and_angle(axis: &Vector, angle: f64) -> Self {
         let half_theta = angle / 2.0;
         let q0 = half_theta.cos();

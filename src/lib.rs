@@ -82,10 +82,10 @@ pub fn isolate_window_2d<T: Copy>(
     y: usize,
 ) -> Vec<T> {
     let mut v: Vec<T> = Vec::with_capacity(window_size * window_size);
-    let start = window_size as i32 / 2 * -1;
+    let start = -(window_size as i32 / 2);
     let end = window_size as i32 / 2 + 1;
-    for _y in start..end as i32 {
-        for _x in start..end as i32 {
+    for _y in start..end {
+        for _x in start..end {
             let get_x = x as i32 + _x;
             let get_y = y as i32 + _y;
             if get_x >= 0 && get_x < width_2d as i32 && get_y >= 0 && get_y < height_2d as i32 {
@@ -172,6 +172,7 @@ pub trait VecMath {
     fn clip(&self, clip_min: Dn, clip_max: Dn) -> Self;
     fn clip_mut(&mut self, clip_min: Dn, clip_max: Dn);
 
+    #[allow(clippy::too_many_arguments)]
     fn paste_2d(
         &self,
         dest_width: usize,
@@ -182,6 +183,8 @@ pub trait VecMath {
         tl_x: usize,
         tl_y: usize,
     ) -> Self;
+
+    #[allow(clippy::too_many_arguments)]
     fn paste_mut_2d(
         &mut self,
         dest_width: usize,
@@ -529,9 +532,9 @@ impl VecMath for DnVec {
     }
 
     fn normalize_force_minmax_mut(&mut self, min: Dn, max: Dn, forced_min: Dn, forced_max: Dn) {
-        for i in 0..self.len() {
+        (0..self.len()).for_each(|i| {
             self[i] = ((self[i] - forced_min) / (forced_max - forced_min)) * (max - min) + min;
-        }
+        });
     }
 
     fn min(&self) -> Dn {
@@ -672,11 +675,13 @@ impl Iterator for MaskedDnVecIter<'_> {
     }
 }
 
-impl MaskedDnVec {
-    pub fn default() -> Self {
+impl Default for MaskedDnVec {
+    fn default() -> Self {
         Self::new()
     }
+}
 
+impl MaskedDnVec {
     pub fn new() -> Self {
         MaskedDnVec {
             vec: DnVec::new(),

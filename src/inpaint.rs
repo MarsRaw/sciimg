@@ -97,10 +97,10 @@ fn isolate_window(
     y: usize,
 ) -> Vec<f32> {
     let mut v: Vec<f32> = Vec::with_capacity(36);
-    let start = window_size / 2 * -1;
+    let start = -(window_size / 2);
     let end = window_size / 2 + 1;
-    for _y in start..end as i32 {
-        for _x in start..end as i32 {
+    for _y in start..end {
+        for _x in start..end {
             let get_x = x as i32 + _x;
             let get_y = y as i32 + _y;
             if get_x >= 0
@@ -117,7 +117,7 @@ fn isolate_window(
 }
 
 fn predict_value(buffer: &RgbVec, mask: &ImageBuffer, channel: usize, x: usize, y: usize) -> f32 {
-    let window = isolate_window(&buffer, &mask, channel, DEFAULT_WINDOW_SIZE, x, y);
+    let window = isolate_window(buffer, mask, channel, DEFAULT_WINDOW_SIZE, x, y);
     stats::mean(&window[0..]).unwrap()
 }
 
@@ -131,7 +131,7 @@ fn get_point_and_score_at_xy(mask: &ImageBuffer, x: i32, y: i32) -> Option<Point
         return None;
     }
 
-    let score = get_num_good_neighbors(&mask, x, y);
+    let score = get_num_good_neighbors(mask, x, y);
 
     Some(Point {
         x: x as usize,
@@ -154,16 +154,16 @@ fn find_larger(left: Option<Point>, right: &Point) -> Point {
 }
 
 fn find_next_point(mask: &ImageBuffer, x: i32, y: i32) -> Option<Point> {
-    let mut pts: Vec<Option<Point>> = Vec::with_capacity(8);
-
-    pts.push(get_point_and_score_at_xy(&mask, x, y - 1));
-    pts.push(get_point_and_score_at_xy(&mask, x - 1, y - 1));
-    pts.push(get_point_and_score_at_xy(&mask, x - 1, y));
-    pts.push(get_point_and_score_at_xy(&mask, x - 1, y + 1));
-    pts.push(get_point_and_score_at_xy(&mask, x, y + 1));
-    pts.push(get_point_and_score_at_xy(&mask, x + 1, y + 1));
-    pts.push(get_point_and_score_at_xy(&mask, x + 1, y));
-    pts.push(get_point_and_score_at_xy(&mask, x + 1, y - 1));
+    let pts: Vec<Option<Point>> = vec![
+        get_point_and_score_at_xy(mask, x, y - 1),
+        get_point_and_score_at_xy(mask, x - 1, y - 1),
+        get_point_and_score_at_xy(mask, x - 1, y),
+        get_point_and_score_at_xy(mask, x - 1, y + 1),
+        get_point_and_score_at_xy(mask, x, y + 1),
+        get_point_and_score_at_xy(mask, x + 1, y + 1),
+        get_point_and_score_at_xy(mask, x + 1, y),
+        get_point_and_score_at_xy(mask, x + 1, y - 1),
+    ];
 
     let mut largest_score: Option<Point> = None;
 
@@ -182,9 +182,9 @@ fn find_next_point(mask: &ImageBuffer, x: i32, y: i32) -> Option<Point> {
 fn infill(buffer: &mut RgbVec, mask: &mut ImageBuffer, starting: &Point) {
     let mut current = starting.to_owned();
     loop {
-        let pt_new_value_0 = predict_value(&buffer, &mask, 0, current.x, current.y);
-        let pt_new_value_1 = predict_value(&buffer, &mask, 1, current.x, current.y);
-        let pt_new_value_2 = predict_value(&buffer, &mask, 2, current.x, current.y);
+        let pt_new_value_0 = predict_value(buffer, mask, 0, current.x, current.y);
+        let pt_new_value_1 = predict_value(buffer, mask, 1, current.x, current.y);
+        let pt_new_value_2 = predict_value(buffer, mask, 2, current.x, current.y);
 
         buffer.rgb[current.y * buffer.width + current.x][0] = pt_new_value_0;
         buffer.rgb[current.y * buffer.width + current.x][1] = pt_new_value_1;
@@ -192,7 +192,7 @@ fn infill(buffer: &mut RgbVec, mask: &mut ImageBuffer, starting: &Point) {
 
         mask.put(current.x, current.y, 0.0);
 
-        match find_next_point(&mask, current.x as i32, current.y as i32) {
+        match find_next_point(mask, current.x as i32, current.y as i32) {
             Some(pt) => current = pt.to_owned(),
             None => break,
         }
@@ -255,7 +255,7 @@ pub fn apply_inpaint_to_buffer_with_mask(
     rgb: &RgbImage,
     mask_src: &ImageBuffer,
 ) -> error::Result<RgbImage> {
-    let mut working_buffer = match rgb_image_to_vec(&rgb) {
+    let mut working_buffer = match rgb_image_to_vec(rgb) {
         Ok(b) => b,
         Err(e) => return Err(e),
     };
@@ -277,12 +277,8 @@ pub fn apply_inpaint_to_buffer_with_mask(
     // going to fill it in with 0x0 values as we go. If we don't, then
     // we'll keep finding starting points and this will be an infinite
     // loop. Which is bad. Perhaps consider an alternate method here.
-    loop {
-        // TODO: Don't leave embedded match statements. I hate that as much as embedded case statements...
-        match find_starting_point(&mask) {
-            Some(pt) => infill(&mut working_buffer, &mut mask, &pt),
-            None => break,
-        };
+    while let Some(pt) = find_starting_point(&mask) {
+        infill(&mut working_buffer, &mut mask, &pt);
     }
 
     let newimage = match vec_to_rgb_image(&working_buffer) {
@@ -294,7 +290,7 @@ pub fn apply_inpaint_to_buffer_with_mask(
 }
 
 pub fn apply_inpaint_to_buffer(rgb: &RgbImage, mask: &ImageBuffer) -> error::Result<RgbImage> {
-    apply_inpaint_to_buffer_with_mask(&rgb, &mask)
+    apply_inpaint_to_buffer_with_mask(rgb, mask)
 }
 
 pub fn make_mask_from_red(rgbimage: &RgbImage) -> error::Result<ImageBuffer> {

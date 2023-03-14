@@ -437,13 +437,13 @@ impl ImageBuffer {
         let need_len = self.buffer.len();
         let mut v: Vec<u8> = vec![0; need_len];
 
-        for i in 0..need_len {
+        (0..need_len).for_each(|i| {
             v[i] = match self.mode {
                 enums::ImageMode::U8BIT => self.buffer[i] as u8,
                 enums::ImageMode::U12BIT => (self.buffer[i] / 2033.0 * 255.0) as u8,
                 enums::ImageMode::U16BIT => (self.buffer[i] / 65535.0 * 255.0) as u8,
             }
-        }
+        });
         v
     }
 
@@ -451,9 +451,9 @@ impl ImageBuffer {
         let need_len = self.buffer.len();
         let mut v: Vec<u16> = vec![0; need_len];
 
-        for i in 0..need_len {
+        (0..need_len).for_each(|i| {
             v[i] = self.buffer[i] as u16;
-        }
+        });
         v
     }
 
@@ -777,8 +777,8 @@ impl ImageBuffer {
 
         for y in 0..h {
             for x in 0..w {
-                let shift_x = x as i32 + horiz;
-                let shift_y = y as i32 + vert;
+                let shift_x = x + horiz;
+                let shift_y = y + vert;
 
                 if shift_x >= 0 && shift_y >= 0 && shift_x < w && shift_y < h {
                     shifted_buffer.put(

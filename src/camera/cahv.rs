@@ -2,7 +2,7 @@ use crate::{camera::model::*, error, util::vec_to_str, vector::Vector};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Cahv {
     // Camera center vector C
     #[serde(with = "crate::vector::vector_format")]
@@ -19,17 +19,6 @@ pub struct Cahv {
     // Vertical information vector V
     #[serde(with = "crate::vector::vector_format")]
     pub v: Vector,
-}
-
-impl Cahv {
-    pub fn default() -> Self {
-        Cahv {
-            c: Vector::default(),
-            a: Vector::default(),
-            h: Vector::default(),
-            v: Vector::default(),
-        }
-    }
 }
 
 impl CameraModelTrait for Cahv {

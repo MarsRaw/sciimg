@@ -5,7 +5,7 @@ use crate::{
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Cahvor {
     // Camera center vector C
     #[serde(with = "crate::vector::vector_format")]
@@ -33,17 +33,6 @@ pub struct Cahvor {
 }
 
 impl Cahvor {
-    pub fn default() -> Self {
-        Cahvor {
-            c: Vector::default(),
-            a: Vector::default(),
-            h: Vector::default(),
-            v: Vector::default(),
-            o: Vector::default(),
-            r: Vector::default(),
-        }
-    }
-
     pub fn hc(&self) -> f64 {
         self.a.dot_product(&self.h)
     }
@@ -75,7 +64,7 @@ impl Cahvor {
 
     pub fn lambda(&self, p: &Vector) -> Vector {
         let z = self.zeta(p);
-        self._lambda(&p, z)
+        self._lambda(p, z)
     }
 
     pub fn tau(&self, p: &Vector) -> f64 {
@@ -317,8 +306,12 @@ pub fn linearize(
 ) -> Cahv {
     let minfov = true;
 
-    let mut output_camera = Cahv::default();
-    output_camera.c = camera_model.c;
+    let mut output_camera = Cahv {
+        c: camera_model.c,
+        a: Vector::default(),
+        h: Vector::default(),
+        v: Vector::default(),
+    };
 
     let hpts = vec![
         Vector::default(),

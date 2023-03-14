@@ -35,11 +35,7 @@ pub fn blur_vec_u16(v: &[u16], width: usize, height: usize, amount: f32) -> Vec<
     for y in 0..height {
         for x in 0..width {
             let i = y * width + x;
-            out_img.put_pixel(
-                x as u32,
-                y as u32,
-                Rgba([v[i] as u16, v[i] as u16, v[i] as u16, 65535]),
-            );
+            out_img.put_pixel(x as u32, y as u32, Rgba([v[i], v[i], v[i], 65535]));
         }
     }
     let blurred = blur(&out_img, amount);
@@ -49,7 +45,7 @@ pub fn blur_vec_u16(v: &[u16], width: usize, height: usize, amount: f32) -> Vec<
     for y in 0..height {
         for x in 0..width {
             let pixel = blurred.get_pixel(x as u32, y as u32);
-            let value = pixel[0] as u16;
+            let value = pixel[0];
             let idx = y * width + x;
             blurred_v[idx] = value;
         }

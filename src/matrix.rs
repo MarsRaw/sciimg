@@ -5,15 +5,17 @@ pub struct Matrix {
     m: Vec<f64>,
 }
 
-impl Matrix {
-    pub fn default() -> Matrix {
+impl Default for Matrix {
+    fn default() -> Matrix {
         Matrix {
             m: vec![
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
             ],
         }
     }
+}
 
+impl Matrix {
     pub fn identity() -> Matrix {
         Matrix {
             m: vec![
@@ -40,6 +42,7 @@ impl Matrix {
         Matrix { m: m.to_vec() }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new_with_values(
         v00: f64,
         v01: f64,
@@ -93,15 +96,12 @@ impl Matrix {
         ];
 
         for row in 0..3 {
-            let ai0 = a.m[(0 << 2) + row];
+            let ai0 = a.m[row];
             let ai1 = a.m[(1 << 2) + row];
             let ai2 = a.m[(2 << 2) + row];
             let ai3 = a.m[(3 << 2) + row];
 
-            product[(0 << 2) + row] = ai0 * b.m[(0 << 2)]
-                + ai1 * b.m[(0 << 2) + 1]
-                + ai2 * b.m[(0 << 2) + 2]
-                + ai3 * b.m[(0 << 2) + 3];
+            product[row] = ai0 * b.m[(0 << 2)] + ai1 * b.m[1] + ai2 * b.m[2] + ai3 * b.m[3];
             product[(1 << 2) + row] = ai0 * b.m[(1 << 2)]
                 + ai1 * b.m[(1 << 2) + 1]
                 + ai2 * b.m[(1 << 2) + 2]
@@ -124,7 +124,7 @@ impl Matrix {
     }
 
     pub fn multiply_vector(&self, other: &Vector) -> Vector {
-        let x = other.x * self.m[0] + other.y * self.m[4 + 0] + other.z * self.m[2 * 4 + 0];
+        let x = other.x * self.m[0] + other.y * self.m[4] + other.z * self.m[2 * 4];
         let y = other.x * self.m[1] + other.y * self.m[4 + 1] + other.z * self.m[2 * 4 + 1];
         let z = other.x * self.m[2] + other.y * self.m[4 + 2] + other.z * self.m[2 * 4 + 2];
         Vector::new(x, y, z)

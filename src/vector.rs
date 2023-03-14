@@ -9,15 +9,17 @@ pub struct Vector {
 
 use string_builder::Builder;
 
-impl Vector {
-    pub fn default() -> Vector {
+impl Default for Vector {
+    fn default() -> Vector {
         Vector {
             x: 0.0,
             y: 0.0,
             z: 0.0,
         }
     }
+}
 
+impl Vector {
     pub fn x_axis_vector() -> Vector {
         Vector {
             x: 1.0,

@@ -58,8 +58,8 @@ pub struct Cahvore {
     pub linearity: f64,
 }
 
-impl Cahvore {
-    pub fn default() -> Self {
+impl Default for Cahvore {
+    fn default() -> Self {
         Cahvore {
             c: Vector::default(),
             a: Vector::default(),
@@ -320,8 +320,12 @@ pub fn linearize(
     let limfov = std::f64::consts::PI * (3.0 / 4.0);
     let minfov = true;
 
-    let mut output_camera = Cahv::default();
-    output_camera.c = camera_model.c;
+    let mut output_camera = Cahv {
+        c: camera_model.c,
+        a: Vector::default(),
+        h: Vector::default(),
+        v: Vector::default(),
+    };
 
     let hpts = vec![
         Vector::default(),
@@ -356,8 +360,8 @@ pub fn linearize(
 
     output_camera.a = camera_model
         .ls_to_look_vector(&ImageCoordinate {
-            line: p2_line as f64,
-            sample: p2_sample as f64,
+            line: p2_line,
+            sample: p2_sample,
         })
         .expect("Failed to project boresight")
         .look_direction;
@@ -406,8 +410,7 @@ pub fn linearize(
 
     let cahv_image_size = Vector::new(cahv_height as f64, cahv_width as f64, 0.0);
 
-    let mut cosines = Vector::default();
-    cosines.z = 1.0;
+    let mut cosines = Vector::new(0.0, 0.0, 1.0);
     if minfov {
         cosines.x = hmax;
         cosines.y = vmax;

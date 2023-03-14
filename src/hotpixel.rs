@@ -26,10 +26,10 @@ pub struct HpcResults {
 
 fn isolate_window(buffer: &ImageBuffer, window_size: i32, x: usize, y: usize) -> Vec<f32> {
     let mut v: Vec<f32> = Vec::with_capacity(36);
-    let start = window_size / 2 * -1;
+    let start = -(window_size / 2);
     let end = window_size / 2 + 1;
-    for _y in start..end as i32 {
-        for _x in start..end as i32 {
+    for _y in start..end {
+        for _x in start..end {
             let get_x = x as i32 + _x;
             let get_y = y as i32 + _y;
             if get_x >= 0

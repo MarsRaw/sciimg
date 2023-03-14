@@ -69,7 +69,7 @@ pub trait CameraModelTrait {
     fn serialize(&self) -> String;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct CameraModel {
     model: Option<Box<dyn CameraModelTrait + 'static>>,
 }
@@ -77,10 +77,6 @@ pub struct CameraModel {
 impl CameraModel {
     pub fn new(model: Box<dyn CameraModelTrait + 'static>) -> CameraModel {
         CameraModel { model: Some(model) }
-    }
-
-    pub fn default() -> CameraModel {
-        CameraModel { model: None }
     }
 
     pub fn is_valid(&self) -> bool {
