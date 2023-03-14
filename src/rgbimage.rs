@@ -455,7 +455,8 @@ impl RgbImage {
         let use_band = 0;
         check_band_in_bounds!(use_band, self);
 
-        let debayered = debayer::debayer(&self.bands[use_band]).unwrap();
+        let debayered =
+            debayer::debayer(&self.bands[use_band], debayer::DebayerMethod::Malvar).unwrap();
         self.bands = vec![
             debayered.bands[0].clone(),
             debayered.bands[1].clone(),
