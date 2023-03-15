@@ -554,6 +554,10 @@ impl ImageBuffer {
         self.buffer.mean()
     }
 
+    pub fn sum(&self) -> Dn {
+        self.buffer.sum()
+    }
+
     pub fn divide_mut(&mut self, other: &ImageBuffer) {
         self.buffer.divide_mut(&other.buffer);
     }
