@@ -1,6 +1,6 @@
 [package]
 name = "sciimg"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Kevin M. Gill <apoapsys@gmail.com>"]
 edition = "2018"
 description = "Base support for planetary science image processing"
