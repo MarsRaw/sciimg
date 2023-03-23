@@ -2,6 +2,7 @@ pub use crate::camera::cahv::*;
 pub use crate::camera::cahvor::*;
 pub use crate::camera::cahvore::*;
 pub use crate::camera::model::*;
+pub use crate::debayer::DebayerMethod;
 pub use crate::enums::Axis;
 pub use crate::enums::CalFileType;
 pub use crate::enums::ImageMode;

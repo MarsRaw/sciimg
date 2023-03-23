@@ -452,11 +452,14 @@ impl RgbImage {
     }
 
     pub fn debayer(&mut self) {
+        self.debayer_with_method(debayer::DebayerMethod::AMaZE);
+    }
+
+    pub fn debayer_with_method(&mut self, method: debayer::DebayerMethod) {
         let use_band = 0;
         check_band_in_bounds!(use_band, self);
 
-        let debayered =
-            debayer::debayer(&self.bands[use_band], debayer::DebayerMethod::Malvar).unwrap();
+        let debayered = debayer::debayer(&self.bands[use_band], method).unwrap();
         self.bands = vec![
             debayered.bands[0].clone(),
             debayered.bands[1].clone(),
