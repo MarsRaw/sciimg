@@ -331,7 +331,7 @@ impl VecMath for DnVec {
             panic!("Array size mismatch");
         }
 
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] += other[i];
         });
     }
@@ -343,7 +343,7 @@ impl VecMath for DnVec {
     }
 
     fn add_across_mut(&mut self, other: Dn) {
-        (0..self.len()).into_iter().for_each(|i| self[i] += other);
+        (0..self.len()).for_each(|i| self[i] += other);
     }
 
     fn subtract(&self, other: &DnVec) -> DnVec {
@@ -361,7 +361,7 @@ impl VecMath for DnVec {
             panic!("Array size mismatch");
         }
 
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] -= other[i];
         });
     }
@@ -373,7 +373,7 @@ impl VecMath for DnVec {
     }
 
     fn subtract_across_mut(&mut self, other: Dn) {
-        (0..self.len()).into_iter().for_each(|i| self[i] -= other);
+        (0..self.len()).for_each(|i| self[i] -= other);
     }
 
     fn divide(&self, other: &DnVec) -> DnVec {
@@ -391,7 +391,7 @@ impl VecMath for DnVec {
             panic!("Array size mismatch");
         }
 
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] /= other[i];
         });
     }
@@ -403,7 +403,7 @@ impl VecMath for DnVec {
     }
 
     fn divide_into_mut(&mut self, divisor: Dn) {
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] /= divisor;
         });
     }
@@ -415,7 +415,7 @@ impl VecMath for DnVec {
     }
 
     fn scale_mut(&mut self, scalar: Dn) {
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] *= scalar;
         });
     }
@@ -435,7 +435,7 @@ impl VecMath for DnVec {
             panic!("Array size mismatch");
         }
 
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] *= other[i];
         });
     }
@@ -447,7 +447,7 @@ impl VecMath for DnVec {
     }
 
     fn power_mut(&mut self, exponent: Dn) {
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] = self[i].powf(exponent);
         });
     }
@@ -459,7 +459,7 @@ impl VecMath for DnVec {
     }
 
     fn clip_mut(&mut self, clip_min: Dn, clip_max: Dn) {
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] = if self[i] > clip_max {
                 clip_max
             } else if self[i] < clip_min {
@@ -539,7 +539,7 @@ impl VecMath for DnVec {
 
     fn min(&self) -> Dn {
         let mut m = std::f32::MAX;
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             m = min!(m, self[i]);
         });
         m
@@ -547,7 +547,7 @@ impl VecMath for DnVec {
 
     fn max(&self) -> Dn {
         let mut m = std::f32::MIN;
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             m = max!(m, self[i]);
         });
         m
@@ -558,7 +558,7 @@ impl VecMath for DnVec {
             min: std::f32::MAX,
             max: std::f32::MIN,
         };
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             mm.min = min!(mm.min, self[i]);
             mm.max = max!(mm.max, self[i]);
         });
@@ -979,7 +979,7 @@ impl VecMath for MaskedDnVec {
             panic!("Array size mismatch");
         }
 
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] += other[i];
         });
     }
@@ -991,7 +991,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn add_across_mut(&mut self, other: Dn) {
-        (0..self.len()).into_iter().for_each(|i| self[i] += other);
+        (0..self.len()).for_each(|i| self[i] += other);
     }
 
     fn subtract(&self, other: &MaskedDnVec) -> MaskedDnVec {
@@ -1009,7 +1009,7 @@ impl VecMath for MaskedDnVec {
             panic!("Array size mismatch");
         }
 
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] -= other[i];
         });
     }
@@ -1021,7 +1021,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn subtract_across_mut(&mut self, other: Dn) {
-        (0..self.len()).into_iter().for_each(|i| self[i] -= other);
+        (0..self.len()).for_each(|i| self[i] -= other);
     }
 
     fn divide(&self, other: &MaskedDnVec) -> MaskedDnVec {
@@ -1039,7 +1039,7 @@ impl VecMath for MaskedDnVec {
             panic!("Array size mismatch");
         }
 
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] /= other[i];
         });
     }
@@ -1051,7 +1051,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn divide_into_mut(&mut self, divisor: Dn) {
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] /= divisor;
         });
     }
@@ -1063,7 +1063,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn scale_mut(&mut self, scalar: Dn) {
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] *= scalar;
         });
     }
@@ -1083,7 +1083,7 @@ impl VecMath for MaskedDnVec {
             panic!("Array size mismatch");
         }
 
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] *= other[i];
         });
     }
@@ -1095,7 +1095,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn power_mut(&mut self, exponent: Dn) {
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] = self[i].powf(exponent);
         });
     }
@@ -1107,7 +1107,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn clip_mut(&mut self, clip_min: Dn, clip_max: Dn) {
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             self[i] = if self[i] > clip_max {
                 clip_max
             } else if self[i] < clip_min {
@@ -1193,7 +1193,7 @@ impl VecMath for MaskedDnVec {
 
     fn min(&self) -> Dn {
         let mut m = std::f32::MAX;
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             m = min!(m, self[i]);
         });
         m
@@ -1201,7 +1201,7 @@ impl VecMath for MaskedDnVec {
 
     fn max(&self) -> Dn {
         let mut m = std::f32::MIN;
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             m = max!(m, self[i]);
         });
         m
@@ -1212,7 +1212,7 @@ impl VecMath for MaskedDnVec {
             min: std::f32::MAX,
             max: std::f32::MIN,
         };
-        (0..self.len()).into_iter().for_each(|i| {
+        (0..self.len()).for_each(|i| {
             if self[i] != std::f32::INFINITY {
                 mm.min = min!(mm.min, self[i]);
                 mm.max = max!(mm.max, self[i]);
