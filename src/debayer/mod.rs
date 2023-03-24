@@ -5,6 +5,10 @@ mod amaze;
 #[allow(dead_code)]
 mod malvar;
 
+#[allow(dead_code)]
+#[allow(unused_variables)]
+mod bilinear;
+
 use std::str::FromStr;
 
 use crate::error::Result;
@@ -70,18 +74,24 @@ impl FilterPattern {
             Self::RGGB => FILTER_PATTERN_RGGB,
         }
     }
+
+    pub fn fc(self, row: i32, col: i32) -> i32 {
+        (self.pattern() >> ((((row as u32) << 1 & 14) | ((col as u32) & 1)) << 1) & 3) as i32
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DebayerMethod {
+    Bilinear,
     Malvar,
-    AMaZE, // Not ready
+    AMaZE,
 }
 
 impl FromStr for DebayerMethod {
     fn from_str(s: &str) -> std::result::Result<DebayerMethod, std::string::String> {
         Ok(match s.to_uppercase().as_str() {
             "AMAZE" => DebayerMethod::AMaZE,
+            "BILINEAR" => DebayerMethod::Bilinear,
             _ => DebayerMethod::Malvar, // "MALVAR"
         })
     }
@@ -102,6 +112,7 @@ pub fn debayer_with_pattern(
     filter_pattern: FilterPattern,
 ) -> Result<RgbImage> {
     match method {
+        DebayerMethod::Bilinear => bilinear::debayer_with_pattern(buffer, filter_pattern),
         DebayerMethod::Malvar => malvar::debayer_with_pattern(buffer, filter_pattern),
         DebayerMethod::AMaZE => amaze::debayer_with_pattern(buffer, filter_pattern),
     }

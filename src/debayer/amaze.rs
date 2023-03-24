@@ -10,6 +10,12 @@ use std::ops::{Index, IndexMut};
 
 static TS: i32 = 512;
 
+macro_rules! FC {
+    ($row:expr, $col:expr, $pattern:expr) => {
+        ($pattern.fc($row, $col))
+    };
+}
+
 macro_rules! SQR {
     ($x: expr) => {
         ($x) * ($x)
@@ -40,12 +46,6 @@ macro_rules! ULIM {
 macro_rules! HCLIP {
     ($clip_pt: expr, $x:expr) => {
         min!($clip_pt, $x)
-    };
-}
-
-macro_rules! FC {
-    ($row:expr, $col:expr, $pattern:expr) => {
-        ($pattern.pattern() >> (((($row as u32) << 1 & 14) | (($col as u32) & 1)) << 1) & 3) as i32
     };
 }
 
