@@ -1,4 +1,4 @@
-use sciimg::{decompanding, enums, enums::ImageMode, imagebuffer::ImageBuffer, rgbimage};
+use sciimg::{decompanding, enums, enums::ImageMode, image::Image, imagebuffer::ImageBuffer};
 
 const M20_ZCAM_ECM_GRAY: &str =
     "tests/testdata/ZL0_0038_0670307360_057ECM_N0031392ZCAM08007_1100LUJ.png";
@@ -7,23 +7,23 @@ const M20_ZCAM_ECM_RGB: &str =
 
 #[test]
 fn test_grayscale_check() {
-    let img_gray = rgbimage::RgbImage::open(&String::from(M20_ZCAM_ECM_GRAY)).unwrap();
+    let img_gray = Image::open(&String::from(M20_ZCAM_ECM_GRAY)).unwrap();
     assert_eq!(img_gray.is_grayscale(), true);
 
-    let img_rgb = rgbimage::RgbImage::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
+    let img_rgb = Image::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
     assert_eq!(img_rgb.is_grayscale(), false);
 }
 
 #[test]
 fn test_image_size() {
-    let img_rgb = rgbimage::RgbImage::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
+    let img_rgb = Image::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
     assert_eq!(img_rgb.width, 1648);
     assert_eq!(img_rgb.height, 1200);
 }
 
 #[test]
 fn test_image_mode() {
-    let mut img_rgb = rgbimage::RgbImage::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
+    let mut img_rgb = Image::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
     assert_eq!(img_rgb.get_mode(), enums::ImageMode::U8BIT);
     img_rgb.decompand(&decompanding::ILT);
     assert_eq!(img_rgb.get_mode(), enums::ImageMode::U12BIT);
@@ -37,7 +37,7 @@ fn test_image_mode() {
 
 #[test]
 fn test_cropping() {
-    let mut img_rgb = rgbimage::RgbImage::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
+    let mut img_rgb = Image::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
     assert_eq!(img_rgb.width, 1648);
     assert_eq!(img_rgb.height, 1200);
     img_rgb.crop(24, 4, 1600, 1192);
@@ -49,10 +49,9 @@ fn test_cropping() {
 fn test_rgbimage_math_3band() {
     let b0 = ImageBuffer::new_with_fill(1000, 1000, 100.0).unwrap();
 
-    let mut img =
-        rgbimage::RgbImage::new_from_buffers_rgb(&b0, &b0, &b0, ImageMode::U16BIT).unwrap();
+    let mut img = Image::new_from_buffers_rgb(&b0, &b0, &b0, ImageMode::U16BIT).unwrap();
 
-    let img2 = rgbimage::RgbImage::new_from_buffers_rgb(&b0, &b0, &b0, ImageMode::U16BIT).unwrap();
+    let img2 = Image::new_from_buffers_rgb(&b0, &b0, &b0, ImageMode::U16BIT).unwrap();
     assert_eq!(img.width, 1000);
     assert_eq!(img.height, 1000);
     assert_eq!(img.num_bands(), 3);
@@ -81,13 +80,13 @@ fn test_rgbimage_math_1band() {
     let b0 = ImageBuffer::new_with_fill(1000, 1000, 100.0).unwrap();
     let b1 = ImageBuffer::new_with_fill(1000, 1000, 200.0).unwrap();
 
-    let mut img = rgbimage::RgbImage::new_with_bands(1000, 1000, 1, ImageMode::U16BIT).unwrap();
+    let mut img = Image::new_with_bands(1000, 1000, 1, ImageMode::U16BIT).unwrap();
     img.set_band(&b0, 0);
 
-    let mut img2 = rgbimage::RgbImage::new_with_bands(1000, 1000, 1, ImageMode::U16BIT).unwrap();
+    let mut img2 = Image::new_with_bands(1000, 1000, 1, ImageMode::U16BIT).unwrap();
     img2.set_band(&b0, 0);
 
-    let mut img3 = rgbimage::RgbImage::new_with_bands(1000, 1000, 1, ImageMode::U16BIT).unwrap();
+    let mut img3 = Image::new_with_bands(1000, 1000, 1, ImageMode::U16BIT).unwrap();
     img3.set_band(&b1, 0);
 
     assert_eq!(img.width, 1000);
