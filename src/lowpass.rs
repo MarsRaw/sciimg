@@ -1,4 +1,4 @@
-use crate::{imagebuffer::ImageBuffer, rgbimage::RgbImage, stats};
+use crate::{image::Image, imagebuffer::ImageBuffer, stats};
 
 fn isolate_window(buffer: &ImageBuffer, window_size: usize, x: usize, y: usize) -> Vec<f32> {
     let mut v: Vec<f32> = Vec::with_capacity(window_size * window_size);
@@ -42,8 +42,8 @@ pub fn lowpass_imagebuffer(imagebuff: &ImageBuffer, window_size: usize) -> Image
     lowpass_buffer
 }
 
-pub fn lowpass(image: &RgbImage, window_size: usize) -> RgbImage {
-    let mut lowpass_image = RgbImage::new(image.width, image.height, image.get_mode()).unwrap();
+pub fn lowpass(image: &Image, window_size: usize) -> Image {
+    let mut lowpass_image = Image::new(image.width, image.height, image.get_mode()).unwrap();
 
     (0..image.num_bands()).for_each(|b| {
         let buffer = image.get_band(b);

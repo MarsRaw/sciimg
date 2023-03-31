@@ -12,8 +12,8 @@ mod bilinear;
 use std::str::FromStr;
 
 use crate::error::Result;
+use crate::image::Image;
 use crate::imagebuffer::ImageBuffer;
-use crate::rgbimage::RgbImage;
 use serde::{Deserialize, Serialize};
 
 // Filter patterns 'borrowed' from dcraw:
@@ -101,7 +101,7 @@ impl FromStr for DebayerMethod {
 
 /// Debayer a single-channel image with specified algorithm. Defaults to RGGB
 /// filter pattern.
-pub fn debayer(buffer: &ImageBuffer, method: DebayerMethod) -> Result<RgbImage> {
+pub fn debayer(buffer: &ImageBuffer, method: DebayerMethod) -> Result<Image> {
     debayer_with_pattern(buffer, method, FilterPattern::RGGB)
 }
 
@@ -110,7 +110,7 @@ pub fn debayer_with_pattern(
     buffer: &ImageBuffer,
     method: DebayerMethod,
     filter_pattern: FilterPattern,
-) -> Result<RgbImage> {
+) -> Result<Image> {
     match method {
         DebayerMethod::Bilinear => bilinear::debayer_with_pattern(buffer, filter_pattern),
         DebayerMethod::Malvar => malvar::debayer_with_pattern(buffer, filter_pattern),

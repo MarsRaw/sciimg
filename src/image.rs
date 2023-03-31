@@ -7,7 +7,7 @@ use image::{open, ColorType::*, DynamicImage, Luma, Rgb, Rgba};
 
 // A simple image raster buffer.
 #[derive(Debug, Clone)]
-pub struct RgbImage {
+pub struct Image {
     bands: Vec<ImageBuffer>,
     alpha: MaskVec, // Intended to work as an alpha transparency band
     uses_alpha: bool,
@@ -45,9 +45,9 @@ macro_rules! load_image {
         let height = dims.1 as usize;
 
         let mut rgbimage = if $has_alpha {
-            RgbImage::new_with_bands_masked(width, height, 3, $image_mode, true).unwrap()
+            Image::new_with_bands_masked(width, height, 3, $image_mode, true).unwrap()
         } else {
-            RgbImage::new_with_bands(width, height, 3, $image_mode).unwrap()
+            Image::new_with_bands(width, height, 3, $image_mode).unwrap()
         };
 
         for y in 0..height {
@@ -73,9 +73,9 @@ macro_rules! load_image {
 }
 
 #[allow(dead_code)]
-impl RgbImage {
-    pub fn new(width: usize, height: usize, mode: enums::ImageMode) -> error::Result<RgbImage> {
-        Ok(RgbImage {
+impl Image {
+    pub fn new(width: usize, height: usize, mode: enums::ImageMode) -> error::Result<Image> {
+        Ok(Image {
             bands: vec![],
             alpha: MaskVec::new(),
             uses_alpha: false,
@@ -91,12 +91,12 @@ impl RgbImage {
         height: usize,
         num_bands: usize,
         mode: enums::ImageMode,
-    ) -> error::Result<RgbImage> {
+    ) -> error::Result<Image> {
         let mut bands: Vec<ImageBuffer> = vec![];
         for _ in 0..num_bands {
             bands.push(ImageBuffer::new(width, height).unwrap());
         }
-        Ok(RgbImage {
+        Ok(Image {
             bands,
             alpha: MaskVec::new(),
             uses_alpha: false,
@@ -113,13 +113,13 @@ impl RgbImage {
         num_bands: usize,
         mode: enums::ImageMode,
         mask_value: bool,
-    ) -> error::Result<RgbImage> {
+    ) -> error::Result<Image> {
         let mut bands: Vec<ImageBuffer> = vec![];
         for _ in 0..num_bands {
             bands.push(ImageBuffer::new(width, height).unwrap());
         }
 
-        Ok(RgbImage {
+        Ok(Image {
             bands,
             alpha: MaskVec::fill_mask(width * height, mask_value),
             uses_alpha: true,
@@ -130,8 +130,8 @@ impl RgbImage {
         })
     }
 
-    pub fn new_empty() -> error::Result<RgbImage> {
-        Ok(RgbImage {
+    pub fn new_empty() -> error::Result<Image> {
+        Ok(Image {
             bands: vec![],
             alpha: MaskVec::new(),
             uses_alpha: false,
@@ -142,11 +142,11 @@ impl RgbImage {
         })
     }
 
-    pub fn open_str(file_path: &str) -> error::Result<RgbImage> {
-        RgbImage::open(&String::from(file_path))
+    pub fn open_str(file_path: &str) -> error::Result<Image> {
+        Image::open(&String::from(file_path))
     }
 
-    pub fn open(file_path: &String) -> error::Result<RgbImage> {
+    pub fn open(file_path: &String) -> error::Result<Image> {
         if !path::file_exists(file_path.as_str()) {
             panic!("File not found: {}", file_path);
         }
@@ -173,8 +173,8 @@ impl RgbImage {
         green: &ImageBuffer,
         blue: &ImageBuffer,
         mode: enums::ImageMode,
-    ) -> error::Result<RgbImage> {
-        Ok(RgbImage {
+    ) -> error::Result<Image> {
+        Ok(Image {
             bands: vec![red.clone(), green.clone(), blue.clone()],
             alpha: MaskVec::new(),
             uses_alpha: false,
@@ -239,7 +239,7 @@ impl RgbImage {
         }
     }
 
-    pub fn add(&mut self, other: &RgbImage) {
+    pub fn add(&mut self, other: &Image) {
         if self.width != other.width || self.height != other.height {
             panic!("Array size mismatch");
         }
@@ -289,7 +289,7 @@ impl RgbImage {
         }
     }
 
-    pub fn paste(&mut self, src: &RgbImage, tl_x: usize, tl_y: usize) {
+    pub fn paste(&mut self, src: &Image, tl_x: usize, tl_y: usize) {
         for i in 0..self.bands.len() {
             self.bands[i].paste_mut(src.get_band(i), tl_x, tl_y);
         }
@@ -338,9 +338,9 @@ impl RgbImage {
     pub fn calibrate_band(
         &mut self,
         band: usize,
-        flat_field: &RgbImage,
-        dark_field: &RgbImage,
-        dark_flat_field: &RgbImage,
+        flat_field: &Image,
+        dark_field: &Image,
+        dark_flat_field: &Image,
     ) {
         check_band_in_bounds!(band, self);
 
@@ -381,12 +381,7 @@ impl RgbImage {
         }
     }
 
-    pub fn calibrate(
-        &mut self,
-        flat_field: &RgbImage,
-        dark_field: &RgbImage,
-        dark_flat_field: &RgbImage,
-    ) {
+    pub fn calibrate(&mut self, flat_field: &Image, dark_field: &Image, dark_flat_field: &Image) {
         for i in 0..self.bands.len() {
             self.calibrate_band(i, flat_field, dark_field, dark_flat_field);
         }
@@ -401,7 +396,7 @@ impl RgbImage {
             .unwrap();
     }
 
-    pub fn apply_flat(&mut self, flat: &RgbImage) {
+    pub fn apply_flat(&mut self, flat: &Image) {
         for i in 0..self.bands.len() {
             let flat_buffer = if flat.num_bands() > i {
                 flat.get_band(i)
@@ -413,7 +408,7 @@ impl RgbImage {
         }
     }
 
-    pub fn flatfield(&mut self, flat: &RgbImage) {
+    pub fn flatfield(&mut self, flat: &Image) {
         self.apply_flat(flat);
     }
 
@@ -621,7 +616,7 @@ impl RgbImage {
         self.mode = enums::ImageMode::U12BIT;
     }
 
-    fn color_range_determine_prep(&self) -> RgbImage {
+    fn color_range_determine_prep(&self) -> Image {
         let mut cloned = self.clone();
 
         // Here we need to correct for energetic particle hits, hot pixels, and outlier values.

@@ -1,4 +1,4 @@
-use crate::{imagebuffer, lowpass, rgbimage, stats};
+use crate::{image, imagebuffer, lowpass, stats};
 
 fn apply_blur(image: &imagebuffer::ImageBuffer, amount: usize) -> imagebuffer::ImageBuffer {
     lowpass::lowpass_imagebuffer(image, amount)
@@ -26,7 +26,7 @@ pub fn get_point_quality_estimation_on_buffer(
 }
 
 pub fn get_point_quality_estimation(
-    image: &rgbimage::RgbImage,
+    image: &image::Image,
     window_size: usize,
     x: usize,
     y: usize,
@@ -52,7 +52,7 @@ pub fn get_quality_estimation_on_buffer(image: &imagebuffer::ImageBuffer) -> f32
 
 // A very simple image sharpness quantifier that computes the standard deviation of the difference between
 // an image and a blurred copy.
-pub fn get_quality_estimation(image: &rgbimage::RgbImage) -> f32 {
+pub fn get_quality_estimation(image: &image::Image) -> f32 {
     let mut q: Vec<f32> = vec![];
     for b in 0..image.num_bands() {
         let band = image.get_band(b);

@@ -1,6 +1,6 @@
 // https://www.researchgate.net/publication/238183352_An_Image_Inpainting_Technique_Based_on_the_Fast_Marching_Method
 
-use crate::{enums, error, imagebuffer::ImageBuffer, rgbimage::RgbImage, stats};
+use crate::{enums, error, image::Image, imagebuffer::ImageBuffer, stats};
 
 #[derive(Debug, Clone)]
 struct Point {
@@ -199,7 +199,7 @@ fn infill(buffer: &mut RgbVec, mask: &mut ImageBuffer, starting: &Point) {
     }
 }
 
-fn rgb_image_to_vec(rgb: &RgbImage) -> error::Result<RgbVec> {
+fn rgb_image_to_vec(rgb: &Image) -> error::Result<RgbVec> {
     let mut v: Vec<[f32; 3]> = Vec::with_capacity(rgb.width * rgb.height);
     v.resize(rgb.width * rgb.height, [0.0, 0.0, 0.0]);
 
@@ -231,7 +231,7 @@ fn rgb_image_to_vec(rgb: &RgbImage) -> error::Result<RgbVec> {
     })
 }
 
-fn vec_to_rgb_image(buffer: &RgbVec) -> error::Result<RgbImage> {
+fn vec_to_rgb_image(buffer: &RgbVec) -> error::Result<Image> {
     let mut red = ImageBuffer::new(buffer.width, buffer.height).unwrap();
     let mut green = ImageBuffer::new(buffer.width, buffer.height).unwrap();
     let mut blue = ImageBuffer::new(buffer.width, buffer.height).unwrap();
@@ -247,14 +247,14 @@ fn vec_to_rgb_image(buffer: &RgbVec) -> error::Result<RgbImage> {
         }
     }
 
-    RgbImage::new_from_buffers_rgb(&red, &green, &blue, enums::ImageMode::U8BIT)
+    Image::new_from_buffers_rgb(&red, &green, &blue, enums::ImageMode::U8BIT)
 }
 
 // Embarrassingly slow and inefficient. Runs slow in debug. A lot faster with a release build.
 pub fn apply_inpaint_to_buffer_with_mask(
-    rgb: &RgbImage,
+    rgb: &Image,
     mask_src: &ImageBuffer,
-) -> error::Result<RgbImage> {
+) -> error::Result<Image> {
     let mut working_buffer = match rgb_image_to_vec(rgb) {
         Ok(b) => b,
         Err(e) => return Err(e),
@@ -289,11 +289,11 @@ pub fn apply_inpaint_to_buffer_with_mask(
     Ok(newimage)
 }
 
-pub fn apply_inpaint_to_buffer(rgb: &RgbImage, mask: &ImageBuffer) -> error::Result<RgbImage> {
+pub fn apply_inpaint_to_buffer(rgb: &Image, mask: &ImageBuffer) -> error::Result<Image> {
     apply_inpaint_to_buffer_with_mask(rgb, mask)
 }
 
-pub fn make_mask_from_red(rgbimage: &RgbImage) -> error::Result<ImageBuffer> {
+pub fn make_mask_from_red(rgbimage: &Image) -> error::Result<ImageBuffer> {
     let mut new_mask = match ImageBuffer::new(rgbimage.width, rgbimage.height) {
         Ok(b) => b,
         Err(e) => return Err(e),

@@ -1,7 +1,7 @@
 extern crate lab;
 use lab::{labs_to_rgbs, rgbs_to_labs, Lab};
 
-use crate::{blur, enums, imagebuffer::ImageBuffer, rgbimage::RgbImage};
+use crate::{blur, enums, image::Image, imagebuffer::ImageBuffer};
 
 struct SplitLab {
     l: Vec<u8>,
@@ -43,7 +43,7 @@ fn combine_lab_channels(splitlab: &SplitLab) -> Vec<Lab> {
     lab_array
 }
 
-pub fn color_noise_reduction(image: &mut RgbImage, amount: i32) -> RgbImage {
+pub fn color_noise_reduction(image: &mut Image, amount: i32) -> Image {
     // We're juggling a couple different data structures here so we need to
     // convert the imagebuffer to a vec that's expected by lab and fastblur...
     let mut data: Vec<[u8; 3]> = Vec::with_capacity(image.width * image.height);
@@ -93,5 +93,5 @@ pub fn color_noise_reduction(image: &mut RgbImage, amount: i32) -> RgbImage {
         }
     }
 
-    RgbImage::new_from_buffers_rgb(&red, &green, &blue, enums::ImageMode::U8BIT).unwrap()
+    Image::new_from_buffers_rgb(&red, &green, &blue, enums::ImageMode::U8BIT).unwrap()
 }
