@@ -849,7 +849,11 @@ impl ImageBuffer {
         for y in 0..self.height {
             for x in 0..self.width {
                 let val = self.get(x, y).unwrap().round() as u8;
-                let a = if self.get_mask_at_point(x, y) { 255 } else { 0 };
+                let a = if self.get_mask_at_point(x, y) {
+                    std::u8::MAX
+                } else {
+                    std::u8::MIN
+                };
                 out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
             }
         }
@@ -867,9 +871,9 @@ impl ImageBuffer {
             for x in 0..self.width {
                 let val = self.get(x, y).unwrap().round() as u16;
                 let a = if self.get_mask_at_point(x, y) {
-                    65535
+                    std::u16::MAX
                 } else {
-                    0
+                    std::u16::MIN
                 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
             }
@@ -886,9 +890,9 @@ impl ImageBuffer {
             for x in 0..self.width {
                 let val = self.get(x, y).unwrap().round() as u16;
                 let a = if self.get_mask_at_point(x, y) {
-                    65535
+                    std::u16::MAX
                 } else {
-                    0
+                    std::u16::MIN
                 };
                 out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
             }
@@ -911,7 +915,11 @@ impl ImageBuffer {
         for y in 0..self.height {
             for x in 0..self.width {
                 let val = self.get(x, y).unwrap().round() as u8;
-                let a = if self.get_mask_at_point(x, y) { 255 } else { 0 };
+                let a = if self.get_mask_at_point(x, y) {
+                    std::u8::MAX
+                } else {
+                    std::u8::MIN
+                };
                 out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
             }
         }

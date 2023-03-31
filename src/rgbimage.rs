@@ -3,7 +3,7 @@ use crate::{
     imagerot, inpaint, lowpass, max, min, noise, path, resize, Mask, MaskVec,
 };
 
-use image::{open, DynamicImage, Rgba};
+use image::{open, ColorType::*, DynamicImage, Luma, Rgb, Rgba};
 
 // A simple image raster buffer.
 #[derive(Debug, Clone)]
@@ -23,6 +23,53 @@ macro_rules! check_band_in_bounds {
             panic!("Band index out of bounds: {}", $band);
         }
     };
+}
+
+fn image_uses_alpha(buffer: &DynamicImage) -> bool {
+    matches!(buffer.color(), La8 | Rgba8 | La16 | Rgba16 | Rgba32F)
+}
+
+fn image_bitmode(buffer: &DynamicImage) -> enums::ImageMode {
+    match buffer.color() {
+        L8 | La8 | Rgb8 | Rgba8 => enums::ImageMode::U8BIT,
+        L16 | La16 | Rgb16 | Rgba16 => enums::ImageMode::U16BIT,
+        _ => panic!("Unsupported 32-bit image format"),
+    }
+}
+
+macro_rules! load_image {
+    ($image_data:expr, $has_alpha:ident, $image_mode:ident) => {{
+        let dims = $image_data.dimensions();
+
+        let width = dims.0 as usize;
+        let height = dims.1 as usize;
+
+        let mut rgbimage = if $has_alpha {
+            RgbImage::new_with_bands_masked(width, height, 3, $image_mode, true).unwrap()
+        } else {
+            RgbImage::new_with_bands(width, height, 3, $image_mode).unwrap()
+        };
+
+        for y in 0..height {
+            for x in 0..width {
+                let pixel = $image_data.get_pixel(x as u32, y as u32);
+                let red = pixel[0] as f32;
+                let green = pixel[1] as f32;
+                let blue = pixel[2] as f32;
+                let alpha: f32 = pixel[3] as f32;
+
+                rgbimage.put(x, y, red, 0);
+                rgbimage.put(x, y, green, 1);
+                rgbimage.put(x, y, blue, 2);
+
+                if $has_alpha {
+                    rgbimage.put_alpha(x, y, alpha > 0.0);
+                }
+            }
+        }
+
+        Ok(rgbimage)
+    }};
 }
 
 #[allow(dead_code)]
@@ -99,74 +146,26 @@ impl RgbImage {
         RgbImage::open(&String::from(file_path))
     }
 
-    pub fn open16(file_path: &String) -> error::Result<RgbImage> {
-        if !path::file_exists(file_path.as_str()) {
-            panic!("File not found: {}", file_path);
-        }
-
-        let image_data = open(file_path).unwrap().into_rgba16();
-        let dims = image_data.dimensions();
-
-        let width = dims.0 as usize;
-        let height = dims.1 as usize;
-
-        let mut rgbimage =
-            RgbImage::new_with_bands_masked(width, height, 3, enums::ImageMode::U16BIT, true)
-                .unwrap();
-
-        for y in 0..height {
-            for x in 0..width {
-                let pixel = image_data.get_pixel(x as u32, y as u32);
-                //println!("Pixel: {}", pixel.len());
-                let red = pixel[0] as f32;
-                let green = pixel[1] as f32;
-                let blue = pixel[2] as f32;
-                let alpha: f32 = pixel[3] as f32;
-
-                rgbimage.put(x, y, red, 0);
-                rgbimage.put(x, y, green, 1);
-                rgbimage.put(x, y, blue, 2);
-
-                rgbimage.put_alpha(x, y, alpha > 0.0);
-            }
-        }
-
-        Ok(rgbimage)
-    }
-
     pub fn open(file_path: &String) -> error::Result<RgbImage> {
         if !path::file_exists(file_path.as_str()) {
             panic!("File not found: {}", file_path);
         }
 
-        let image_data = open(file_path).unwrap().into_rgba8();
-        let dims = image_data.dimensions();
+        let buffer = open(file_path).unwrap();
 
-        let width = dims.0 as usize;
-        let height = dims.1 as usize;
+        let has_alpha = image_uses_alpha(&buffer);
+        let image_mode = image_bitmode(&buffer);
 
-        // TODO: Don't assume 8-bit
-        let mut rgbimage =
-            RgbImage::new_with_bands_masked(width, height, 3, enums::ImageMode::U8BIT, true)
-                .unwrap();
-
-        for y in 0..height {
-            for x in 0..width {
-                let pixel = image_data.get_pixel(x as u32, y as u32);
-                let red = pixel[0] as f32;
-                let green = pixel[1] as f32;
-                let blue = pixel[2] as f32;
-                let alpha: f32 = pixel[3] as f32;
-
-                rgbimage.put(x, y, red, 0);
-                rgbimage.put(x, y, green, 1);
-                rgbimage.put(x, y, blue, 2);
-
-                rgbimage.put_alpha(x, y, alpha > 0.0);
+        match image_mode {
+            enums::ImageMode::U8BIT => {
+                let image_data = buffer.into_rgba8();
+                load_image!(image_data, has_alpha, image_mode)
+            }
+            _ => {
+                let image_data = buffer.into_rgba16();
+                load_image!(image_data, has_alpha, image_mode)
             }
         }
-
-        Ok(rgbimage)
     }
 
     pub fn new_from_buffers_rgb(
@@ -710,13 +709,15 @@ impl RgbImage {
     fn save_16bit_mono(&self, to_file: &str, band: usize) {
         check_band_in_bounds!(band, self);
         let mut out_img =
-            DynamicImage::new_rgba16(self.width as u32, self.height as u32).into_rgba16();
+            DynamicImage::new_luma16(self.width as u32, self.height as u32).into_luma16();
 
         for y in 0..self.height {
             for x in 0..self.width {
-                let r = self.bands[band].get(x, y).unwrap().round() as u16;
-                let a: u16 = if self.get_alpha_at(x, y) { 65535 } else { 0 };
-                out_img.put_pixel(x as u32, y as u32, Rgba([r, r, r, a]));
+                out_img.put_pixel(
+                    x as u32,
+                    y as u32,
+                    Luma([self.bands[band].get(x, y).unwrap().round() as u16]),
+                );
             }
         }
 
@@ -737,11 +738,49 @@ impl RgbImage {
 
         for y in 0..self.height {
             for x in 0..self.width {
-                let r = self.bands[0].get(x, y).unwrap().round() as u16;
-                let g = self.bands[1].get(x, y).unwrap().round() as u16;
-                let b = self.bands[2].get(x, y).unwrap().round() as u16;
-                let a = if self.get_alpha_at(x, y) { 65535 } else { 0 };
-                out_img.put_pixel(x as u32, y as u32, Rgba([r, g, b, a]));
+                out_img.put_pixel(
+                    x as u32,
+                    y as u32,
+                    Rgba([
+                        self.bands[0].get(x, y).unwrap().round() as u16,
+                        self.bands[1].get(x, y).unwrap().round() as u16,
+                        self.bands[2].get(x, y).unwrap().round() as u16,
+                        if self.get_alpha_at(x, y) {
+                            std::u16::MAX
+                        } else {
+                            std::u16::MIN
+                        },
+                    ]),
+                );
+            }
+        }
+
+        if path::parent_exists_and_writable(to_file) {
+            out_img.save(to_file).unwrap();
+        } else {
+            panic!(
+                "Parent path does not exist or is unwritable: {}",
+                path::get_parent(to_file)
+            );
+        }
+    }
+
+    fn save_16bit_rgb(&self, to_file: &str) {
+        check_band_in_bounds!(2, self);
+        let mut out_img =
+            DynamicImage::new_rgb16(self.width as u32, self.height as u32).into_rgb16();
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                out_img.put_pixel(
+                    x as u32,
+                    y as u32,
+                    Rgb([
+                        self.bands[0].get(x, y).unwrap().round() as u16,
+                        self.bands[1].get(x, y).unwrap().round() as u16,
+                        self.bands[2].get(x, y).unwrap().round() as u16,
+                    ]),
+                );
             }
         }
 
@@ -758,8 +797,10 @@ impl RgbImage {
     fn save_16bit(&self, to_file: &str) {
         if self.bands.len() == 1 {
             self.save_16bit_mono(to_file, 0);
-        } else if self.bands.len() >= 3 {
+        } else if self.bands.len() >= 3 && self.uses_alpha {
             self.save_16bit_rgba(to_file);
+        } else if self.bands.len() >= 3 && !self.uses_alpha {
+            self.save_16bit_rgb(to_file);
         } else {
             panic!("Unsupported number of bands. Cannot save as implemented");
         }
@@ -769,13 +810,15 @@ impl RgbImage {
         check_band_in_bounds!(band, self);
 
         let mut out_img =
-            DynamicImage::new_rgba8(self.width as u32, self.height as u32).into_rgba8();
+            DynamicImage::new_luma8(self.width as u32, self.height as u32).into_luma8();
 
         for y in 0..self.height {
             for x in 0..self.width {
-                let r = self.bands[band].get(x, y).unwrap().round() as u8;
-                let a = if self.get_alpha_at(x, y) { 255 } else { 0 };
-                out_img.put_pixel(x as u32, y as u32, Rgba([r, r, r, a]));
+                out_img.put_pixel(
+                    x as u32,
+                    y as u32,
+                    Luma([self.bands[band].get(x, y).unwrap().round() as u8]),
+                );
             }
         }
 
@@ -797,11 +840,49 @@ impl RgbImage {
 
         for y in 0..self.height {
             for x in 0..self.width {
-                let r = self.bands[0].get(x, y).unwrap().round() as u8;
-                let g = self.bands[1].get(x, y).unwrap().round() as u8;
-                let b = self.bands[2].get(x, y).unwrap().round() as u8;
-                let a = if self.get_alpha_at(x, y) { 255 } else { 0 };
-                out_img.put_pixel(x as u32, y as u32, Rgba([r, g, b, a]));
+                out_img.put_pixel(
+                    x as u32,
+                    y as u32,
+                    Rgba([
+                        self.bands[0].get(x, y).unwrap().round() as u8,
+                        self.bands[1].get(x, y).unwrap().round() as u8,
+                        self.bands[2].get(x, y).unwrap().round() as u8,
+                        if self.get_alpha_at(x, y) {
+                            std::u8::MAX
+                        } else {
+                            std::u8::MIN
+                        },
+                    ]),
+                );
+            }
+        }
+
+        if path::parent_exists_and_writable(to_file) {
+            out_img.save(to_file).unwrap();
+        } else {
+            panic!(
+                "Parent path does not exist or is unwritable: {}",
+                path::get_parent(to_file)
+            );
+        }
+    }
+
+    fn save_8bit_rgb(&self, to_file: &str) {
+        check_band_in_bounds!(2, self);
+
+        let mut out_img = DynamicImage::new_rgb8(self.width as u32, self.height as u32).into_rgb8();
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                out_img.put_pixel(
+                    x as u32,
+                    y as u32,
+                    Rgb([
+                        self.bands[0].get(x, y).unwrap().round() as u8,
+                        self.bands[1].get(x, y).unwrap().round() as u8,
+                        self.bands[2].get(x, y).unwrap().round() as u8,
+                    ]),
+                );
             }
         }
 
@@ -818,8 +899,10 @@ impl RgbImage {
     fn save_8bit(&self, to_file: &str) {
         if self.bands.len() == 1 {
             self.save_8bit_mono(to_file, 0);
-        } else if self.bands.len() >= 3 {
+        } else if self.bands.len() >= 3 && self.uses_alpha {
             self.save_8bit_rgba(to_file);
+        } else if self.bands.len() >= 3 && !self.uses_alpha {
+            self.save_8bit_rgb(to_file);
         } else {
             panic!("Unsupported number of bands. Cannot save as implemented");
         }
@@ -836,6 +919,13 @@ impl RgbImage {
         match self.mode {
             enums::ImageMode::U8BIT => self.save_8bit_rgba(to_file),
             _ => self.save_16bit_rgba(to_file),
+        };
+    }
+
+    pub fn save_rgb(&self, to_file: &str) {
+        match self.mode {
+            enums::ImageMode::U8BIT => self.save_8bit_rgb(to_file),
+            _ => self.save_16bit_rgb(to_file),
         };
     }
 
