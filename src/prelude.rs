@@ -11,3 +11,4 @@ pub use crate::image::Image;
 pub use crate::imagebuffer::ImageBuffer;
 pub use crate::not_implemented;
 pub use crate::ok;
+pub use crate::path;

@@ -5,6 +5,7 @@ pub mod blur;
 pub mod camera;
 pub mod debayer;
 pub mod decompanding;
+pub mod drawable;
 pub mod enums;
 pub mod error;
 pub mod guassianblur;
