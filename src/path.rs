@@ -1,4 +1,9 @@
+use std::ffi::OsStr;
 use std::path::Path;
+
+pub fn get_extension(chk_path: &str) -> Option<&str> {
+    Path::new(chk_path).extension().and_then(OsStr::to_str)
+}
 
 // Checks if file exists.
 pub fn file_exists(chk_path: &str) -> bool {

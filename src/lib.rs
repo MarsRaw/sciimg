@@ -1,11 +1,13 @@
 use std::ops::{Index, IndexMut};
 
+pub mod binfilereader;
 pub mod blur;
 pub mod camera;
 pub mod debayer;
 pub mod decompanding;
 pub mod enums;
 pub mod error;
+pub mod guassianblur;
 pub mod hotpixel;
 pub mod image;
 pub mod imagebuffer;
@@ -13,6 +15,7 @@ pub mod imagerot;
 pub mod inpaint;
 pub mod lowpass;
 pub mod matrix;
+pub mod medianblur;
 pub mod noise;
 pub mod path;
 pub mod prelude;
@@ -20,6 +23,7 @@ pub mod quality;
 pub mod quaternion;
 pub mod resize;
 pub mod stats;
+pub mod unsharp;
 pub mod util;
 pub mod vector;
 

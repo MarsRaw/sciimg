@@ -2,7 +2,7 @@
 name = "sciimg"
 version = "0.5.0"
 authors = ["Kevin M. Gill <apoapsys@gmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "Base support for planetary science image processing"
 repository = "https://github.com/kmgill/sciimg"
 readme = "README.md"
