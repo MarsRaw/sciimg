@@ -321,6 +321,10 @@ impl Image {
         self.uses_alpha
     }
 
+    pub fn set_using_alpha(&mut self, uses_alpha: bool) {
+        self.uses_alpha = uses_alpha;
+    }
+
     pub fn apply_mask_to_band(&mut self, mask: &ImageBuffer, band: usize) {
         check_band_in_bounds!(band, self);
         self.bands[band].set_mask(mask);
