@@ -1,3 +1,4 @@
+use std::env;
 use std::ffi::OsStr;
 use std::path::Path;
 
@@ -45,4 +46,11 @@ pub fn parent_writable(chk_path: &str) -> bool {
 
 pub fn parent_exists_and_writable(chk_path: &str) -> bool {
     parent_exists(chk_path) && parent_writable(chk_path)
+}
+
+pub fn cwd() -> String {
+    match env::current_dir().unwrap().as_os_str().to_str() {
+        Some(d) => String::from(d),
+        None => String::from("./"),
+    }
 }
