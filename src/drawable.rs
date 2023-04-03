@@ -1,18 +1,102 @@
 use crate::{max, min, prelude::*};
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Channels {
+    Mono,
+    RGB,
+}
+
+#[derive(Debug, Clone)]
+pub struct Color {
+    pub channels: Channels,
+    pub values: Vec<f64>,
+}
+
+impl Default for Color {
+    fn default() -> Self {
+        Color {
+            channels: Channels::Mono,
+            values: vec![0.0],
+        }
+    }
+}
+
+impl Color {
+    pub fn new_rgb(r: f64, g: f64, b: f64) -> Color {
+        Color {
+            channels: Channels::RGB,
+            values: vec![r, g, b],
+        }
+    }
+    pub fn new_mono(v: f64) -> Color {
+        Color {
+            channels: Channels::Mono,
+            values: vec![v],
+        }
+    }
+    pub fn get_channel_value(&self, c: usize) -> f64 {
+        if c >= self.values.len() {
+            panic!("Invalid color channel index: {}", c);
+        } else {
+            self.values[c]
+        }
+    }
+
+    pub fn is_nonzero(&self) -> bool {
+        match self.channels {
+            Channels::Mono => self.get_channel_value(0) > 0.0,
+            Channels::RGB => {
+                self.get_channel_value(0) > 0.0
+                    || self.get_channel_value(1) > 0.0
+                    || self.get_channel_value(2) > 0.0
+            }
+        }
+    }
+}
+
 /// A single two-dimensional point on a raster. Contains the x/y coordinate and the RGB values to be placed
 /// into the buffer.
 #[derive(Debug, Clone)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
-    pub v: f64,
+    pub color: Color,
+}
+
+impl Default for Point {
+    fn default() -> Self {
+        Point {
+            x: 0.0,
+            y: 0.0,
+            color: Color::default(),
+        }
+    }
 }
 
 impl Point {
     /// Simple creation for a Point.
-    pub fn create(x: f64, y: f64, v: f64) -> Self {
-        Point { x, y, v }
+    pub fn create_rgb(x: f64, y: f64, r: f64, g: f64, b: f64) -> Self {
+        Point {
+            x,
+            y,
+            color: Color::new_rgb(r, g, b),
+        }
+    }
+
+    pub fn create_mono(x: f64, y: f64, v: f64) -> Self {
+        Point {
+            x,
+            y,
+            color: Color::new_mono(v),
+        }
+    }
+
+    pub fn create(x: f64, y: f64) -> Self {
+        Point {
+            x,
+            y,
+            color: Color::default(),
+        }
     }
 }
 
@@ -26,7 +110,7 @@ pub struct Triangle {
 impl Triangle {
     /// Determine if a two dimensional point is contained within the  area bounded by the triangle
     pub fn contains(&self, x: f64, y: f64) -> bool {
-        let p = Point { x, y, v: 0.0 };
+        let p = Point::create(x, y);
         let b0 = Triangle::sign(&p, &self.p0, &self.p1) <= 0.0;
         let b1 = Triangle::sign(&p, &self.p1, &self.p2) <= 0.0;
         let b2 = Triangle::sign(&p, &self.p2, &self.p0) <= 0.0;
@@ -55,7 +139,7 @@ impl Triangle {
     }
 
     /// Determines an interpolated single-channel color value for a point in the triangle
-    pub fn interpolate_color(&self, x: f64, y: f64, c0: f64, c1: f64, c2: f64) -> f64 {
+    pub fn interpolate_color_channel(&self, x: f64, y: f64, c0: f64, c1: f64, c2: f64) -> f64 {
         let det = self.p0.x * self.p1.y - self.p1.x * self.p0.y + self.p1.x * self.p2.y
             - self.p2.x * self.p1.y
             + self.p2.x * self.p0.y
@@ -75,6 +159,53 @@ impl Triangle {
 
         a * x + b * y + c
     }
+
+    /// Determines an interpolated three-channel (RGB) color value for a point in the triangle
+    pub fn interpolate_color_rgb(&self, x: f64, y: f64) -> Color {
+        Color::new_rgb(
+            self.interpolate_color_channel(
+                x,
+                y,
+                self.p0.color.get_channel_value(0),
+                self.p1.color.get_channel_value(0),
+                self.p2.color.get_channel_value(0),
+            ),
+            self.interpolate_color_channel(
+                x,
+                y,
+                self.p0.color.get_channel_value(1),
+                self.p1.color.get_channel_value(1),
+                self.p2.color.get_channel_value(1),
+            ),
+            self.interpolate_color_channel(
+                x,
+                y,
+                self.p0.color.get_channel_value(2),
+                self.p1.color.get_channel_value(2),
+                self.p2.color.get_channel_value(2),
+            ),
+        )
+    }
+
+    /// Determines an interpolated three-channel (RGB) color value for a point in the triangle
+    pub fn interpolate_color_mono(&self, x: f64, y: f64) -> Color {
+        Color::new_mono(self.interpolate_color_channel(
+            x,
+            y,
+            self.p0.color.get_channel_value(0),
+            self.p1.color.get_channel_value(0),
+            self.p2.color.get_channel_value(0),
+        ))
+    }
+
+    /// Determines an interpolated three-channel (RGB) color value for a point in the triangle
+    pub fn interpolate_color(&self, x: f64, y: f64) -> Color {
+        self.interpolate_color_rgb(x, y)
+        // match self.p0.color.channels {
+        //     Channels::Mono => self.interpolate_color_mono(x, y),
+        //     Channels::RGB => self.interpolate_color_rgb(x, y),
+        // }
+    }
 }
 
 /// Defines a buffer that can be drawn on using triangle or square polygons.
@@ -86,17 +217,28 @@ pub trait Drawable {
     fn create_masked(width: usize, height: usize, mask_value: bool) -> Self;
 
     /// Paint a triangle on the buffer.
-    fn paint_tri(&mut self, tri: &Triangle, avg_pixels: bool, channel: usize);
+    fn paint_tri(&mut self, tri: &Triangle, avg_pixels: bool);
+
+    /// Paint a triangle on the buffer.
+    fn paint_tri_with_channel_rule<F: Fn(usize) -> bool>(
+        &mut self,
+        tri: &Triangle,
+        avg_pixels: bool,
+        channel_rule: F,
+    );
 
     /// Paint a square on the buffer using four points
-    fn paint_square(
+    fn paint_square(&mut self, tl: &Point, bl: &Point, br: &Point, tr: &Point, avg_pixels: bool);
+
+    /// Paint a square on the buffer using four points
+    fn paint_square_with_channel_rule<F: Fn(usize) -> bool>(
         &mut self,
         tl: &Point,
         bl: &Point,
         br: &Point,
         tr: &Point,
         avg_pixels: bool,
-        channel: usize,
+        channel_rule: F,
     );
 
     /// Width of the buffer
@@ -128,11 +270,26 @@ impl Drawable for Image {
         self.height
     }
 
-    fn paint_tri(&mut self, tri: &Triangle, avg_pixels: bool, channel: usize) {
+    fn paint_tri(&mut self, tri: &Triangle, avg_pixels: bool) {
+        self.paint_tri_with_channel_rule(tri, avg_pixels, |_| true);
+    }
+
+    //pub fn unwrap_or_else<F: FnOnce(E) -> T>(self, op: F) -> T {
+    fn paint_tri_with_channel_rule<F: Fn(usize) -> bool>(
+        &mut self,
+        tri: &Triangle,
+        avg_pixels: bool,
+        channel_rule: F,
+    ) {
         let min_x = tri.x_min().floor() as usize;
         let max_x = tri.x_max().ceil() as usize;
         let min_y = tri.y_min().floor() as usize;
         let max_y = tri.y_max().ceil() as usize;
+
+        let num_channels = match tri.p0.color.channels {
+            Channels::Mono => 1,
+            Channels::RGB => 3,
+        };
 
         // Gonna limit the max dimension of a poly to just 100x100
         // to prevent those that wrap the entire image.
@@ -142,21 +299,22 @@ impl Drawable for Image {
             for y in min_y..=max_y {
                 for x in min_x..=max_x {
                     if x < self.width && y < self.height && tri.contains(x as f64, y as f64) {
-                        let mut v =
-                            tri.interpolate_color(x as f64, y as f64, tri.p0.v, tri.p1.v, tri.p2.v);
+                        let interpolated_color: Color = tri.interpolate_color(x as f64, y as f64);
 
-                        let v0 = self.get_band(channel).get(x, y).unwrap() as f64;
-
-                        if self.get_band(channel).get_mask_at_point(x, y)
-                            && avg_pixels
-                            && (v0 > 0.0)
-                        {
-                            v = (v + v0) / 2.0;
-                        }
-
+                        let point_mask = self.get_band(0).get_mask_at_point(x, y);
                         self.put_alpha(x, y, true);
 
-                        self.put(x, y, v as f32, channel);
+                        for channel in 0..num_channels {
+                            let mut v = interpolated_color.get_channel_value(channel);
+                            let v0 = self.get_band(channel).get(x, y).unwrap() as f64;
+                            if point_mask && avg_pixels && v0 > 0.0 {
+                                v = (v + v0) / 2.0;
+                            }
+
+                            if channel_rule(channel) {
+                                self.put(x, y, v as f32, channel);
+                            }
+                        }
                     }
                 }
             }
@@ -164,32 +322,38 @@ impl Drawable for Image {
     }
 
     /// Paints a square on the image by breaking it into two triangles.
-    fn paint_square(
+    fn paint_square(&mut self, tl: &Point, bl: &Point, br: &Point, tr: &Point, avg_pixels: bool) {
+        self.paint_square_with_channel_rule(tl, bl, br, tr, avg_pixels, |_| true)
+    }
+
+    /// Paints a square on the image by breaking it into two triangles.
+    #[allow(clippy::redundant_closure)]
+    fn paint_square_with_channel_rule<F: Fn(usize) -> bool>(
         &mut self,
         tl: &Point,
         bl: &Point,
         br: &Point,
         tr: &Point,
         avg_pixels: bool,
-        channel: usize,
+        channel_rule: F,
     ) {
-        self.paint_tri(
+        self.paint_tri_with_channel_rule(
             &Triangle {
                 p0: tl.clone(),
                 p1: bl.clone(),
                 p2: tr.clone(),
             },
             avg_pixels,
-            channel,
+            |c| channel_rule(c),
         );
-        self.paint_tri(
+        self.paint_tri_with_channel_rule(
             &Triangle {
                 p0: tr.clone(),
                 p1: bl.clone(),
                 p2: br.clone(),
             },
             avg_pixels,
-            channel,
+            |c| channel_rule(c),
         );
     }
 
