@@ -661,6 +661,18 @@ impl ImageBuffer {
         ImageBuffer::new_from_op_masked(&v, self.width, self.height, self.mode)
     }
 
+    pub fn normalize_force_minmax_mut(
+        &mut self,
+        min: f32,
+        max: f32,
+        forced_min: f32,
+        forced_max: f32,
+    ) {
+        self.buffer = self
+            .buffer
+            .normalize_force_minmax(min, max, forced_min, forced_max);
+    }
+
     pub fn normalize_force_minmax(
         &self,
         min: f32,
