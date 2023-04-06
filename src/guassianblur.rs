@@ -1,3 +1,5 @@
+use image::buffer;
+
 use crate::error;
 use crate::image::Image;
 use crate::imagebuffer::ImageBuffer;
@@ -15,6 +17,7 @@ pub fn guassian_blur_nband(
         return Err("No buffers provided");
     }
 
+    let sig_squared = sigma.powi(2);
     let radius = max!((3.0 * sigma).ceil(), 1.0) as usize;
 
     let kernel_length = radius * 2 + 1;
@@ -24,30 +27,31 @@ pub fn guassian_blur_nband(
 
     let r = radius as i32;
 
-    for i in -r..r {
+    (-r..r).for_each(|i| {
         let exponent_numerator = -(i * i) as Dn;
-        let exponent_denominator = 2.0 * sigma * sigma;
+        let exponent_denominator = 2.0 * sig_squared;
 
         let e_expression =
             (std::f32::consts::E as Dn).powf(exponent_numerator / exponent_denominator);
-        let kernel_value = e_expression / 2.0 * std::f32::consts::PI * sigma * sigma;
+        let kernel_value = e_expression / std::f32::consts::TAU * sig_squared;
 
         kernel[(i + r) as usize] = kernel_value;
         sum += kernel_value;
-    }
+    });
 
     // Normalize kernel
-    for (i, _) in kernel.clone().iter().enumerate() {
-        kernel[i] /= sum;
-    }
+    kernel.iter_mut().for_each(|i| {
+        *i /= sum;
+    });
 
     let buffer_width = buffers[0].width;
     let buffer_height = buffers[0].height;
 
     // 1st pass: Horizontal Blur
-    for x in 0..buffer_width {
-        for y in 0..buffer_height {
-            let mut values = DnVec::zeros(buffers.len());
+    (0..buffer_width).for_each(|x| {
+        (0..buffer_height).for_each(|y| {
+            let buff_len: usize = buffers.len();
+            let mut values = DnVec::zeros(buff_len);
 
             for kernel_i in -r..r {
                 // Protect image bounds
@@ -57,20 +61,20 @@ pub fn guassian_blur_nband(
 
                 let kernel_value = kernel[(kernel_i + r) as usize];
 
-                for b in 0..buffers.len() {
+                (0..buff_len).for_each(|b| {
                     values[b] += buffers[b].get(x - kernel_i as usize, y).unwrap() * kernel_value;
-                }
+                });
             }
 
-            for i in 0..buffers.len() {
+            (0..buff_len).for_each(|i| {
                 buffers[i].put(x, y, values[i]);
-            }
-        }
-    }
+            });
+        });
+    });
 
     // 2nd pass: Vertical Blur
-    for x in 0..buffer_width {
-        for y in 0..buffer_height {
+    (0..buffer_width).for_each(|x| {
+        (0..buffer_height).for_each(|y| {
             let mut values = DnVec::zeros(buffers.len());
 
             for kernel_i in -r..r {
@@ -80,16 +84,17 @@ pub fn guassian_blur_nband(
                 }
 
                 let kernel_value = kernel[(kernel_i + r) as usize];
-                for b in 0..buffers.len() {
+                (0..buffers.len()).for_each(|b| {
+                    //FIXME: unsafe unwrap
                     values[b] += buffers[b].get(x, y - kernel_i as usize).unwrap() * kernel_value;
-                }
+                });
             }
 
             for i in 0..buffers.len() {
                 buffers[i].put(x, y, values[i]);
             }
-        }
-    }
+        });
+    });
     Ok(buffers.into())
 }
 
@@ -100,14 +105,14 @@ pub trait RgbImageBlur {
 impl RgbImageBlur for Image {
     fn guassian_blur(&mut self, sigma: f32) {
         let mut buffers = vec![];
-        for b in 0..self.num_bands() {
+        (0..self.num_bands()).for_each(|b| {
             buffers.push(self.get_band(b).to_owned());
-        }
+        });
 
         if let Ok(buffers) = guassian_blur_nband(&mut buffers, sigma) {
-            for (b, _) in buffers.iter().enumerate() {
+            buffers.iter().enumerate().for_each(|(b, _)| {
                 self.set_band(&buffers[b], b);
-            }
+            });
         }
     }
 }
