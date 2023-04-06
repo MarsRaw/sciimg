@@ -39,18 +39,18 @@ pub struct BinFileReader {
 
 /// A strongly (over)simplified means of reading a file directly into primitive types. Wraps around a memory mapped file pointer
 impl BinFileReader {
-    pub fn new(file_path: &String) -> BinFileReader {
+    pub fn new(file_path: &str) -> BinFileReader {
         BinFileReader::new_as_endiness(file_path, Endian::LittleEndian)
     }
 
-    pub fn new_as_endiness(file_path: &String, endiness: Endian) -> BinFileReader {
+    pub fn new_as_endiness(file_path: &str, endiness: Endian) -> BinFileReader {
         let file_ptr = File::open(file_path).expect("Error opening file");
         let map: Mmap = unsafe { Mmap::map(&file_ptr).expect("Error creating memory map") };
 
         BinFileReader {
             file_ptr,
             map,
-            file_path: file_path.clone(),
+            file_path: file_path.to_string(),
             endiness,
         }
     }
