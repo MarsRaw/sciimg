@@ -8,25 +8,21 @@ pub fn unsharp_mask_nbands(
     sigma: f32,
     amount: f32,
 ) -> error::Result<Vec<ImageBuffer>> {
+    //FIXME: Unwraps :(
     match guassian_blur_nband(buffers, sigma) {
-        Ok(blurred) => {
-            let mut out_buffers: Vec<ImageBuffer> = vec![];
-            for b in 0..blurred.len() {
-                out_buffers.push(
-                    buffers[b]
-                        .add(
-                            &buffers[b]
-                                .subtract(&blurred[b])
-                                .unwrap()
-                                .scale(amount)
-                                .unwrap(),
-                        )
-                        .unwrap(),
-                );
-            }
-
-            Ok(out_buffers)
-        }
+        Ok(blurred) => Ok((0..blurred.len())
+            .map(|b| {
+                buffers[b]
+                    .add(
+                        &buffers[b]
+                            .subtract(&blurred[b])
+                            .unwrap()
+                            .scale(amount)
+                            .unwrap(),
+                    )
+                    .unwrap()
+            })
+            .collect()),
         Err(why) => Err(why),
     }
 }
@@ -37,15 +33,14 @@ pub trait RgbImageUnsharpMask {
 
 impl RgbImageUnsharpMask for Image {
     fn unsharp_mask(&mut self, sigma: f32, amount: f32) {
-        let mut buffers = vec![];
-        for b in 0..self.num_bands() {
-            buffers.push(self.get_band(b).to_owned());
-        }
+        let mut buffers: Vec<ImageBuffer> = (0..self.num_bands())
+            .map(|b| self.get_band(b).to_owned())
+            .collect();
 
         if let Ok(buffers) = unsharp_mask_nbands(&mut buffers, sigma, amount) {
-            for (b, _) in buffers.iter().enumerate() {
-                self.set_band(&buffers[b], b);
-            }
+            buffers.into_iter().enumerate().for_each(|(b, buffer)| {
+                self.set_band(&buffer, b);
+            });
         }
     }
 }
