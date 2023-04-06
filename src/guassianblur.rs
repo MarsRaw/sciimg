@@ -8,7 +8,7 @@ use crate::VecMath;
 
 //  SSSSSLLLLOOOOOOWWWWWWW.....
 pub fn guassian_blur_nband(
-    buffers: &Vec<ImageBuffer>,
+    buffers: &mut [ImageBuffer],
     sigma: f32,
 ) -> error::Result<Vec<ImageBuffer>> {
     if buffers.is_empty() {
@@ -41,8 +41,6 @@ pub fn guassian_blur_nband(
         kernel[i] /= sum;
     }
 
-    let mut out_buffers = buffers.clone();
-
     let buffer_width = buffers[0].width;
     let buffer_height = buffers[0].height;
 
@@ -60,19 +58,15 @@ pub fn guassian_blur_nband(
                 let kernel_value = kernel[(kernel_i + r) as usize];
 
                 for b in 0..buffers.len() {
-                    values[b] +=
-                        out_buffers[b].get(x - kernel_i as usize, y).unwrap() * kernel_value;
+                    values[b] += buffers[b].get(x - kernel_i as usize, y).unwrap() * kernel_value;
                 }
             }
 
-            for i in 0..out_buffers.len() {
-                out_buffers[i].put(x, y, values[i]);
+            for i in 0..buffers.len() {
+                buffers[i].put(x, y, values[i]);
             }
         }
     }
-
-    let buffers = out_buffers.clone();
-    let mut out_buffers = buffers.clone();
 
     // 2nd pass: Vertical Blur
     for x in 0..buffer_width {
@@ -87,17 +81,16 @@ pub fn guassian_blur_nband(
 
                 let kernel_value = kernel[(kernel_i + r) as usize];
                 for b in 0..buffers.len() {
-                    values[b] +=
-                        out_buffers[b].get(x, y - kernel_i as usize).unwrap() * kernel_value;
+                    values[b] += buffers[b].get(x, y - kernel_i as usize).unwrap() * kernel_value;
                 }
             }
 
-            for i in 0..out_buffers.len() {
-                out_buffers[i].put(x, y, values[i]);
+            for i in 0..buffers.len() {
+                buffers[i].put(x, y, values[i]);
             }
         }
     }
-    Ok(out_buffers)
+    Ok(buffers.into())
 }
 
 pub trait RgbImageBlur {
