@@ -1,5 +1,3 @@
-use image::buffer;
-
 use crate::error;
 use crate::image::Image;
 use crate::imagebuffer::ImageBuffer;
@@ -46,25 +44,24 @@ pub fn guassian_blur_nband(
 
     let buffer_width = buffers[0].width;
     let buffer_height = buffers[0].height;
+    let buff_len: usize = buffers.len();
 
     // 1st pass: Horizontal Blur
     (0..buffer_width).for_each(|x| {
         (0..buffer_height).for_each(|y| {
-            let buff_len: usize = buffers.len();
             let mut values = DnVec::zeros(buff_len);
 
-            for kernel_i in -r..r {
+            (-r..r).for_each(|kernel_i| {
                 // Protect image bounds
                 if x as i32 - kernel_i < 0 || x as i32 - kernel_i >= buffer_width as i32 {
-                    continue;
+                    let kernel_value = kernel[(kernel_i + r) as usize];
+
+                    (0..buff_len).for_each(|b| {
+                        values[b] +=
+                            buffers[b].get(x - kernel_i as usize, y).unwrap() * kernel_value;
+                    });
                 }
-
-                let kernel_value = kernel[(kernel_i + r) as usize];
-
-                (0..buff_len).for_each(|b| {
-                    values[b] += buffers[b].get(x - kernel_i as usize, y).unwrap() * kernel_value;
-                });
-            }
+            });
 
             (0..buff_len).for_each(|i| {
                 buffers[i].put(x, y, values[i]);
@@ -75,24 +72,23 @@ pub fn guassian_blur_nband(
     // 2nd pass: Vertical Blur
     (0..buffer_width).for_each(|x| {
         (0..buffer_height).for_each(|y| {
-            let mut values = DnVec::zeros(buffers.len());
+            let mut values = DnVec::zeros(buff_len);
 
-            for kernel_i in -r..r {
+            (-r..r).for_each(|kernel_i| {
                 // Protect image bounds
                 if y as i32 - kernel_i < 0 || y as i32 - kernel_i >= buffer_height as i32 {
-                    continue;
+                    let kernel_value = kernel[(kernel_i + r) as usize];
+                    (0..buff_len).for_each(|b| {
+                        //FIXME: unsafe unwrap
+                        values[b] +=
+                            buffers[b].get(x, y - kernel_i as usize).unwrap() * kernel_value;
+                    });
                 }
+            });
 
-                let kernel_value = kernel[(kernel_i + r) as usize];
-                (0..buffers.len()).for_each(|b| {
-                    //FIXME: unsafe unwrap
-                    values[b] += buffers[b].get(x, y - kernel_i as usize).unwrap() * kernel_value;
-                });
-            }
-
-            for i in 0..buffers.len() {
+            (0..buff_len).for_each(|i| {
                 buffers[i].put(x, y, values[i]);
-            }
+            });
         });
     });
     Ok(buffers.into())
