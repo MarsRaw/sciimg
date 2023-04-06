@@ -104,7 +104,7 @@ impl RgbImageBlur for Image {
             buffers.push(self.get_band(b).to_owned());
         }
 
-        if let Ok(buffers) = guassian_blur_nband(&buffers, sigma) {
+        if let Ok(buffers) = guassian_blur_nband(&mut buffers, sigma) {
             for (b, _) in buffers.iter().enumerate() {
                 self.set_band(&buffers[b], b);
             }

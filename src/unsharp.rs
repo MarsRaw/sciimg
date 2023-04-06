@@ -4,7 +4,7 @@ use crate::image::Image;
 use crate::imagebuffer::ImageBuffer;
 
 pub fn unsharp_mask_nbands(
-    buffers: &Vec<ImageBuffer>,
+    buffers: &mut [ImageBuffer],
     sigma: f32,
     amount: f32,
 ) -> error::Result<Vec<ImageBuffer>> {
@@ -42,7 +42,7 @@ impl RgbImageUnsharpMask for Image {
             buffers.push(self.get_band(b).to_owned());
         }
 
-        if let Ok(buffers) = unsharp_mask_nbands(&buffers, sigma, amount) {
+        if let Ok(buffers) = unsharp_mask_nbands(&mut buffers, sigma, amount) {
             for (b, _) in buffers.iter().enumerate() {
                 self.set_band(&buffers[b], b);
             }

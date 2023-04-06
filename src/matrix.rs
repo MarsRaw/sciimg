@@ -101,16 +101,16 @@ impl Matrix {
             let ai2 = a.m[(2 << 2) + row];
             let ai3 = a.m[(3 << 2) + row];
 
-            product[row] = ai0 * b.m[(0 << 2)] + ai1 * b.m[1] + ai2 * b.m[2] + ai3 * b.m[3];
-            product[(1 << 2) + row] = ai0 * b.m[(1 << 2)]
+            product[row] = ai0 * b.m[0 << 2] + ai1 * b.m[1] + ai2 * b.m[2] + ai3 * b.m[3];
+            product[(1 << 2) + row] = ai0 * b.m[1 << 2]
                 + ai1 * b.m[(1 << 2) + 1]
                 + ai2 * b.m[(1 << 2) + 2]
                 + ai3 * b.m[(1 << 2) + 3];
-            product[(2 << 2) + row] = ai0 * b.m[(2 << 2)]
+            product[(2 << 2) + row] = ai0 * b.m[2 << 2]
                 + ai1 * b.m[(2 << 2) + 1]
                 + ai2 * b.m[(2 << 2) + 2]
                 + ai3 * b.m[(2 << 2) + 3];
-            product[(3 << 2) + row] = ai0 * b.m[(3 << 2)]
+            product[(3 << 2) + row] = ai0 * b.m[3 << 2]
                 + ai1 * b.m[(3 << 2) + 1]
                 + ai2 * b.m[(3 << 2) + 2]
                 + ai3 * b.m[(3 << 2) + 3];

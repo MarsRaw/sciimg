@@ -1,0 +1,3 @@
+cargo:rerun-if-changed=build/main.rs
+cargo:rustc-env=TYPENUM_BUILD_CONSTS=/Users/smak/Documents/rust/sciimg/src/debug/build/typenum-940b6c39d082c183/out/consts.rs
+cargo:rustc-env=TYPENUM_BUILD_OP=/Users/smak/Documents/rust/sciimg/src/debug/build/typenum-940b6c39d082c183/out/op.rs
