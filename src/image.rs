@@ -143,11 +143,11 @@ impl Image {
     }
 
     pub fn open_str(file_path: &str) -> error::Result<Image> {
-        Image::open(&String::from(file_path))
+        Image::open(file_path)
     }
 
-    pub fn open(file_path: &String) -> error::Result<Image> {
-        if !path::file_exists(file_path.as_str()) {
+    pub fn open(file_path: &str) -> error::Result<Image> {
+        if !path::file_exists(file_path) {
             panic!("File not found: {}", file_path);
         }
 
