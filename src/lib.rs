@@ -212,7 +212,7 @@ impl VecMath for DnVec {
     }
 
     fn sum(&self) -> Dn {
-        self.iter().map(|v| v).sum()
+        self.iter().sum()
     }
 
     fn mean(&self) -> Dn {
@@ -818,7 +818,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn sum(&self) -> Dn {
-        self.iter().map(|v| v).sum()
+        self.iter().sum()
     }
 
     fn mean(&self) -> Dn {
