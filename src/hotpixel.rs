@@ -37,7 +37,7 @@ fn isolate_window(buffer: &ImageBuffer, window_size: i32, x: usize, y: usize) ->
                 && get_y >= 0
                 && get_y < buffer.height as i32
             {
-                v.push(buffer.get(get_x as usize, get_y as usize).unwrap());
+                v.push(buffer.get(get_x as usize, get_y as usize));
             }
         }
     }
@@ -54,7 +54,7 @@ pub fn hot_pixel_detection(
 
     for y in 1..buffer.height - 1 {
         for x in 1..buffer.width - 1 {
-            let pixel_value = buffer.get(x, y).unwrap();
+            let pixel_value = buffer.get(x, y);
             let window = isolate_window(buffer, window_size, x, y);
             let z_score = stats::z_score(pixel_value, &window[0..]).unwrap();
             if z_score > threshold {
@@ -68,7 +68,7 @@ pub fn hot_pixel_detection(
                     z_score,
                 });
             } else {
-                map.put(x, y, buffer.get(x, y).unwrap());
+                map.put(x, y, buffer.get(x, y));
             }
         }
     }

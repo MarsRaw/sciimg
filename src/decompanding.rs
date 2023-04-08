@@ -58,7 +58,7 @@ fn get_lut_value_from_ilt_value(ilt_value: u32, ilt: &[u32; 256]) -> u32 {
 pub fn compand_buffer(buffer: &mut ImageBuffer, ilt: &[u32; 256]) {
     for x in 0..buffer.width {
         for y in 0..buffer.height {
-            let ilt_value = buffer.get(x, y).unwrap();
+            let ilt_value = buffer.get(x, y);
             let lut_value = get_lut_value_from_ilt_value(ilt_value as u32, ilt);
             buffer.put(x, y, lut_value as f32);
         }

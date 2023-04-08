@@ -531,7 +531,7 @@ impl Image {
         let mut v = std::f32::MIN;
 
         for i in 0..self.bands.len() {
-            let b = self.bands[i].get(x, y).unwrap();
+            let b = self.bands[i].get(x, y);
             if v == std::f32::MIN {
                 v = b;
             } else if v != b {
@@ -715,7 +715,7 @@ impl Image {
                 out_img.put_pixel(
                     x as u32,
                     y as u32,
-                    Luma([self.bands[band].get(x, y).unwrap().round() as u16]),
+                    Luma([self.bands[band].get(x, y).round() as u16]),
                 );
             }
         }
@@ -741,9 +741,9 @@ impl Image {
                     x as u32,
                     y as u32,
                     Rgba([
-                        self.bands[0].get(x, y).unwrap().round() as u16,
-                        self.bands[1].get(x, y).unwrap().round() as u16,
-                        self.bands[2].get(x, y).unwrap().round() as u16,
+                        self.bands[0].get(x, y).round() as u16,
+                        self.bands[1].get(x, y).round() as u16,
+                        self.bands[2].get(x, y).round() as u16,
                         if self.get_alpha_at(x, y) {
                             std::u16::MAX
                         } else {
@@ -775,9 +775,9 @@ impl Image {
                     x as u32,
                     y as u32,
                     Rgb([
-                        self.bands[0].get(x, y).unwrap().round() as u16,
-                        self.bands[1].get(x, y).unwrap().round() as u16,
-                        self.bands[2].get(x, y).unwrap().round() as u16,
+                        self.bands[0].get(x, y).round() as u16,
+                        self.bands[1].get(x, y).round() as u16,
+                        self.bands[2].get(x, y).round() as u16,
                     ]),
                 );
             }
@@ -816,7 +816,7 @@ impl Image {
                 out_img.put_pixel(
                     x as u32,
                     y as u32,
-                    Luma([self.bands[band].get(x, y).unwrap().round() as u8]),
+                    Luma([self.bands[band].get(x, y).round() as u8]),
                 );
             }
         }
@@ -843,9 +843,9 @@ impl Image {
                     x as u32,
                     y as u32,
                     Rgba([
-                        self.bands[0].get(x, y).unwrap().round() as u8,
-                        self.bands[1].get(x, y).unwrap().round() as u8,
-                        self.bands[2].get(x, y).unwrap().round() as u8,
+                        self.bands[0].get(x, y).round() as u8,
+                        self.bands[1].get(x, y).round() as u8,
+                        self.bands[2].get(x, y).round() as u8,
                         if self.get_alpha_at(x, y) {
                             std::u8::MAX
                         } else {
@@ -877,9 +877,9 @@ impl Image {
                     x as u32,
                     y as u32,
                     Rgb([
-                        self.bands[0].get(x, y).unwrap().round() as u8,
-                        self.bands[1].get(x, y).unwrap().round() as u8,
-                        self.bands[2].get(x, y).unwrap().round() as u8,
+                        self.bands[0].get(x, y).round() as u8,
+                        self.bands[1].get(x, y).round() as u8,
+                        self.bands[2].get(x, y).round() as u8,
                     ]),
                 );
             }

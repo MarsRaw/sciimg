@@ -51,9 +51,9 @@ pub fn color_noise_reduction(image: &mut Image, amount: i32) -> Image {
 
     for y in 0..image.height {
         for x in 0..image.width {
-            let r = image.get_band(0).get(x, y).unwrap() as u8;
-            let g = image.get_band(1).get(x, y).unwrap() as u8;
-            let b = image.get_band(2).get(x, y).unwrap() as u8;
+            let r = image.get_band(0).get(x, y) as u8;
+            let g = image.get_band(1).get(x, y) as u8;
+            let b = image.get_band(2).get(x, y) as u8;
             let idx = (y * image.width) + x;
             data[idx][0] = r;
             data[idx][1] = g;

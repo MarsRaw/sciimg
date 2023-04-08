@@ -65,8 +65,7 @@ pub fn guassian_blur_nband(
                     let kernel_value = kernel[(kernel_i + r) as usize];
 
                     (0..buff_len).for_each(|b| {
-                        values[b] +=
-                            buffers[b].get(x - kernel_i as usize, y).unwrap() * kernel_value;
+                        values[b] += buffers[b].get(x - kernel_i as usize, y) * kernel_value;
                     });
                 }
             });
@@ -88,8 +87,7 @@ pub fn guassian_blur_nband(
                     let kernel_value = kernel[(kernel_i + r) as usize];
                     (0..buff_len).for_each(|b| {
                         //FIXME: unsafe unwrap
-                        values[b] +=
-                            buffers[b].get(x, y - kernel_i as usize).unwrap() * kernel_value;
+                        values[b] += buffers[b].get(x, y - kernel_i as usize) * kernel_value;
                     });
                 }
             });

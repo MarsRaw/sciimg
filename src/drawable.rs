@@ -306,7 +306,7 @@ impl Drawable for Image {
 
                         for channel in 0..num_channels {
                             let mut v = interpolated_color.get_channel_value(channel);
-                            let v0 = self.get_band(channel).get(x, y).unwrap() as f64;
+                            let v0 = self.get_band(channel).get(x, y) as f64;
                             if point_mask && avg_pixels && v0 > 0.0 {
                                 v = (v + v0) / 2.0;
                             }

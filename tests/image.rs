@@ -60,19 +60,19 @@ fn test_rgbimage_math_3band() {
     assert_eq!(img.width, 1000);
     assert_eq!(img.height, 1000);
     assert_eq!(img.num_bands(), 3);
-    assert_eq!(img.get_band(0).get(100, 100).unwrap(), 200.0);
-    assert_eq!(img.get_band(1).get(100, 100).unwrap(), 200.0);
-    assert_eq!(img.get_band(2).get(100, 100).unwrap(), 200.0);
+    assert_eq!(img.get_band(0).get(100, 100), 200.0);
+    assert_eq!(img.get_band(1).get(100, 100), 200.0);
+    assert_eq!(img.get_band(2).get(100, 100), 200.0);
 
     img.apply_weight_on_band(0.1, 0);
-    assert_eq!(img.get_band(0).get(100, 100).unwrap(), 20.0);
-    assert_eq!(img.get_band(1).get(100, 100).unwrap(), 200.0);
-    assert_eq!(img.get_band(2).get(100, 100).unwrap(), 200.0);
+    assert_eq!(img.get_band(0).get(100, 100), 20.0);
+    assert_eq!(img.get_band(1).get(100, 100), 200.0);
+    assert_eq!(img.get_band(2).get(100, 100), 200.0);
 
     img.divide_from_each(&b0);
-    assert_eq!(img.get_band(0).get(100, 100).unwrap(), 0.2);
-    assert_eq!(img.get_band(1).get(100, 100).unwrap(), 2.0);
-    assert_eq!(img.get_band(2).get(100, 100).unwrap(), 2.0);
+    assert_eq!(img.get_band(0).get(100, 100), 0.2);
+    assert_eq!(img.get_band(1).get(100, 100), 2.0);
+    assert_eq!(img.get_band(2).get(100, 100), 2.0);
 }
 
 #[test]
@@ -97,23 +97,23 @@ fn test_rgbimage_math_1band() {
     assert_eq!(img.width, 1000);
     assert_eq!(img.height, 1000);
     assert_eq!(img.num_bands(), 1);
-    assert_eq!(img.get_band(0).get(100, 100).unwrap(), 200.0);
+    assert_eq!(img.get_band(0).get(100, 100), 200.0);
 
     img.add(&img2);
     assert_eq!(img.width, 1000);
     assert_eq!(img.height, 1000);
     assert_eq!(img.num_bands(), 1);
-    assert_eq!(img.get_band(0).get(100, 100).unwrap(), 300.0);
+    assert_eq!(img.get_band(0).get(100, 100), 300.0);
 
     img.add(&img3);
     assert_eq!(img.width, 1000);
     assert_eq!(img.height, 1000);
     assert_eq!(img.num_bands(), 1);
-    assert_eq!(img.get_band(0).get(100, 100).unwrap(), 500.0);
+    assert_eq!(img.get_band(0).get(100, 100), 500.0);
 
     img.apply_weight_on_band(0.1, 0);
-    assert_eq!(img.get_band(0).get(100, 100).unwrap(), 50.0);
+    assert_eq!(img.get_band(0).get(100, 100), 50.0);
 
     img.divide_from_each(&b0);
-    assert_eq!(img.get_band(0).get(100, 100).unwrap(), 0.5);
+    assert_eq!(img.get_band(0).get(100, 100), 0.5);
 }

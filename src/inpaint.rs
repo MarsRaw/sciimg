@@ -2,6 +2,9 @@
 
 use crate::{enums, error, image::Image, imagebuffer::ImageBuffer, stats};
 
+#[cfg(rayon)]
+use rayon::prelude::*;
+
 #[derive(Debug, Clone)]
 struct Point {
     x: usize,
@@ -20,42 +23,42 @@ const DEFAULT_WINDOW_SIZE: i32 = 3;
 fn get_num_good_neighbors(mask: &ImageBuffer, x: i32, y: i32) -> u32 {
     // Juggling the possibility of negitive numbers and whether or now we allow that.
     let t = if y > 0 {
-        mask.get(x as usize, (y - 1) as usize).unwrap() == 0.0
+        mask.get(x as usize, (y - 1) as usize) == 0.0
     } else {
         false
     };
     let tl = if x > 0 && y > 0 {
-        mask.get((x - 1) as usize, (y - 1) as usize).unwrap() == 0.0
+        mask.get((x - 1) as usize, (y - 1) as usize) == 0.0
     } else {
         false
     };
     let l = if x > 0 {
-        mask.get((x - 1) as usize, y as usize).unwrap() == 0.0
+        mask.get((x - 1) as usize, y as usize) == 0.0
     } else {
         false
     };
     let bl = if x > 0 && y < mask.height as i32 - 1 {
-        mask.get((x - 1) as usize, (y + 1) as usize).unwrap() == 0.0
+        mask.get((x - 1) as usize, (y + 1) as usize) == 0.0
     } else {
         false
     };
     let b = if y < mask.height as i32 - 1 {
-        mask.get(x as usize, (y + 1) as usize).unwrap() == 0.0
+        mask.get(x as usize, (y + 1) as usize) == 0.0
     } else {
         false
     };
     let br = if x < mask.width as i32 - 1 && y < mask.height as i32 - 1 {
-        mask.get((x + 1) as usize, (y + 1) as usize).unwrap() == 0.0
+        mask.get((x + 1) as usize, (y + 1) as usize) == 0.0
     } else {
         false
     };
     let r = if x < mask.width as i32 - 1 {
-        mask.get((x + 1) as usize, y as usize).unwrap() == 0.0
+        mask.get((x + 1) as usize, y as usize) == 0.0
     } else {
         false
     };
     let tr = if x < mask.width as i32 - 1 && y > 0 {
-        mask.get((x + 1) as usize, (y - 1) as usize).unwrap() == 0.0
+        mask.get((x + 1) as usize, (y - 1) as usize) == 0.0
     } else {
         false
     };
@@ -74,17 +77,31 @@ fn get_num_good_neighbors(mask: &ImageBuffer, x: i32, y: i32) -> u32 {
     s
 }
 
-// SOOOOOOooooooooo sloooooooooooooooow :-(
+#[cfg(rayon)]
 fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
-    for y in 0..mask.height {
-        for x in 0..mask.width {
-            if let Ok(v) = mask.get(x, y) {
-                if v > 0.0 {
-                    return Some(Point { x, y, score: 0 });
-                }
+    let height_iter = (0..mask.height.clone()).into_par_iter();
+
+    height_iter.for_each(|y| {
+        (0..mask.width).for_each(|x| {
+            if mask.get(x, y) > 0.0 {
+                Some(Point { x, y, score: 0 });
+            } else {
             }
-        }
-    }
+        });
+    });
+    None
+}
+
+#[cfg(not(rayon))]
+fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
+    (0..mask.height).for_each(|y| {
+        (0..mask.width).for_each(|x| {
+            if mask.get(x, y) > 0.0 {
+                Some(Point { x, y, score: 0 });
+            } else {
+            }
+        });
+    });
     None
 }
 
@@ -107,7 +124,7 @@ fn isolate_window(
                 && get_x < buffer.width as i32
                 && get_y >= 0
                 && get_y < buffer.height as i32
-                && mask.get(get_x as usize, get_y as usize).unwrap() == 0.0
+                && mask.get(get_x as usize, get_y as usize) == 0.0
             {
                 v.push(buffer.rgb[(get_y * buffer.width as i32 + get_x) as usize][channel]);
             }
@@ -126,7 +143,7 @@ fn get_point_and_score_at_xy(mask: &ImageBuffer, x: i32, y: i32) -> Option<Point
         return None;
     }
 
-    let v = mask.get(x as usize, y as usize).unwrap();
+    let v = mask.get(x as usize, y as usize);
     if v == 0.0 {
         return None;
     }
@@ -203,26 +220,18 @@ fn rgb_image_to_vec(rgb: &Image) -> error::Result<RgbVec> {
     let mut v: Vec<[f32; 3]> = Vec::with_capacity(rgb.width * rgb.height);
     v.resize(rgb.width * rgb.height, [0.0, 0.0, 0.0]);
 
-    for y in 0..rgb.height {
-        for x in 0..rgb.width {
+    (0..rgb.height).for_each(|y| {
+        (0..rgb.width).for_each(|x| {
             let idx = y * rgb.width + x;
-            let r = match rgb.get_band(0).get(x, y) {
-                Ok(v) => v,
-                Err(e) => return Err(e),
-            };
-            let g = match rgb.get_band(1).get(x, y) {
-                Ok(v) => v,
-                Err(e) => return Err(e),
-            };
-            let b = match rgb.get_band(2).get(x, y) {
-                Ok(v) => v,
-                Err(e) => return Err(e),
-            };
+            let r = rgb.get_band(0).get(x, y);
+            let g = rgb.get_band(1).get(x, y);
+            let b = rgb.get_band(2).get(x, y);
+
             v[idx][0] = r;
             v[idx][1] = g;
             v[idx][2] = b;
-        }
-    }
+        });
+    });
 
     Ok(RgbVec {
         rgb: v,
@@ -300,9 +309,9 @@ pub fn make_mask_from_red(rgbimage: &Image) -> error::Result<ImageBuffer> {
     };
     for y in 0..rgbimage.height {
         for x in 0..rgbimage.width {
-            let r = rgbimage.get_band(0).get(x, y).unwrap();
-            let g = rgbimage.get_band(1).get(x, y).unwrap();
-            let b = rgbimage.get_band(2).get(x, y).unwrap();
+            let r = rgbimage.get_band(0).get(x, y);
+            let g = rgbimage.get_band(1).get(x, y);
+            let b = rgbimage.get_band(2).get(x, y);
 
             // if r != g || r != b || g != b {
             //     new_mask.put(x, y, 255.0).unwrap();
