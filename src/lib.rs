@@ -77,19 +77,23 @@ pub fn isolate_window_2d<T: Copy>(
     x: usize,
     y: usize,
 ) -> Vec<T> {
-    let mut v: Vec<T> = Vec::with_capacity(window_size * window_size);
     let start = -(window_size as i32 / 2);
     let end = window_size as i32 / 2 + 1;
 
-    iproduct!(start..end, start..end).for_each(|(_y, _x)| {
-        let get_x = x as i32 + _x;
-        let get_y = y as i32 + _y;
-        if get_x >= 0 && get_x < width_2d as i32 && get_y >= 0 && get_y < height_2d as i32 {
+    iproduct!(start..end, start..end)
+        .map(|(_y, _x)| {
+            let get_x = x as i32 + _x;
+            let get_y = y as i32 + _y;
+            (get_y, get_x)
+        })
+        .filter(|(get_y, get_x)| {
+            *get_x >= 0 && *get_x < width_2d as i32 && *get_y >= 0 && *get_y < height_2d as i32
+        })
+        .map(|(get_y, get_x)| {
             let idx = get_y * width_2d as i32 + get_x;
-            v.push(from_array[idx as usize]);
-        }
-    });
-    v
+            from_array[idx as usize]
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone)]
@@ -501,13 +505,11 @@ impl VecMath for DnVec {
             panic!("Source array too high");
         }
 
-        for y in 0..src_height {
-            for x in 0..src_width {
-                let dest_idx = (tl_y + y) * dest_width + (tl_x + x);
-                let src_idx = (y * src_width) + x;
-                self[dest_idx] = src[src_idx];
-            }
-        }
+        iproduct!(0..src_height, 0..src_width).for_each(|(y, x)| {
+            let dest_idx = (tl_y + y) * dest_width + (tl_x + x);
+            let src_idx = (y * src_width) + x;
+            self[dest_idx] = src[src_idx];
+        });
     }
 
     fn normalize_force_minmax(&self, min: Dn, max: Dn, forced_min: Dn, forced_max: Dn) -> DnVec {
