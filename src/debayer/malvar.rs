@@ -1,4 +1,5 @@
 use crate::{debayer::FilterPattern, error, image::Image, imagebuffer::ImageBuffer};
+use itertools::iproduct;
 
 // G at R locations
 // G at B locations
@@ -62,12 +63,12 @@ fn solve(
 ) -> f32 {
     let mut v = 0.0;
     let mut s = 0.0;
-    for i in 0..25_usize {
+    (0..25).for_each(|i| {
         if mask_5x5_window[i] {
             v += data_5x5_window[i] * coefficients[i];
             s += coefficients[i];
         }
-    }
+    });
     v * (1.0 / s)
 }
 
@@ -91,40 +92,40 @@ pub fn debayer_with_pattern(buffer: &ImageBuffer, _: FilterPattern) -> error::Re
     let mut data_5x5_window: [f32; 25] = [0.0; 25];
     let mut mask_5x5_window: [bool; 25] = [false; 25];
 
-    for y in 0..buffer.height {
-        for x in 0..buffer.width {
-            extract_window(buffer, x, y, &mut data_5x5_window, &mut mask_5x5_window);
+    //for y in 0..buffer.height {
+    //    for x in 0..buffer.width {
+    for (y, x) in iproduct!(0..buffer.height, 0..buffer.width) {
+        extract_window(buffer, x, y, &mut data_5x5_window, &mut mask_5x5_window);
 
-            let mut r = 0.0;
-            let mut g = 0.0;
-            let mut b = 0.0;
+        let mut r = 0.0;
+        let mut g = 0.0;
+        let mut b = 0.0;
 
-            if x % 2 == 0 && y % 2 == 0 {
-                // Then we're at a red pixel
-                r = data_5x5_window[12];
-                g = solve(&data_5x5_window, &mask_5x5_window, &GR_GB);
-                b = solve(&data_5x5_window, &mask_5x5_window, &Rb_BB_Br_RR);
-            } else if x % 2 != 0 && y % 2 != 0 {
-                // Then we're a blue pixel
-                r = solve(&data_5x5_window, &mask_5x5_window, &Rb_BB_Br_RR);
-                g = solve(&data_5x5_window, &mask_5x5_window, &GR_GB);
-                b = data_5x5_window[12];
-            } else if x % 2 != 0 && y % 2 == 0 {
-                // Then we're at Green, R row, B column
-                r = solve(&data_5x5_window, &mask_5x5_window, &Rg_RB_Bg_BR);
-                g = data_5x5_window[12];
-                b = solve(&data_5x5_window, &mask_5x5_window, &Rg_BR_Bg_RB);
-            } else if x % 2 == 0 && y % 2 != 0 {
-                // Then we're at Green, B row, R column
-                r = solve(&data_5x5_window, &mask_5x5_window, &Rg_BR_Bg_RB);
-                g = data_5x5_window[12];
-                b = solve(&data_5x5_window, &mask_5x5_window, &Rg_RB_Bg_BR);
-            }
-
-            red.put(x, y, r);
-            green.put(x, y, g);
-            blue.put(x, y, b);
+        if x % 2 == 0 && y % 2 == 0 {
+            // Then we're at a red pixel
+            r = data_5x5_window[12];
+            g = solve(&data_5x5_window, &mask_5x5_window, &GR_GB);
+            b = solve(&data_5x5_window, &mask_5x5_window, &Rb_BB_Br_RR);
+        } else if x % 2 != 0 && y % 2 != 0 {
+            // Then we're a blue pixel
+            r = solve(&data_5x5_window, &mask_5x5_window, &Rb_BB_Br_RR);
+            g = solve(&data_5x5_window, &mask_5x5_window, &GR_GB);
+            b = data_5x5_window[12];
+        } else if x % 2 != 0 && y % 2 == 0 {
+            // Then we're at Green, R row, B column
+            r = solve(&data_5x5_window, &mask_5x5_window, &Rg_RB_Bg_BR);
+            g = data_5x5_window[12];
+            b = solve(&data_5x5_window, &mask_5x5_window, &Rg_BR_Bg_RB);
+        } else if x % 2 == 0 && y % 2 != 0 {
+            // Then we're at Green, B row, R column
+            r = solve(&data_5x5_window, &mask_5x5_window, &Rg_BR_Bg_RB);
+            g = data_5x5_window[12];
+            b = solve(&data_5x5_window, &mask_5x5_window, &Rg_RB_Bg_BR);
         }
+
+        red.put(x, y, r);
+        green.put(x, y, g);
+        blue.put(x, y, b);
     }
 
     let newimage = Image::new_from_buffers_rgb(&red, &green, &blue, buffer.mode).unwrap();

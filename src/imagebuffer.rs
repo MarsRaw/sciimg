@@ -549,6 +549,19 @@ impl ImageBuffer {
         }
     }
 
+    pub fn apply_lut_mut(&mut self, lut: &[u32]) {
+        (0..self.buffer.len()).for_each(|i| {
+            if self.buffer[i] < 0.0 || self.buffer[i] >= lut.len() as f32 {
+                panic!(
+                    "Buffer value {} is out of LUT lookup range: 0 - {}",
+                    self.buffer[i],
+                    lut.len()
+                );
+            }
+            self.buffer[i] = lut[self.buffer[i] as usize] as f32;
+        });
+    }
+
     // Computes the mean of all pixel values
     pub fn mean(&self) -> Dn {
         self.buffer.mean()

@@ -32,6 +32,8 @@ pub mod vector;
 pub type Dn = f32;
 pub type DnVec = Vec<Dn>;
 
+use itertools::iproduct;
+
 pub fn center_crop_2d<T: Copy>(
     from_array: &[T],
     from_width: usize,
@@ -39,19 +41,14 @@ pub fn center_crop_2d<T: Copy>(
     to_width: usize,
     to_height: usize,
 ) -> Vec<T> {
-    let mut new_arr: Vec<T> = Vec::with_capacity(to_width * to_height);
-
-    for y in 0..to_height {
-        for x in 0..to_width {
+    iproduct!(0..to_height, 0..to_width)
+        .map(|(y, x)| {
             let from_x = ((from_width - to_width) / 2) + x;
             let from_y = ((from_height - to_height) / 2) + y;
             let from_idx = from_y * from_width + from_x;
-
-            new_arr.push(from_array[from_idx]);
-        }
-    }
-
-    new_arr
+            from_array[from_idx]
+        })
+        .collect()
 }
 
 pub fn crop_2d<T: Copy>(
@@ -67,15 +64,9 @@ pub fn crop_2d<T: Copy>(
         panic!("Crop bounds exceeed source array");
     }
 
-    let mut new_arr: Vec<T> = Vec::with_capacity(to_width * to_height);
-
-    for y in 0..to_height {
-        for x in 0..to_width {
-            let from_idx = (top_y + y) * from_width + (left_x + x);
-            new_arr.push(from_array[from_idx]);
-        }
-    }
-    new_arr
+    iproduct!(0..to_height, 0..to_width)
+        .map(|(y, x)| from_array[(top_y + y) * from_width + (left_x + x)])
+        .collect()
 }
 
 pub fn isolate_window_2d<T: Copy>(
@@ -89,16 +80,15 @@ pub fn isolate_window_2d<T: Copy>(
     let mut v: Vec<T> = Vec::with_capacity(window_size * window_size);
     let start = -(window_size as i32 / 2);
     let end = window_size as i32 / 2 + 1;
-    for _y in start..end {
-        for _x in start..end {
-            let get_x = x as i32 + _x;
-            let get_y = y as i32 + _y;
-            if get_x >= 0 && get_x < width_2d as i32 && get_y >= 0 && get_y < height_2d as i32 {
-                let idx = get_y * width_2d as i32 + get_x;
-                v.push(from_array[idx as usize]);
-            }
+
+    iproduct!(start..end, start..end).for_each(|(_y, _x)| {
+        let get_x = x as i32 + _x;
+        let get_y = y as i32 + _y;
+        if get_x >= 0 && get_x < width_2d as i32 && get_y >= 0 && get_y < height_2d as i32 {
+            let idx = get_y * width_2d as i32 + get_x;
+            v.push(from_array[idx as usize]);
         }
-    }
+    });
     v
 }
 
@@ -214,9 +204,7 @@ pub trait VecMath {
 
 impl VecMath for DnVec {
     fn fill(capacity: usize, fill_value: Dn) -> DnVec {
-        let mut v: DnVec = Vec::with_capacity(capacity);
-        v.resize(capacity, fill_value);
-        v
+        (0..capacity).map(|_| fill_value).collect()
     }
 
     fn zeros(capacity: usize) -> DnVec {
@@ -224,11 +212,7 @@ impl VecMath for DnVec {
     }
 
     fn sum(&self) -> Dn {
-        let mut s = 0.0;
-        for v in self.iter() {
-            s += v;
-        }
-        s
+        self.iter().map(|v| v).sum()
     }
 
     fn mean(&self) -> Dn {
@@ -237,11 +221,7 @@ impl VecMath for DnVec {
 
     fn variance(&self) -> Dn {
         let m = self.mean();
-
-        let mut sqdiff = 0.0;
-        for v in self.iter() {
-            sqdiff += (v - m) * (v - m);
-        }
+        let sqdiff: Dn = self.iter().map(|v| (v - m) * (v - m)).sum();
         sqdiff / self.len() as Dn
     }
 
@@ -254,10 +234,10 @@ impl VecMath for DnVec {
         let v_x = self.variance();
         let v_y = other.variance();
 
-        let mut s = 0.0;
-        for n in 0..self.len() {
-            s += (self[n] - m_x) * (other[n] - m_y)
-        }
+        let s: Dn = (0..self.len())
+            .map(|n| (self[n] - m_x) * (other[n] - m_y))
+            .sum();
+
         1.0 / self.len() as Dn * s / (v_x * v_y).sqrt()
     }
 
@@ -601,9 +581,7 @@ impl Mask for MaskVec {
     }
 
     fn fill_mask(capacity: usize, fill_value: bool) -> MaskVec {
-        let mut v: MaskVec = Vec::with_capacity(capacity);
-        v.resize(capacity, fill_value);
-        v
+        (0..capacity).map(|_| fill_value).collect()
     }
 
     fn get_2d(&self, width_2d: usize, height_2d: usize, x: usize, y: usize) -> bool {
@@ -722,15 +700,9 @@ impl MaskedDnVec {
     }
 
     pub fn to_vector(&self) -> DnVec {
-        let mut v = self.vec.clone();
-        (0..v.len()).for_each(|i| {
-            if self.mask_at(i) {
-                v[i] = self.vec[i];
-            } else {
-                v[i] = 0.0;
-            }
-        });
-        v
+        (0..self.len())
+            .map(|i| if self.mask_at(i) { self.vec[i] } else { 0.0 })
+            .collect()
     }
 
     pub fn apply_mask(&mut self, mask: &MaskVec) {
@@ -846,11 +818,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn sum(&self) -> Dn {
-        let mut s = 0.0;
-        for v in self.iter() {
-            s += v;
-        }
-        s
+        self.iter().map(|v| v).sum()
     }
 
     fn mean(&self) -> Dn {
@@ -860,10 +828,7 @@ impl VecMath for MaskedDnVec {
     fn variance(&self) -> Dn {
         let m = self.mean();
 
-        let mut sqdiff = 0.0;
-        for v in self.iter() {
-            sqdiff += (v - m) * (v - m);
-        }
+        let sqdiff: Dn = self.iter().map(|v| (v - m) * (v - m)).sum();
         sqdiff / self.len() as Dn
     }
 
@@ -876,10 +841,9 @@ impl VecMath for MaskedDnVec {
         let v_x = self.variance();
         let v_y = other.variance();
 
-        let mut s = 0.0;
-        for n in 0..self.len() {
-            s += (self[n] - m_x) * (other[n] - m_y)
-        }
+        let s: Dn = (0..self.len())
+            .map(|n| (self[n] - m_x) * (other[n] - m_y))
+            .sum();
         1.0 / self.len() as Dn * s / (v_x * v_y).sqrt()
     }
 
