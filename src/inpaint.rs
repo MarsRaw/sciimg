@@ -2,14 +2,16 @@
 
 use crate::{enums, error, image::Image, imagebuffer::ImageBuffer, stats};
 
+use itertools::iproduct;
+
 #[cfg(rayon)]
 use rayon::prelude::*;
 
 #[derive(Debug, Clone)]
-struct Point {
-    x: usize,
-    y: usize,
-    score: u32,
+pub struct Point {
+    pub x: usize,
+    pub y: usize,
+    pub score: u32,
 }
 
 struct RgbVec {
@@ -78,30 +80,24 @@ fn get_num_good_neighbors(mask: &ImageBuffer, x: i32, y: i32) -> u32 {
 }
 
 #[cfg(rayon)]
-fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
+pub fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
     let height_iter = (0..mask.height.clone()).into_par_iter();
 
-    height_iter.for_each(|y| {
-        (0..mask.width).for_each(|x| {
-            if mask.get(x, y) > 0.0 {
-                Some(Point { x, y, score: 0 });
-            } else {
-            }
-        });
-    });
+    for (y, x) in iproduct!(height_iter, (0..mask.width)) {
+        if mask.get(x, y) > 0.0 {
+            return Some(Point { x, y, score: 0 });
+        }
+    }
     None
 }
 
 #[cfg(not(rayon))]
-fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
-    (0..mask.height).for_each(|y| {
-        (0..mask.width).for_each(|x| {
-            if mask.get(x, y) > 0.0 {
-                Some(Point { x, y, score: 0 });
-            } else {
-            }
-        });
-    });
+pub fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
+    for (y, x) in iproduct!((0..mask.height), (0..mask.width)) {
+        if mask.get(x, y) > 0.0 {
+            return Some(Point { x, y, score: 0 });
+        }
+    }
     None
 }
 

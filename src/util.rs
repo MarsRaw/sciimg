@@ -86,7 +86,7 @@ pub fn replace_image_extension(input_file: &str, append: &str) -> String {
 pub fn vec_to_str(v: &[f64]) -> String {
     let mut b = Builder::default();
 
-    v.into_iter().for_each(|item| {
+    v.iter().for_each(|item| {
         b.append(format!("{},", item));
     });
 
