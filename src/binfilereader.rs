@@ -1,6 +1,7 @@
 use memmap::Mmap;
 use std::fs::File;
 use std::io;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Endian {
@@ -33,24 +34,32 @@ macro_rules! bytes_to_primitive {
 pub struct BinFileReader {
     file_ptr: File,
     map: Mmap,
-    file_path: String,
+    file_path: PathBuf,
     endiness: Endian,
 }
 
 /// A strongly (over)simplified means of reading a file directly into primitive types. Wraps around a memory mapped file pointer
 impl BinFileReader {
-    pub fn new(file_path: &str) -> BinFileReader {
+    pub fn new<P>(file_path: P) -> BinFileReader
+    where
+        P: AsRef<Path> + Copy,
+        PathBuf: From<P>,
+    {
         BinFileReader::new_as_endiness(file_path, Endian::LittleEndian)
     }
 
-    pub fn new_as_endiness(file_path: &str, endiness: Endian) -> BinFileReader {
+    pub fn new_as_endiness<P>(file_path: P, endiness: Endian) -> BinFileReader
+    where
+        P: AsRef<Path> + Copy,
+        PathBuf: From<P>,
+    {
         let file_ptr = File::open(file_path).expect("Error opening file");
         let map: Mmap = unsafe { Mmap::map(&file_ptr).expect("Error creating memory map") };
 
         BinFileReader {
             file_ptr,
             map,
-            file_path: file_path.to_string(),
+            file_path: file_path.as_ref().into(),
             endiness,
         }
     }
@@ -202,7 +211,7 @@ impl BinFileReader {
         self.map.is_empty()
     }
 
-    pub fn source_file_path(&self) -> String {
+    pub fn source_file_path(&self) -> PathBuf {
         self.file_path.clone()
     }
 

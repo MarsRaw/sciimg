@@ -50,7 +50,7 @@ fn extract_window(
             } else {
                 mask_5x5_window[((ny + 2) * 5 + (nx + 2)) as usize] = true;
                 data_5x5_window[((ny + 2) * 5 + (nx + 2)) as usize] =
-                    buffer.get(bx as usize, by as usize).unwrap();
+                    buffer.get(bx as usize, by as usize);
             }
         }
     }

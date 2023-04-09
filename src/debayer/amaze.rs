@@ -130,9 +130,9 @@ fn imagebuffer_to_vek_array(buffer: &ImageBuffer) -> Vek<Vek<f32>> {
     let mut image = vec_of_size(buffer.width * buffer.height, vec_of_size(3, 0.0_f32));
     for y in 0..buffer.height {
         for x in 0..buffer.width {
-            image[y * buffer.width + x][0] = buffer.get(x, y).unwrap_or(0.0);
-            image[y * buffer.width + x][1] = buffer.get(x, y).unwrap_or(0.0);
-            image[y * buffer.width + x][2] = buffer.get(x, y).unwrap_or(0.0);
+            image[y * buffer.width + x][0] = buffer.get(x, y);
+            image[y * buffer.width + x][1] = buffer.get(x, y);
+            image[y * buffer.width + x][2] = buffer.get(x, y);
         }
     }
 

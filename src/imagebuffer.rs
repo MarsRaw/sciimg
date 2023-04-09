@@ -488,10 +488,11 @@ impl ImageBuffer {
             .to_vector()
     }
 
-    pub fn get(&self, x: usize, y: usize) -> error::Result<f32> {
+    #[inline(always)]
+    pub fn get(&self, x: usize, y: usize) -> f32 {
         if x < self.width && y < self.height {
             let index = y * self.width + x;
-            Ok(self.buffer[index])
+            self.buffer[index]
         } else {
             panic!("Invalid pixel coordinates");
         }
@@ -508,10 +509,10 @@ impl ImageBuffer {
             let xd = x - xf;
             let yd = y - yf;
 
-            let v00 = self.get(xf as usize, yf as usize).unwrap();
-            let v01 = self.get(xc as usize, yf as usize).unwrap();
-            let v10 = self.get(xf as usize, yc as usize).unwrap();
-            let v11 = self.get(xc as usize, yc as usize).unwrap();
+            let v00 = self.get(xf as usize, yf as usize);
+            let v01 = self.get(xc as usize, yf as usize);
+            let v10 = self.get(xf as usize, yc as usize);
+            let v11 = self.get(xc as usize, yc as usize);
 
             let v0 = v10 * yd + v00 * (1.0 - yd);
             let v1 = v11 * yd + v01 * (1.0 - yd);
@@ -752,7 +753,7 @@ impl ImageBuffer {
 
         for y in 0..self.height {
             for x in 0..self.width {
-                let val = self.get(x, y).unwrap();
+                let val = self.get(x, y);
                 if val >= threshold {
                     ox += x as Dn;
                     oy += y as Dn;
@@ -813,7 +814,7 @@ impl ImageBuffer {
                     shifted_buffer.put(
                         shift_x as usize,
                         shift_y as usize,
-                        self.get(x as usize, y as usize).unwrap(),
+                        self.get(x as usize, y as usize),
                     );
                 }
             }
@@ -873,7 +874,7 @@ impl ImageBuffer {
 
         for y in 0..self.height {
             for x in 0..self.width {
-                let val = self.get(x, y).unwrap().round() as u8;
+                let val = self.get(x, y).round() as u8;
                 let a = if self.get_mask_at_point(x, y) {
                     std::u8::MAX
                 } else {
@@ -894,7 +895,7 @@ impl ImageBuffer {
 
         for y in 0..self.height {
             for x in 0..self.width {
-                let val = self.get(x, y).unwrap().round() as u16;
+                let val = self.get(x, y) as u16;
                 let a = if self.get_mask_at_point(x, y) {
                     std::u16::MAX
                 } else {
@@ -913,7 +914,7 @@ impl ImageBuffer {
 
         for y in 0..self.height {
             for x in 0..self.width {
-                let val = self.get(x, y).unwrap().round() as u16;
+                let val = self.get(x, y) as u16;
                 let a = if self.get_mask_at_point(x, y) {
                     std::u16::MAX
                 } else {
@@ -939,7 +940,7 @@ impl ImageBuffer {
 
         for y in 0..self.height {
             for x in 0..self.width {
-                let val = self.get(x, y).unwrap().round() as u8;
+                let val = self.get(x, y).round() as u8;
                 let a = if self.get_mask_at_point(x, y) {
                     std::u8::MAX
                 } else {
