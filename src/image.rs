@@ -936,10 +936,11 @@ impl Image {
     }
 
     pub fn resize_to(&mut self, to_width: usize, to_height: usize) {
-        for i in 0..self.bands.len() {
-            self.bands[i] = resize::resize_to(&self.bands[i], to_width, to_height)
-                .expect("Failed to resize image");
-        }
+        self.bands = self
+            .bands
+            .iter()
+            .map(|b| resize::resize_to(b, to_width, to_height).expect("Failed to resize image"))
+            .collect();
         self.width = to_width;
         self.height = to_height;
     }

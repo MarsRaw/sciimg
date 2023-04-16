@@ -2,6 +2,7 @@ use crate::{enums, error, max, min, path, Dn, DnVec, Mask, MaskVec, MaskedDnVec,
 
 extern crate image;
 use image::{open, DynamicImage, Rgba};
+use itertools::iproduct;
 
 // A simple image raster buffer.
 #[derive(Debug, Clone)]
@@ -290,16 +291,9 @@ impl ImageBuffer {
         let width = dims.0 as usize;
         let height = dims.1 as usize;
 
-        let mut v = DnVec::zeros(width * height);
-
-        for y in 0..height {
-            for x in 0..width {
-                let pixel = image_data.get_pixel(x as u32, y as u32);
-                let value = pixel[0] as f32;
-                let idx = y * width + x;
-                v[idx] = value;
-            }
-        }
+        let v = iproduct!(0..height, 0..width)
+            .map(|(y, x)| image_data.get_pixel(x as u32, y as u32)[0] as f32)
+            .collect();
 
         ImageBuffer::from_vec_as_mode(&v, width, height, enums::ImageMode::U16BIT)
     }
@@ -312,16 +306,9 @@ impl ImageBuffer {
         let width = dims.0 as usize;
         let height = dims.1 as usize;
 
-        let mut v = DnVec::zeros(width * height);
-
-        for y in 0..height {
-            for x in 0..width {
-                let pixel = image_data.get_pixel(x as u32, y as u32);
-                let value = pixel[0] as f32;
-                let idx = y * width + x;
-                v[idx] = value;
-            }
-        }
+        let v = iproduct!(0..height, 0..width)
+            .map(|(y, x)| image_data.get_pixel(x as u32, y as u32)[0] as f32)
+            .collect();
 
         ImageBuffer::from_vec_as_mode(&v, width, height, enums::ImageMode::U16BIT)
     }
@@ -872,17 +859,15 @@ impl ImageBuffer {
         let mut out_img =
             DynamicImage::new_rgba8(self.width as u32, self.height as u32).into_rgba8();
 
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let val = self.get(x, y).round() as u8;
-                let a = if self.get_mask_at_point(x, y) {
-                    std::u8::MAX
-                } else {
-                    std::u8::MIN
-                };
-                out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
-            }
-        }
+        iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
+            let val = self.get(x, y).round() as u8;
+            let a = if self.get_mask_at_point(x, y) {
+                std::u8::MAX
+            } else {
+                std::u8::MIN
+            };
+            out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
+        });
 
         out_img
     }
@@ -893,17 +878,15 @@ impl ImageBuffer {
         let mut out_img =
             DynamicImage::new_rgba16(self.width as u32, self.height as u32).into_rgba16();
 
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let val = self.get(x, y) as u16;
-                let a = if self.get_mask_at_point(x, y) {
-                    std::u16::MAX
-                } else {
-                    std::u16::MIN
-                };
-                out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
-            }
-        }
+        iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
+            let val = self.get(x, y).round() as u16;
+            let a = if self.get_mask_at_point(x, y) {
+                std::u16::MAX
+            } else {
+                std::u16::MIN
+            };
+            out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
+        });
 
         out_img
     }
