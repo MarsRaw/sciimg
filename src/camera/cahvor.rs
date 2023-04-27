@@ -229,7 +229,7 @@ impl CameraModelTrait for Cahvor {
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVOR.java
-    fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> ImageCoordinate {
+    fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> error::Result<ImageCoordinate> {
         if infinity {
             let omega = xyz.dot_product(&self.o);
             let omega_2 = omega * omega;
@@ -243,10 +243,10 @@ impl CameraModelTrait for Cahvor {
             let beta = pp_c.dot_product(&self.h);
             let gamma = pp_c.dot_product(&self.v);
 
-            ImageCoordinate {
+            Ok(ImageCoordinate {
                 sample: beta / alpha,
                 line: gamma / alpha,
-            }
+            })
         } else {
             let p_c = xyz.subtract(&self.c);
             let omega = p_c.dot_product(&self.o);
@@ -262,10 +262,10 @@ impl CameraModelTrait for Cahvor {
             let beta = pp_c.dot_product(&self.h);
             let gamma = pp_c.dot_product(&self.v);
 
-            ImageCoordinate {
+            Ok(ImageCoordinate {
                 sample: beta / alpha,
                 line: gamma / alpha,
-            }
+            })
         }
     }
 

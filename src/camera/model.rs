@@ -57,7 +57,7 @@ pub trait CameraModelTrait {
     fn pixel_angle_horiz(&self) -> f64;
     fn pixel_angle_vert(&self) -> f64;
     fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> error::Result<LookVector>;
-    fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> ImageCoordinate;
+    fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> error::Result<ImageCoordinate>;
     fn box_clone(&self) -> Box<dyn CameraModelTrait + 'static>;
     fn c(&self) -> Vector;
     fn a(&self) -> Vector;
@@ -167,7 +167,7 @@ impl CameraModel {
         }
     }
 
-    pub fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> ImageCoordinate {
+    pub fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> error::Result<ImageCoordinate> {
         match &self.model {
             Some(m) => m.xyz_to_ls(xyz, infinity),
             None => panic!("Camera model is not valid"),

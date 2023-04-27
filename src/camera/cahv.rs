@@ -86,21 +86,21 @@ impl CameraModelTrait for Cahv {
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHV.java
-    fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> ImageCoordinate {
+    fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> error::Result<ImageCoordinate> {
         if infinity {
             let x = xyz.dot_product(&self.a);
-            ImageCoordinate {
+            Ok(ImageCoordinate {
                 sample: xyz.dot_product(&self.h) / x,
                 line: xyz.dot_product(&self.v) / x,
-            }
+            })
         } else {
             let d = xyz.subtract(&self.c);
             let range = d.dot_product(&self.a);
             let r_1 = 1.0 / range;
-            ImageCoordinate {
+            Ok(ImageCoordinate {
                 sample: d.dot_product(&self.h) * r_1,
                 line: d.dot_product(&self.v) * r_1,
-            }
+            })
         }
     }
 

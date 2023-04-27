@@ -1,3 +1,5 @@
+use std::process::Child;
+
 use crate::{
     camera::cahv::*,
     //matrix::Matrix,
@@ -117,6 +119,102 @@ impl CameraModelTrait for Cahvore {
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
     fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> error::Result<LookVector> {
+        let pos2_0 = coordinate.sample;
+        let pos2_1 = coordinate.line;
+
+        // Lines 207 - 211
+        let u3 = self.v().subtract(&self.a().scale(pos2_1));
+        // println!("u3 = {:?}", u3);
+
+        let v3 = self.h().subtract(&self.a().scale(pos2_0));
+        // println!("v3 = {:?}", v3);
+
+        let w3 = v3.cross_product(&u3);
+        // println!("w3 = {:?}", w3);
+
+        // Lines 212 - 213
+        // println!("{:?}", self.a());
+        // println!("{:?}", self.v());
+        // println!("{:?}", self.h());
+        let avh1 = self.a().dot_product(&self.h().cross_product(&self.v()));
+        assert!(avh1.abs() > EPSILON);
+
+        // Lines 216 - 218
+        let rp = w3.scale(1.0 / avh1);
+        // println!("rp = {:?}", rp);
+
+        let zetap = rp.dot_product(&self.o());
+        // println!("zetap = {}", zetap);
+
+        // Lines 220 - 221
+        let lamdap3 = rp.subtract(&self.o().scale(zetap));
+
+        // Lines 223 - 225
+        let lamdap = lamdap3.len();
+        // println!("{:?} -> {}", lamdap3, lamdap);
+        assert!(zetap.abs() > EPSILON);
+
+        // Lines 226
+        let chip = lamdap / zetap;
+
+        let (cp, ri) = if chip < 1e-8 {
+            (self.c(), self.o())
+        } else {
+            let mut chi: f64 = chip;
+            let mut dchi: f64 = 1.0;
+
+            for _ in 1..=NEWTON_ITERATION_MAX {
+                let chi2 = chi * chi;
+                let chi3 = chi * chi2;
+                let chi4 = chi * chi3;
+                let chi5 = chi * chi4;
+
+                // Check exit criterion from last update
+                if dchi.abs() < 1e-8 {
+                    break;
+                }
+
+                // Update chi
+                let deriv = (1.0 + self.r.x) + 3.0 * self.r.y * chi2 + 5.0 * self.r.z * chi4;
+                assert!(deriv.abs() > EPSILON);
+                dchi = ((1.0 + self.r.x) * chi + self.r.y * chi3 + self.r.z * chi5 - chip) / deriv;
+                chi -= dchi;
+            }
+
+            let linchi = self.linearity * chi;
+            let theta = if self.linearity < -EPSILON {
+                linchi.asin() / self.linearity
+            } else if self.linearity > EPSILON {
+                linchi.atan() / self.linearity
+            } else {
+                chi
+            };
+
+            let theta2 = theta * theta;
+            let theta3 = theta * theta2;
+            let theta4 = theta * theta3;
+
+            // Compute the shift of the entrance pupil
+            let mut s = theta.sin();
+            assert!(s.abs() > EPSILON);
+            s = (theta / s - 1.0) * (self.e.x + self.e.y * theta2 + self.e.z * theta4);
+
+            // The position of the entrance pupil
+            let cp = self.o().scale(s).add(&self.c());
+
+            // The unit vector along the ray
+            let u3 = lamdap3.unit_vector().scale(theta.sin());
+            let v3 = self.o().scale(theta.cos());
+            let ri = u3.add(&v3);
+
+            (cp, ri)
+        };
+
+        Ok(LookVector {
+            origin: cp,
+            look_direction: ri,
+        })
+        /*
         let line = coordinate.line;
         let samp = coordinate.sample;
 
@@ -132,83 +230,146 @@ impl CameraModelTrait for Cahvore {
         let lambdap = rp.subtract(&self.o.scale(zetap));
         let chip = lambdap.len() / zetap;
 
-        let (center_point, ray_of_incidence) = match chip < CHIP_LIMIT {
-            true => (self.c, self.o),
-            false => {
-                let mut chi = chip;
+        let (center_point, ray_of_incidence) = if chip < CHIP_LIMIT {
+            (self.c, self.o)
+        } else {
+            let mut chi = chip;
 
-                for x in 1..=NEWTON_ITERATION_MAX {
-                    let chi2 = chi * chi;
-                    let chi3 = chi2 * chi;
-                    let chi4 = chi3 * chi;
-                    let chi5 = chi4 * chi;
+            for x in 1..=NEWTON_ITERATION_MAX {
+                let chi2 = chi * chi;
+                let chi3 = chi2 * chi;
+                let chi4 = chi3 * chi;
+                let chi5 = chi4 * chi;
 
-                    let deriv =
-                        (1.0 + self.r.x) + (3.0 * self.r.y * chi2) + (5.0 * self.r.z * chi4);
+                let deriv = (1.0 + self.r.x) + (3.0 * self.r.y * chi2) + (5.0 * self.r.z * chi4);
 
-                    let dchi = if deriv == 0.0 {
-                        0.0
-                    } else {
-                        ((1.0 + self.r.x) * chi)
-                            + (self.r.y * chi3)
-                            + ((self.r.z * chi5) - chip) / deriv
-                    };
+                let dchi = ((1.0 + self.r.x) * chi)
+                    + (self.r.y * chi3)
+                    + ((self.r.z * chi5) - chip) / deriv;
 
-                    chi -= dchi;
+                chi -= dchi;
 
-                    if dchi.abs() < CHIP_LIMIT {
-                        break;
-                    }
-
-                    if x >= NEWTON_ITERATION_MAX {
-                        eprintln!("CAHVORE: Too many iterations without sufficient convergence");
-                        break;
-                    }
+                if dchi.abs() < CHIP_LIMIT {
+                    break;
                 }
 
-                let linchi = self.linearity * chi;
-                let theta = if self.linearity < (-1.0 * EPSILON) {
-                    linchi.asin() / self.linearity
-                } else if self.linearity < EPSILON {
-                    linchi.atan() / self.linearity
-                } else {
-                    chi
-                };
-
-                let theta2 = theta * theta;
-                let theta3 = theta2 * theta;
-                let theta4 = theta3 * theta;
-
-                // compute the shift of the entrance pupil
-                let s = ((theta / theta.sin()) - 1.0)
-                    * (self.e.x + self.e.y * theta2 + self.e.z * theta4);
-
-                let center_point = self.c.add(&self.o.scale(s));
-
-                let f2 = lambdap.normalized().scale(theta.sin());
-                let g = self.o.scale(theta.cos());
-                let ray_of_incidence = f2.add(&g);
-
-                (center_point, ray_of_incidence)
+                if x >= NEWTON_ITERATION_MAX {
+                    eprintln!("CAHVORE: Too many iterations without sufficient convergence");
+                    break;
+                }
             }
+
+            let linchi = self.linearity * chi;
+            let theta = if self.linearity < -EPSILON {
+                linchi.asin() / self.linearity
+            } else if self.linearity < EPSILON {
+                linchi.atan() / self.linearity
+            } else {
+                chi
+            };
+
+            let theta2 = theta * theta;
+            let theta3 = theta2 * theta;
+            let theta4 = theta3 * theta;
+
+            // compute the shift of the entrance pupil
+            let s =
+                ((theta / theta.sin()) - 1.0) * (self.e.x + self.e.y * theta2 + self.e.z * theta4);
+
+            let center_point = self.c.add(&self.o.scale(s));
+
+            let f2 = lambdap.normalized().scale(theta.sin());
+            let g = self.o.scale(theta.cos());
+            let ray_of_incidence = f2.add(&g);
+
+            (center_point, ray_of_incidence)
         };
 
         Ok(LookVector {
             origin: center_point,
             look_direction: ray_of_incidence,
         })
+        */
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
-    fn xyz_to_ls(&self, xyz: &Vector, _infinity: bool) -> ImageCoordinate {
-        let p_c = xyz.subtract(&self.c);
+    fn xyz_to_ls(&self, pos3: &Vector, infinity: bool) -> error::Result<ImageCoordinate> {
+        let p_c = pos3.subtract(&self.c);
         let zeta = p_c.dot_product(&self.o);
-        let f = self.o.scale(zeta);
-        let lambda = p_c.subtract(&f);
-        let lamda_mag = lambda.len();
+        let u3 = self.o.scale(zeta);
+        let lambda3 = p_c.subtract(&u3);
+        let lamda = lambda3.len();
 
-        let mut theta = lamda_mag.atan2(zeta);
+        let mut theta: f64 = lamda.atan2(zeta);
+        let mut dtheta: f64 = 1.0;
 
+        let mut rp = Vector::default();
+
+        for _ in 1..NEWTON_ITERATION_MAX {
+            let costh = theta.cos();
+            let sinth = theta.sin();
+            let theta2 = theta * theta;
+            let theta3 = theta2 * theta;
+            let theta4 = theta3 * theta;
+
+            let upsilon = zeta * costh + lamda * sinth
+                - (1.0 - costh) * (self.e.x + self.e.y * theta2 + self.e.z * theta4)
+                - (theta - sinth) * (2.0 * self.e.y * theta + 4.0 * self.e.z * theta3);
+
+            if dtheta.abs() < 1e-8 {
+                break;
+            }
+
+            dtheta = 0.0;
+            if upsilon.abs() > EPSILON {
+                dtheta = (zeta * sinth
+                    - lamda * costh
+                    - (theta - sinth) * (self.e.x + self.e.y * theta2 + self.e.x * theta4))
+                    / upsilon;
+                theta -= dtheta;
+            }
+
+            if theta * self.linearity.abs() >= (std::f64::consts::PI / 2.0) {
+                //panic!("CAVHORE: theta out of bounds");
+                return Err("CAVHORE: theta out of bounds");
+            }
+
+            rp = if theta < 1e-8 {
+                p_c.clone()
+            } else {
+                let linth = self.linearity * theta;
+                let chi = if self.linearity < -EPSILON {
+                    linth.sin() / self.linearity
+                } else if self.linearity > EPSILON {
+                    linth.tan() / self.linearity
+                } else {
+                    theta
+                };
+                let chi2 = chi * chi;
+                let chi3 = chi * chi2;
+                let chi4 = chi * chi3;
+
+                assert!(chi.abs() > EPSILON);
+                let zetap = lamda / chi;
+
+                let mu = self.r.x + self.r.y * chi2 + self.r.z * chi4;
+                let u3 = self.o.scale(zetap);
+                let v3 = lambda3.scale(1.0 + mu);
+                u3.add(&v3)
+            };
+        }
+
+        let alpha = rp.dot_product(&self.a);
+        let beta = rp.dot_product(&self.h);
+        let gamma = rp.dot_product(&self.v);
+
+        assert!(alpha.abs() > EPSILON);
+
+        Ok(ImageCoordinate {
+            sample: beta / alpha,
+            line: gamma / alpha,
+        })
+        /*
         for x in 1..=NEWTON_ITERATION_MAX {
             let cos_theta = theta.cos();
             let sin_theta = theta.sin();
@@ -236,12 +397,12 @@ impl CameraModelTrait for Cahvore {
         }
 
         if theta * self.linearity.abs() > (std::f64::consts::PI / 2.0) {
-            eprintln!("CAVHORE: theta out of bounds");
-            return ImageCoordinate {
-                sample: 0.0,
-                line: 0.0,
-            };
-            //panic!("CAVHORE: theta out of bounds");
+            // eprintln!("CAVHORE: theta out of bounds");
+            // return ImageCoordinate {
+            //     sample: 10.0,
+            //     line: 10.0,
+            // };
+            panic!("CAVHORE: theta out of bounds");
         }
 
         let rp = if theta < CHIP_LIMIT {
@@ -278,6 +439,7 @@ impl CameraModelTrait for Cahvore {
             sample: beta / alpha,
             line: gamma / alpha,
         }
+        */
     }
 
     fn pixel_angle_horiz(&self) -> f64 {
@@ -371,7 +533,11 @@ pub fn linearize(
     dn = dn.normalized();
 
     let mut rt = dn.cross_product(&output_camera.a);
+    //let mut rt = output_camera.a.cross_product(&dn);
+
     dn = output_camera.a.cross_product(&rt).normalized();
+    //dn = rt.cross_product(&output_camera.a).normalized();
+
     rt = rt.normalized();
 
     let mut hmin = 1.0;

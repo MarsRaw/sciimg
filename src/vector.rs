@@ -317,6 +317,16 @@ impl Vector {
             z: range,
         }
     }
+
+    pub fn get(&self, i: usize) -> f64 {
+        assert!(i <= 2);
+        match i {
+            0 => self.x,
+            1 => self.y,
+            2 => self.z,
+            _ => panic!("Invalid vector index: {}", i),
+        }
+    }
 }
 
 fn vec_to_str(v: &[f64]) -> String {
