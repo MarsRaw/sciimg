@@ -1,4 +1,6 @@
 use crate::{enums::Axis, error, util::string_is_valid_f64};
+use std::ops::Index;
+use std::ops::IndexMut;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector {
@@ -381,6 +383,29 @@ pub mod vector_format {
                     Ok(vec)
                 }
             },
+        }
+    }
+}
+
+impl Index<usize> for Vector {
+    type Output = f64;
+    fn index<'a>(&'_ self, i: usize) -> &'_ f64 {
+        match i {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            _ => panic!("Index out of bounds: {}", i),
+        }
+    }
+}
+
+impl IndexMut<usize> for Vector {
+    fn index_mut<'a>(&'_ mut self, i: usize) -> &'_ mut f64 {
+        match i {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            2 => &mut self.z,
+            _ => panic!("Index out of bounds: {}", i),
         }
     }
 }
