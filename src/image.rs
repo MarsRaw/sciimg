@@ -1,8 +1,9 @@
 use crate::{
-    debayer, decompanding, enums, error, hotpixel, imagebuffer::ImageBuffer, imagebuffer::Offset,
+    debayer, decompanding, enums, hotpixel, imagebuffer::ImageBuffer, imagebuffer::Offset,
     imagerot, inpaint, lowpass, max, min, noise, path, resize, Mask, MaskVec,
 };
 
+use anyhow::Result;
 use image::{open, ColorType::*, DynamicImage, Luma, Rgb, Rgba};
 
 // A simple image raster buffer.
@@ -74,7 +75,7 @@ macro_rules! load_image {
 
 #[allow(dead_code)]
 impl Image {
-    pub fn new(width: usize, height: usize, mode: enums::ImageMode) -> error::Result<Image> {
+    pub fn new(width: usize, height: usize, mode: enums::ImageMode) -> Result<Image> {
         Ok(Image {
             bands: vec![],
             alpha: MaskVec::new(),
@@ -91,7 +92,7 @@ impl Image {
         height: usize,
         num_bands: usize,
         mode: enums::ImageMode,
-    ) -> error::Result<Image> {
+    ) -> Result<Image> {
         let mut bands: Vec<ImageBuffer> = vec![];
         for _ in 0..num_bands {
             bands.push(ImageBuffer::new(width, height).unwrap());
@@ -113,7 +114,7 @@ impl Image {
         num_bands: usize,
         mode: enums::ImageMode,
         mask_value: bool,
-    ) -> error::Result<Image> {
+    ) -> Result<Image> {
         let mut bands: Vec<ImageBuffer> = vec![];
         for _ in 0..num_bands {
             bands.push(ImageBuffer::new(width, height).unwrap());
@@ -130,7 +131,7 @@ impl Image {
         })
     }
 
-    pub fn new_empty() -> error::Result<Image> {
+    pub fn new_empty() -> Result<Image> {
         Ok(Image {
             bands: vec![],
             alpha: MaskVec::new(),
@@ -142,11 +143,11 @@ impl Image {
         })
     }
 
-    pub fn open_str(file_path: &str) -> error::Result<Image> {
+    pub fn open_str(file_path: &str) -> Result<Image> {
         Image::open(file_path)
     }
 
-    pub fn open(file_path: &str) -> error::Result<Image> {
+    pub fn open(file_path: &str) -> Result<Image> {
         if !path::file_exists(file_path) {
             panic!("File not found: {}", file_path);
         }
@@ -173,7 +174,7 @@ impl Image {
         green: &ImageBuffer,
         blue: &ImageBuffer,
         mode: enums::ImageMode,
-    ) -> error::Result<Image> {
+    ) -> Result<Image> {
         Ok(Image {
             bands: vec![red.clone(), green.clone(), blue.clone()],
             alpha: MaskVec::new(),

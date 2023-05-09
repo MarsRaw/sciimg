@@ -1,6 +1,6 @@
-use crate::{debayer::FilterPattern, error, image::Image, imagebuffer::ImageBuffer};
+use crate::{debayer::FilterPattern, image::Image, imagebuffer::ImageBuffer};
+use anyhow::Result;
 use itertools::iproduct;
-
 // G at R locations
 // G at B locations
 #[allow(non_upper_case_globals)]
@@ -75,13 +75,13 @@ fn solve(
 /// Debayers a single channel image buffer using the default (RGGB) filter pattern.
 /// This algorithm currently ignores the filter pattern option.
 ///
-pub fn debayer(buffer: &ImageBuffer) -> error::Result<Image> {
+pub fn debayer(buffer: &ImageBuffer) -> Result<Image> {
     debayer_with_pattern(buffer, FilterPattern::RGGB)
 }
 
 /// Debayers a single channel image buffer
 /// This algorithm currently ignores the filter pattern option.
-pub fn debayer_with_pattern(buffer: &ImageBuffer, _: FilterPattern) -> error::Result<Image> {
+pub fn debayer_with_pattern(buffer: &ImageBuffer, _: FilterPattern) -> Result<Image> {
     let mut red =
         ImageBuffer::new_with_mask(buffer.width, buffer.height, &buffer.to_mask()).unwrap();
     let mut green =

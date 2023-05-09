@@ -1,5 +1,13 @@
 use std::ops::{Index, IndexMut};
 
+#[macro_export]
+macro_rules! not_implemented {
+    () => {{
+        use anyhow::anyhow;
+        Err(anyhow!("not implemented"))
+    }};
+}
+
 pub mod binfilereader;
 pub mod blur;
 pub mod camera;
@@ -7,6 +15,8 @@ pub mod debayer;
 pub mod decompanding;
 pub mod drawable;
 pub mod enums;
+
+#[deprecated]
 pub mod error;
 pub mod guassianblur;
 pub mod hotpixel;

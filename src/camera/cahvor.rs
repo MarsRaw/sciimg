@@ -1,8 +1,7 @@
 use crate::{
-    camera::cahv::*, camera::model::*, error, matrix::Matrix, max, min, util::vec_to_str,
-    vector::Vector,
+    camera::cahv::*, camera::model::*, matrix::Matrix, max, min, util::vec_to_str, vector::Vector,
 };
-
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -177,7 +176,7 @@ impl CameraModelTrait for Cahvor {
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVOR.java
-    fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> error::Result<LookVector> {
+    fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> Result<LookVector> {
         let line = coordinate.line;
         let sample = coordinate.sample;
 
@@ -205,14 +204,14 @@ impl CameraModelTrait for Cahvor {
 
         for i in 0..(MAXITER + 1) {
             if i >= MAXITER {
-                return Err("cahvor 2d to 3d: Too many iterations");
+                return Err(anyhow!("cahvor 2d to 3d: Too many iterations"));
             }
 
             let u_2 = u * u;
             let poly = ((k5 * u_2 + k3) * u_2 + k1) * u - 1.0;
             let deriv = (5.0 * k5 * u_2 + 3.0 * k3) * u_2 + k1;
             if deriv <= EPSILON {
-                return Err("Cahvor 2d to 3d: Distortion is too negative");
+                return Err(anyhow!("Cahvor 2d to 3d: Distortion is too negative"));
             } else {
                 let du = poly / deriv;
                 u -= du;

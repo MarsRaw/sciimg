@@ -3,9 +3,9 @@
  * Source: https://github.com/LibRaw/LibRaw-demosaic-pack-GPL3/blob/master/amaze_demosaic_RT.cc
  */
 use crate::{
-    debayer::FilterPattern, error, image::Image, imagebuffer::ImageBuffer, max, min,
-    prelude::ImageMode,
+    debayer::FilterPattern, image::Image, imagebuffer::ImageBuffer, max, min, prelude::ImageMode,
 };
+use anyhow::Result;
 use itertools::iproduct;
 use std::ops::{Index, IndexMut};
 
@@ -154,15 +154,12 @@ fn vek_array_to_rgbimage(v: &Vek<Vek<f32>>, width: usize, height: usize, mode: I
 
 /// Debayers a single channel image buffer using the default (RGGB) filter pattern
 ///
-pub fn debayer(buffer: &ImageBuffer) -> error::Result<Image> {
+pub fn debayer(buffer: &ImageBuffer) -> Result<Image> {
     debayer_with_pattern(buffer, FilterPattern::RGGB)
 }
 
 /// Debayers a single channel image buffer
-pub fn debayer_with_pattern(
-    buffer: &ImageBuffer,
-    filter_pattern: FilterPattern,
-) -> error::Result<Image> {
+pub fn debayer_with_pattern(buffer: &ImageBuffer, filter_pattern: FilterPattern) -> Result<Image> {
     let mut image = imagebuffer_to_vek_array(buffer);
 
     let mut rgb = vec_of_size((TS * TS) as usize, vec_of_size(3, 0.0_f32));

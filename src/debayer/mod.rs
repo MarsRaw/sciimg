@@ -11,9 +11,9 @@ mod bilinear;
 
 use std::str::FromStr;
 
-use crate::error::Result;
 use crate::image::Image;
 use crate::imagebuffer::ImageBuffer;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 // Filter patterns 'borrowed' from dcraw:

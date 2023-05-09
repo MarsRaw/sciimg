@@ -1,6 +1,7 @@
-use crate::{enums, error, max, min, path, Dn, DnVec, Mask, MaskVec, MaskedDnVec, MinMax, VecMath};
+use crate::{enums, max, min, path, Dn, DnVec, Mask, MaskVec, MaskedDnVec, MinMax, VecMath};
 
 extern crate image;
+use anyhow::Result;
 use image::{open, DynamicImage, Rgba};
 use itertools::iproduct;
 
@@ -23,25 +24,17 @@ pub struct Offset {
 #[allow(dead_code)]
 impl ImageBuffer {
     // Creates a new image buffer of the requested width and height
-    pub fn new(width: usize, height: usize) -> error::Result<ImageBuffer> {
+    pub fn new(width: usize, height: usize) -> Result<ImageBuffer> {
         ImageBuffer::new_as_mode(width, height, enums::ImageMode::U16BIT)
     }
 
     // Creates a new image buffer of the requested width and height
-    pub fn new_as_mode(
-        width: usize,
-        height: usize,
-        mode: enums::ImageMode,
-    ) -> error::Result<ImageBuffer> {
+    pub fn new_as_mode(width: usize, height: usize, mode: enums::ImageMode) -> Result<ImageBuffer> {
         ImageBuffer::new_with_fill_as_mode(width, height, 0.0, mode)
     }
 
     // Creates a new image buffer of the requested width and height
-    pub fn new_with_fill(
-        width: usize,
-        height: usize,
-        fill_value: f32,
-    ) -> error::Result<ImageBuffer> {
+    pub fn new_with_fill(width: usize, height: usize, fill_value: f32) -> Result<ImageBuffer> {
         ImageBuffer::new_with_fill_as_mode(width, height, fill_value, enums::ImageMode::U16BIT)
     }
 
@@ -51,7 +44,7 @@ impl ImageBuffer {
         height: usize,
         fill_value: f32,
         mode: enums::ImageMode,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         Ok(ImageBuffer {
             buffer: MaskedDnVec::fill(width * height, fill_value),
             width,
@@ -62,11 +55,7 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer of the requested width and height
-    pub fn new_with_mask(
-        width: usize,
-        height: usize,
-        mask: &MaskVec,
-    ) -> error::Result<ImageBuffer> {
+    pub fn new_with_mask(width: usize, height: usize, mask: &MaskVec) -> Result<ImageBuffer> {
         Ok(ImageBuffer {
             buffer: MaskedDnVec::from_maskvec(mask),
             width,
@@ -76,11 +65,7 @@ impl ImageBuffer {
         })
     }
 
-    pub fn new_with_mask_as(
-        width: usize,
-        height: usize,
-        mask_value: bool,
-    ) -> error::Result<ImageBuffer> {
+    pub fn new_with_mask_as(width: usize, height: usize, mask_value: bool) -> Result<ImageBuffer> {
         Ok(ImageBuffer {
             buffer: MaskedDnVec::fill_with_both(width * height, 0.0, mask_value),
             width,
@@ -95,7 +80,7 @@ impl ImageBuffer {
         height: usize,
         mask: &MaskVec,
         mode: enums::ImageMode,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         Ok(ImageBuffer {
             buffer: MaskedDnVec::from_maskvec(mask),
             width,
@@ -105,7 +90,7 @@ impl ImageBuffer {
         })
     }
 
-    pub fn new_empty() -> error::Result<ImageBuffer> {
+    pub fn new_empty() -> Result<ImageBuffer> {
         Ok(ImageBuffer {
             buffer: MaskedDnVec::new(),
             width: 0,
@@ -116,16 +101,12 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec(v: &DnVec, width: usize, height: usize) -> error::Result<ImageBuffer> {
+    pub fn from_vec(v: &DnVec, width: usize, height: usize) -> Result<ImageBuffer> {
         ImageBuffer::from_vec_as_mode(v, width, height, enums::ImageMode::U16BIT)
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_masked_vec(
-        v: &MaskedDnVec,
-        width: usize,
-        height: usize,
-    ) -> error::Result<ImageBuffer> {
+    pub fn from_masked_vec(v: &MaskedDnVec, width: usize, height: usize) -> Result<ImageBuffer> {
         ImageBuffer::from_masked_vec_as_mode(v, width, height, enums::ImageMode::U16BIT)
     }
 
@@ -135,7 +116,7 @@ impl ImageBuffer {
         width: usize,
         height: usize,
         mode: enums::ImageMode,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         if v.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
@@ -155,7 +136,7 @@ impl ImageBuffer {
         width: usize,
         height: usize,
         mode: enums::ImageMode,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         if v.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
@@ -170,7 +151,7 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec_u8(v_u8: &Vec<u8>, width: usize, height: usize) -> error::Result<ImageBuffer> {
+    pub fn from_vec_u8(v_u8: &Vec<u8>, width: usize, height: usize) -> Result<ImageBuffer> {
         if v_u8.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
@@ -195,7 +176,7 @@ impl ImageBuffer {
         width: usize,
         height: usize,
         mask: &MaskVec,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         if v_u8.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
@@ -215,11 +196,7 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec_u16(
-        v_u16: &Vec<u16>,
-        width: usize,
-        height: usize,
-    ) -> error::Result<ImageBuffer> {
+    pub fn from_vec_u16(v_u16: &Vec<u16>, width: usize, height: usize) -> Result<ImageBuffer> {
         if v_u16.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
@@ -244,7 +221,7 @@ impl ImageBuffer {
         width: usize,
         height: usize,
         mask: &MaskVec,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         if v_u16.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
@@ -269,7 +246,7 @@ impl ImageBuffer {
         width: usize,
         height: usize,
         mask: &MaskVec,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         if v.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
@@ -285,7 +262,7 @@ impl ImageBuffer {
 
     pub fn from_image_u8(
         image_data: &image::ImageBuffer<image::Rgba<u8>, std::vec::Vec<u8>>,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         let dims = image_data.dimensions();
 
         let width = dims.0 as usize;
@@ -300,7 +277,7 @@ impl ImageBuffer {
 
     pub fn from_image_u16(
         image_data: &image::ImageBuffer<image::Rgba<u16>, std::vec::Vec<u16>>,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         let dims = image_data.dimensions();
 
         let width = dims.0 as usize;
@@ -313,7 +290,7 @@ impl ImageBuffer {
         ImageBuffer::from_vec_as_mode(&v, width, height, enums::ImageMode::U16BIT)
     }
 
-    pub fn from_file(file_path: &str) -> error::Result<ImageBuffer> {
+    pub fn from_file(file_path: &str) -> Result<ImageBuffer> {
         if !path::file_exists(file_path) {
             panic!("File not found: {}", file_path);
         }
@@ -343,7 +320,7 @@ impl ImageBuffer {
         width: usize,
         height: usize,
         mode: enums::ImageMode,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         if v.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
@@ -362,7 +339,7 @@ impl ImageBuffer {
         width: usize,
         height: usize,
         mode: enums::ImageMode,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         if v.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
@@ -411,7 +388,7 @@ impl ImageBuffer {
         self.get_mask_at_index(msk_idx)
     }
 
-    pub fn get_slice(&self, top_y: usize, len: usize) -> error::Result<ImageBuffer> {
+    pub fn get_slice(&self, top_y: usize, len: usize) -> Result<ImageBuffer> {
         let start_index = top_y * self.width;
         let stop_index = (top_y + len) * self.width;
 
@@ -462,7 +439,7 @@ impl ImageBuffer {
         top_y: usize,
         width: usize,
         height: usize,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         let subframed_buffer =
             self.buffer
                 .crop_2d(self.width, self.height, left_x, top_y, width, height);
@@ -485,7 +462,7 @@ impl ImageBuffer {
         }
     }
 
-    pub fn get_interpolated(&self, x: f32, y: f32) -> error::Result<f32> {
+    pub fn get_interpolated(&self, x: f32, y: f32) -> Result<f32> {
         if x < self.width as f32 && y < self.height as f32 {
             let xf = x.floor();
             let xc = xf + 1.0;
@@ -563,7 +540,7 @@ impl ImageBuffer {
         self.buffer.divide_mut(&other.buffer);
     }
 
-    pub fn divide(&self, other: &ImageBuffer) -> error::Result<ImageBuffer> {
+    pub fn divide(&self, other: &ImageBuffer) -> Result<ImageBuffer> {
         ImageBuffer::new_from_op_masked(
             &self.buffer.divide(&other.buffer),
             self.width,
@@ -576,7 +553,7 @@ impl ImageBuffer {
         self.buffer.divide_into_mut(divisor);
     }
 
-    pub fn divide_into(&self, divisor: Dn) -> error::Result<ImageBuffer> {
+    pub fn divide_into(&self, divisor: Dn) -> Result<ImageBuffer> {
         ImageBuffer::new_from_op_masked(
             &self.buffer.divide_into(divisor),
             self.width,
@@ -589,7 +566,7 @@ impl ImageBuffer {
         self.buffer.scale_mut(scalar);
     }
 
-    pub fn scale(&self, scalar: Dn) -> error::Result<ImageBuffer> {
+    pub fn scale(&self, scalar: Dn) -> Result<ImageBuffer> {
         ImageBuffer::new_from_op_masked(
             &self.buffer.scale(scalar),
             self.width,
@@ -602,7 +579,7 @@ impl ImageBuffer {
         self.buffer.multiply_mut(&other.buffer);
     }
 
-    pub fn multiply(&self, other: &ImageBuffer) -> error::Result<ImageBuffer> {
+    pub fn multiply(&self, other: &ImageBuffer) -> Result<ImageBuffer> {
         ImageBuffer::new_from_op_masked(
             &self.buffer.multiply(&other.buffer),
             self.width,
@@ -619,7 +596,7 @@ impl ImageBuffer {
         self.buffer.add_across_mut(other);
     }
 
-    pub fn add(&self, other: &ImageBuffer) -> error::Result<ImageBuffer> {
+    pub fn add(&self, other: &ImageBuffer) -> Result<ImageBuffer> {
         ImageBuffer::new_from_op_masked(
             &self.buffer.add(&other.buffer),
             self.width,
@@ -636,7 +613,7 @@ impl ImageBuffer {
         self.buffer.subtract_across_mut(other);
     }
 
-    pub fn subtract(&self, other: &ImageBuffer) -> error::Result<ImageBuffer> {
+    pub fn subtract(&self, other: &ImageBuffer) -> Result<ImageBuffer> {
         ImageBuffer::new_from_op_masked(
             &self.buffer.subtract(&other.buffer),
             self.width,
@@ -645,7 +622,7 @@ impl ImageBuffer {
         )
     }
 
-    pub fn shift_to_min_zero(&self) -> error::Result<ImageBuffer> {
+    pub fn shift_to_min_zero(&self) -> Result<ImageBuffer> {
         let minmax = self.get_min_max();
 
         let mut v = self.buffer.clone();
@@ -680,7 +657,7 @@ impl ImageBuffer {
         max: f32,
         forced_min: f32,
         forced_max: f32,
-    ) -> error::Result<ImageBuffer> {
+    ) -> Result<ImageBuffer> {
         ImageBuffer::new_from_op_masked(
             &self
                 .buffer
@@ -691,7 +668,7 @@ impl ImageBuffer {
         )
     }
 
-    pub fn normalize(&self, min: f32, max: f32) -> error::Result<ImageBuffer> {
+    pub fn normalize(&self, min: f32, max: f32) -> Result<ImageBuffer> {
         let minmax = self.get_min_max();
         self.normalize_force_minmax(min, max, minmax.min, minmax.max)
     }
@@ -700,14 +677,14 @@ impl ImageBuffer {
         self.buffer = self.normalize(min, max).unwrap().buffer;
     }
 
-    pub fn crop(&self, height: usize, width: usize) -> error::Result<ImageBuffer> {
+    pub fn crop(&self, height: usize, width: usize) -> Result<ImageBuffer> {
         let cropped_buffer = self
             .buffer
             .center_crop_2d(self.width, self.height, width, height);
         ImageBuffer::new_from_op_masked(&cropped_buffer, width, height, self.mode)
     }
 
-    pub fn clip(&self, clip_min: f32, clip_max: f32) -> error::Result<ImageBuffer> {
+    pub fn clip(&self, clip_min: f32, clip_max: f32) -> Result<ImageBuffer> {
         ImageBuffer::new_from_op_masked(
             &self.buffer.clip(clip_min, clip_max),
             self.width,
@@ -720,7 +697,7 @@ impl ImageBuffer {
         self.buffer.clip_mut(clip_min, clip_max);
     }
 
-    pub fn power(&self, power: f32) -> error::Result<ImageBuffer> {
+    pub fn power(&self, power: f32) -> Result<ImageBuffer> {
         ImageBuffer::new_from_op_masked(
             &self.buffer.power(power),
             self.width,
@@ -769,7 +746,7 @@ impl ImageBuffer {
         );
     }
 
-    pub fn paste(&self, src: &ImageBuffer, tl_x: usize, tl_y: usize) -> error::Result<ImageBuffer> {
+    pub fn paste(&self, src: &ImageBuffer, tl_x: usize, tl_y: usize) -> Result<ImageBuffer> {
         ImageBuffer::from_masked_vec(
             &self.buffer.paste_2d(
                 self.width,
@@ -785,7 +762,7 @@ impl ImageBuffer {
         )
     }
 
-    pub fn shift(&self, horiz: i32, vert: i32) -> error::Result<ImageBuffer> {
+    pub fn shift(&self, horiz: i32, vert: i32) -> Result<ImageBuffer> {
         let mut shifted_buffer =
             ImageBuffer::new_with_mask(self.width, self.height, &self.buffer.mask).unwrap();
 
@@ -809,7 +786,7 @@ impl ImageBuffer {
         Ok(shifted_buffer)
     }
 
-    pub fn shift_interpolated(&self, horiz: f32, vert: f32) -> error::Result<ImageBuffer> {
+    pub fn shift_interpolated(&self, horiz: f32, vert: f32) -> Result<ImageBuffer> {
         let mut shifted_buffer =
             ImageBuffer::new_with_mask(self.width, self.height, &self.buffer.mask).unwrap();
 

@@ -1,5 +1,5 @@
-use crate::{camera::model::*, error, util::vec_to_str, vector::Vector};
-
+use crate::{camera::model::*, util::vec_to_str, vector::Vector};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -63,7 +63,7 @@ impl CameraModelTrait for Cahv {
     }
 
     // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHV.java
-    fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> error::Result<LookVector> {
+    fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> Result<LookVector> {
         let line = coordinate.line;
         let samp = coordinate.sample;
 

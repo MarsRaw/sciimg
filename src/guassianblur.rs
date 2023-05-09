@@ -1,10 +1,11 @@
-use crate::error;
 use crate::image::Image;
 use crate::imagebuffer::ImageBuffer;
 use crate::max;
 use crate::Dn;
 use crate::DnVec;
 use crate::VecMath;
+use anyhow::anyhow;
+use anyhow::Result;
 
 #[cfg(rayon)]
 use rayon::prelude::*;
@@ -15,12 +16,9 @@ use std::sync::Mutex;
 
 #[cfg(not(rayon))]
 //  SSSSSLLLLOOOOOOWWWWWWW.....
-pub fn guassian_blur_nband(
-    buffers: &mut [ImageBuffer],
-    sigma: f32,
-) -> error::Result<Vec<ImageBuffer>> {
+pub fn guassian_blur_nband(buffers: &mut [ImageBuffer], sigma: f32) -> Result<Vec<ImageBuffer>> {
     if buffers.is_empty() {
-        return Err("No buffers provided");
+        return Err(anyhow!("No buffers provided"));
     }
 
     let sig_squared = sigma.powi(2);
