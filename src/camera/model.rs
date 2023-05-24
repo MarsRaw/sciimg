@@ -52,6 +52,14 @@ impl LookVector {
     }
 }
 
+pub type CameraModelType = Box<dyn CameraModelTrait + 'static + Send + Sync>;
+
+impl Clone for CameraModelType {
+    fn clone(&self) -> CameraModelType {
+        self.box_clone()
+    }
+}
+
 pub trait CameraModelTrait {
     fn model_type(&self) -> ModelType;
     fn f(&self) -> f64;
@@ -59,7 +67,7 @@ pub trait CameraModelTrait {
     fn pixel_angle_vert(&self) -> f64;
     fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> Result<LookVector>;
     fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> ImageCoordinate;
-    fn box_clone(&self) -> Box<dyn CameraModelTrait + 'static>;
+    fn box_clone(&self) -> CameraModelType;
     fn c(&self) -> Vector;
     fn a(&self) -> Vector;
     fn h(&self) -> Vector;
@@ -72,11 +80,11 @@ pub trait CameraModelTrait {
 
 #[derive(Clone, Default)]
 pub struct CameraModel {
-    model: Option<Box<dyn CameraModelTrait + 'static>>,
+    model: Option<CameraModelType>,
 }
 
 impl CameraModel {
-    pub fn new(model: Box<dyn CameraModelTrait + 'static>) -> CameraModel {
+    pub fn new(model: CameraModelType) -> CameraModel {
         CameraModel { model: Some(model) }
     }
 

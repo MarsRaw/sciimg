@@ -167,7 +167,7 @@ impl CameraModelTrait for Cahvor {
         Vector::default()
     }
 
-    fn box_clone(&self) -> Box<dyn CameraModelTrait + 'static> {
+    fn box_clone(&self) -> CameraModelType {
         Box::new((*self).clone())
     }
 
