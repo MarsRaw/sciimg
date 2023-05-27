@@ -6,6 +6,13 @@ use crate::{
 use anyhow::Result;
 use image::{open, ColorType::*, DynamicImage, Luma, Rgb, Rgba};
 
+use dng::ifd::{Ifd, IfdEntry, IfdValue};
+use dng::tags::IfdType;
+use dng::{tags, DngWriter, FileType};
+use itertools::iproduct;
+use std::fs::File;
+use std::sync::Arc;
+
 // A simple image raster buffer.
 #[derive(Debug, Clone)]
 pub struct Image {
@@ -767,31 +774,71 @@ impl Image {
 
     fn save_16bit_rgb(&self, to_file: &str) {
         check_band_in_bounds!(2, self);
-        let mut out_img =
-            DynamicImage::new_rgb16(self.width as u32, self.height as u32).into_rgb16();
+        let mut file = File::create(to_file).unwrap();
+        let mut ifd = Ifd::new(IfdType::Ifd);
+        ifd.insert(tags::ifd::Copyright, "this is a test string");
+        ifd.insert(tags::ifd::CFAPattern, &[0u8, 1, 0, 2]);
+        ifd.insert(tags::ifd::ImageWidth, self.width as u32);
+        ifd.insert(tags::ifd::ImageLength, self.height as u32);
+        ifd.insert(tags::ifd::BitsPerSample, 16);
+        ifd.insert(tags::ifd::Compression, 1); // 1 == No Compression
+        ifd.insert(tags::ifd::RowsPerStrip, self.height as u32);
+        ifd.insert(tags::ifd::PhotometricInterpretation, 32803); // 34892 == LinearRaw, 2 == RGB (RGB (Red, Green, Blue))
 
-        for y in 0..self.height {
-            for x in 0..self.width {
-                out_img.put_pixel(
-                    x as u32,
-                    y as u32,
-                    Rgb([
-                        self.bands[0].get(x, y).round() as u16,
-                        self.bands[1].get(x, y).round() as u16,
-                        self.bands[2].get(x, y).round() as u16,
-                    ]),
-                );
-            }
-        }
+        ifd.insert(
+            tags::ifd::StripByteCounts,
+            (self.width * self.height * 2) as u32,
+        );
 
-        if path::parent_exists_and_writable(to_file) {
-            out_img.save(to_file).unwrap();
-        } else {
-            panic!(
-                "Parent path does not exist or is unwritable: {}",
-                path::get_parent(to_file)
+        (0..3).for_each(|b| {
+            let mut band_bytes = Vec::with_capacity(self.width * self.height * 2);
+            let band_values = self.bands[b].to_vector_u16();
+            (0..band_values.len()).for_each(|i| {
+                let bytes = band_values[i].to_le_bytes();
+                band_bytes.push(255 - bytes[0]);
+                band_bytes.push(255 - bytes[1]);
+            });
+            ifd.insert(
+                tags::ifd::StripOffsets,
+                IfdValue::Offsets(Arc::new(band_bytes)),
             );
-        }
+        });
+
+        // iproduct!(0..band_values[0].len(), 0..1).for_each(|(i, b)| {
+        //     let bytes = band_values[b][i].to_le_bytes();
+        //     band_bytes.push(bytes[0]);
+        //     band_bytes.push(bytes[1]);
+        //     //            [i].to_le_bytes();
+        // });
+
+        // ifd.insert(tags::ifd::StripByteCounts, 3);
+        DngWriter::write_dng(file, true, FileType::Dng, vec![ifd])
+            .expect("Failed to write DNG file");
+        // let mut out_img =
+        //     DynamicImage::new_rgb16(self.width as u32, self.height as u32).into_rgb16();
+
+        // for y in 0..self.height {
+        //     for x in 0..self.width {
+        //         out_img.put_pixel(
+        //             x as u32,
+        //             y as u32,
+        //             Rgb([
+        //                 self.bands[0].get(x, y).round() as u16,
+        //                 self.bands[1].get(x, y).round() as u16,
+        //                 self.bands[2].get(x, y).round() as u16,
+        //             ]),
+        //         );
+        //     }
+        // }
+
+        // if path::parent_exists_and_writable(to_file) {
+        //     out_img.save(to_file).unwrap();
+        // } else {
+        //     panic!(
+        //         "Parent path does not exist or is unwritable: {}",
+        //         path::get_parent(to_file)
+        //     );
+        // }
     }
 
     fn save_16bit(&self, to_file: &str) {
