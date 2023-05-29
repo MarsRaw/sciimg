@@ -46,7 +46,7 @@ pub fn save_image_to_rgba_16bpp(output_file_name: &str, image: &Image) -> Result
     if !path::parent_exists_and_writable(output_file_name) {
         return Err(anyhow!("Unable to open output path for writing: Parent path not found or permission denied. {}", output_file_name));
     }
-    if image.num_bands() < 4 {
+    if !image.is_using_alpha() {
         return Err(anyhow!(
             "Image contains insufficient bands to produce an RGBA output"
         ));
@@ -162,7 +162,7 @@ pub fn save_image_to_rgba_8bpp(output_file_name: &str, image: &Image) -> Result<
     if !path::parent_exists_and_writable(output_file_name) {
         return Err(anyhow!("Unable to open output path for writing: Parent path not found or permission denied. {}", output_file_name));
     }
-    if image.num_bands() < 4 {
+    if !image.is_using_alpha() {
         return Err(anyhow!(
             "Image contains insufficient bands to produce an RGBA output"
         ));
