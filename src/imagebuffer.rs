@@ -1,4 +1,7 @@
-use crate::{enums, max, min, path, Dn, DnVec, Mask, MaskVec, MaskedDnVec, MinMax, VecMath};
+use crate::{
+    enums, image::Image, max, min, output, output::OutputFormat, path, Dn, DnVec, Mask, MaskVec,
+    MaskedDnVec, MinMax, VecMath,
+};
 
 extern crate image;
 use anyhow::Result;
@@ -868,62 +871,27 @@ impl ImageBuffer {
         out_img
     }
 
-    pub fn save_16bit(&self, to_file: &str) {
-        let mut out_img =
-            DynamicImage::new_rgba16(self.width as u32, self.height as u32).into_rgba16();
-
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let val = self.get(x, y) as u16;
-                let a = if self.get_mask_at_point(x, y) {
-                    std::u16::MAX
-                } else {
-                    std::u16::MIN
-                };
-                out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
-            }
-        }
-
-        if path::parent_exists_and_writable(to_file) {
-            out_img.save(to_file).unwrap();
-        } else {
-            panic!(
-                "Parent path does not exist or is unwritable: {}",
-                path::get_parent(to_file)
-            );
+    pub fn save_use_mode(&self, to_file: &str, mode: enums::ImageMode) -> Result<()> {
+        match output::get_default_output_format() {
+            Ok(format) => self.save_with_mode_and_format(to_file, mode, format),
+            Err(why) => Err(why),
         }
     }
 
-    pub fn save_8bit(&self, to_file: &str) {
-        let mut out_img =
-            DynamicImage::new_rgba8(self.width as u32, self.height as u32).into_rgba8();
-
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let val = self.get(x, y).round() as u8;
-                let a = if self.get_mask_at_point(x, y) {
-                    std::u8::MAX
-                } else {
-                    std::u8::MIN
-                };
-                out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
-            }
-        }
-
-        if path::parent_exists_and_writable(to_file) {
-            out_img.save(to_file).unwrap();
-        } else {
-            panic!(
-                "Parent path does not exist or is unwritable: {}",
-                path::get_parent(to_file)
-            );
-        }
+    pub fn save(&self, to_file: &str) -> Result<()> {
+        self.save_use_mode(to_file, self.mode)
     }
 
-    pub fn save(&self, to_file: &str, mode: enums::ImageMode) {
-        match mode {
-            enums::ImageMode::U8BIT => self.save_8bit(to_file),
-            _ => self.save_16bit(to_file),
-        };
+    pub fn save_with_mode_and_format(
+        &self,
+        to_file: &str,
+        mode: enums::ImageMode,
+        format: OutputFormat,
+    ) -> Result<()> {
+        output::save_image_with_format(
+            to_file,
+            format,
+            &Image::new_from_buffer_mono_use_mode(self, mode).unwrap(),
+        )
     }
 }

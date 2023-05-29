@@ -28,6 +28,7 @@ pub mod lowpass;
 pub mod matrix;
 pub mod medianblur;
 pub mod noise;
+pub mod output;
 pub mod path;
 pub mod prelude;
 pub mod quality;
