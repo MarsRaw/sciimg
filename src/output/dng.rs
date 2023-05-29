@@ -66,7 +66,20 @@ pub fn save_image_to_rgb_16bpp(output_file_name: &str, image: &Image) -> Result<
     Ok(())
 }
 
-pub fn save_image_to_rgba_16bpp(_output_file_name: &str, _image: &Image) -> Result<()> {
+pub fn save_image_to_rgba_16bpp(output_file_name: &str, image: &Image) -> Result<()> {
+    if !path::parent_exists_and_writable(output_file_name) {
+        return Err(anyhow!("Unable to open output path for writing: Parent path not found or permission denied. {}", output_file_name));
+    }
+    if !image.is_using_alpha() {
+        return Err(anyhow!(
+            "Image contains insufficient bands to produce an RGBA output"
+        ));
+    }
+    if image.get_mode() != ImageMode::U16BIT {
+        // Rather, I just refuse to
+        return Err(anyhow!("Cannot save non-16bpp data as a 16bpp image"));
+    }
+
     Err(anyhow!("Not yet implemented"))
 }
 
@@ -180,7 +193,20 @@ pub fn save_image_to_rgb_8bpp(output_file_name: &str, image: &Image) -> Result<(
     Ok(())
 }
 
-pub fn save_image_to_rgba_8bpp(_output_file_name: &str, _image: &Image) -> Result<()> {
+pub fn save_image_to_rgba_8bpp(output_file_name: &str, image: &Image) -> Result<()> {
+    if !path::parent_exists_and_writable(output_file_name) {
+        return Err(anyhow!("Unable to open output path for writing: Parent path not found or permission denied. {}", output_file_name));
+    }
+    if !image.is_using_alpha() {
+        return Err(anyhow!(
+            "Image contains insufficient bands to produce an RGBA output"
+        ));
+    }
+    if image.get_mode() != ImageMode::U8BIT {
+        // Rather, I just refuse to
+        return Err(anyhow!("Cannot save non-16bpp data as a 16bpp image"));
+    }
+
     Err(anyhow!("Not yet implemented"))
 }
 
