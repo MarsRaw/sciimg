@@ -3,8 +3,9 @@ use crate::vector::Vector;
 use anyhow::{anyhow, Result};
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum ColorSpaceType {
+    RGB, // Linear RGB
     iRGB,
     sRGB,
     pRGB,
@@ -14,8 +15,28 @@ pub enum ColorSpaceType {
 }
 
 pub struct Color {
-    value: Vector,
-    space: ColorSpaceType,
+    pub value: Vector,
+    pub space: ColorSpaceType,
+}
+
+pub struct ColorConversionMatrix {
+    m: Matrix,
+    color_scaling_factor: f64,
+}
+
+impl ColorConversionMatrix {
+    pub fn new_from_vec(v: &Vec<f64>, color_scaling_factor: f64) -> ColorConversionMatrix {
+        ColorConversionMatrix {
+            m: Matrix::new_from_vec(&v.to_vec()).unwrap(),
+            color_scaling_factor: color_scaling_factor,
+        }
+    }
+
+    pub fn apply_to_vector(&self, in_vec: &Vector) -> Vector {
+        self.m
+            .multiply_vector(in_vec)
+            .scale(self.color_scaling_factor)
+    }
 }
 
 pub trait ColorConverter {
@@ -30,18 +51,20 @@ pub trait ColorConverter {
 ///////////////////////////////
 
 pub struct Xyz2sRgbConverter {
-    m: Matrix,
+    m: ColorConversionMatrix,
 }
 
 impl Xyz2sRgbConverter {
     pub fn new() -> Self {
         Xyz2sRgbConverter {
             // CIE XYZ to sRGB D65 linear transformation matrix
-            m: Matrix::new_from_vec(&vec![
-                3.2406255, -1.537208, -0.4986286, 0.0, -0.9689307, 1.8757561, 0.0415175, 0.0,
-                0.0557101, -0.2040211, 1.0569959, 0.0, 0.0, 0.0, 0.0, 1.0,
-            ])
-            .unwrap(),
+            m: ColorConversionMatrix::new_from_vec(
+                &vec![
+                    3.2406255, -1.537208, -0.4986286, 0.0, -0.9689307, 1.8757561, 0.0415175, 0.0,
+                    0.0557101, -0.2040211, 1.0569959, 0.0, 0.0, 0.0, 0.0, 1.0,
+                ],
+                1.0,
+            ),
         }
     }
 }
@@ -61,7 +84,7 @@ impl ColorConverter for Xyz2sRgbConverter {
             ))
         } else {
             Ok(Color {
-                value: self.m.multiply_vector(&in_color.value),
+                value: self.m.apply_to_vector(&in_color.value),
                 space: ColorSpaceType::sRGB,
             })
         }
@@ -168,31 +191,33 @@ impl ColorConverter for Xyz2xyYConverter {
 ///////////////////////////////
 
 pub struct IRgb2XyzConverter {
-    m: Matrix,
+    cm: ColorConversionMatrix,
 }
 
 impl IRgb2XyzConverter {
     pub fn new() -> Self {
         IRgb2XyzConverter {
-            m: Matrix::new_from_vec(&vec![
-                1.0875708,
-                -1.4314745,
-                3.2392806,
-                0.0,
-                0.17009690,
-                0.93876829,
-                0.37937771,
-                0.0,
-                -0.62922341,
-                -4.3906116,
-                15.291394,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                1.0,
-            ])
-            .unwrap(),
+            cm: ColorConversionMatrix::new_from_vec(
+                &vec![
+                    1.0875708,
+                    -1.4314745,
+                    3.2392806,
+                    0.0,
+                    0.17009690,
+                    0.93876829,
+                    0.37937771,
+                    0.0,
+                    -0.62922341,
+                    -4.3906116,
+                    15.291394,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                ],
+                0.1,
+            ),
         }
     }
 }
@@ -212,7 +237,7 @@ impl ColorConverter for IRgb2XyzConverter {
             ))
         } else {
             Ok(Color {
-                value: self.m.multiply_vector(&in_color.value),
+                value: self.cm.apply_to_vector(&in_color.value),
                 space: ColorSpaceType::XYZ,
             })
         }
@@ -224,13 +249,16 @@ impl ColorConverter for IRgb2XyzConverter {
 ///////////////////////////////
 
 pub struct Xyz2pRgbConverter {
-    m: Matrix,
+    cm: ColorConversionMatrix,
 }
 
 impl Xyz2pRgbConverter {
     pub fn new() -> Self {
         Xyz2pRgbConverter {
-            m: Matrix::identity(),
+            cm: ColorConversionMatrix {
+                m: Matrix::identity(),
+                color_scaling_factor: 1.0,
+            },
         }
     }
 }
@@ -250,7 +278,7 @@ impl ColorConverter for Xyz2pRgbConverter {
             ))
         } else {
             Ok(Color {
-                value: self.m.multiply_vector(&in_color.value),
+                value: self.cm.apply_to_vector(&in_color.value),
                 space: ColorSpaceType::pRGB,
             })
         }
@@ -262,17 +290,19 @@ impl ColorConverter for Xyz2pRgbConverter {
 ///////////////////////////////
 
 pub struct SRgb2pRgbConverter {
-    m: Matrix,
+    cm: ColorConversionMatrix,
 }
 
 impl SRgb2pRgbConverter {
     pub fn new() -> Self {
         SRgb2pRgbConverter {
-            m: Matrix::new_from_vec(&vec![
-                0.7742, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.9156, 0.0, 0.0, 0.0, 0.0,
+            cm: ColorConversionMatrix::new_from_vec(
+                &vec![
+                    0.7742, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.9156, 0.0, 0.0, 0.0,
+                    0.0, 1.0,
+                ],
                 1.0,
-            ])
-            .unwrap(),
+            ),
         }
     }
 }
@@ -292,9 +322,105 @@ impl ColorConverter for SRgb2pRgbConverter {
             ))
         } else {
             Ok(Color {
-                value: self.m.multiply_vector(&in_color.value),
+                value: self.cm.apply_to_vector(&in_color.value),
                 space: ColorSpaceType::pRGB,
             })
         }
+    }
+}
+
+///////////////////////////////
+/// RGB to sRGB
+///////////////////////////////
+
+pub struct Rgb2sRgbConverter {}
+
+impl Rgb2sRgbConverter {
+    pub fn new() -> Self {
+        Rgb2sRgbConverter {}
+    }
+}
+
+impl Default for Rgb2sRgbConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ColorConverter for Rgb2sRgbConverter {
+    fn convert(&self, in_color: &Color) -> Result<Color> {
+        if in_color.space != ColorSpaceType::RGB {
+            Err(anyhow!(
+                "Cannot convert to RGB, invalid input colorspace: {:?}",
+                in_color.space
+            ))
+        } else {
+            Ok(Color {
+                value: Vector::new(
+                    in_color.value.x.powf(1.0 / 2.2),
+                    in_color.value.y.powf(1.0 / 2.2),
+                    in_color.value.z.powf(1.0 / 2.2),
+                ),
+                space: ColorSpaceType::sRGB,
+            })
+        }
+    }
+}
+
+///////////////////////////////
+/// XYZ to sRGB
+///////////////////////////////
+///////////////////////////////
+/// RAD to iRGB
+///////////////////////////////
+///////////////////////////////
+/// XYZ to xyY
+///////////////////////////////
+///////////////////////////////
+/// iRGB to XYZ
+///////////////////////////////
+///////////////////////////////
+/// XYZ to pRGB
+///////////////////////////////
+///////////////////////////////
+/// sRGB to pRGB
+///////////////////////////////
+///////////////////////////////
+/// RGB to sRGB
+///////////////////////////////
+
+pub type ColorConverterImpl = Box<dyn ColorConverter + 'static + Send + Sync>;
+
+pub fn get_converter(
+    from_colorspace: ColorSpaceType,
+    to_colorspace: ColorSpaceType,
+) -> Result<ColorConverterImpl> {
+    if from_colorspace == ColorSpaceType::XYZ && to_colorspace == ColorSpaceType::sRGB {
+        Ok(Box::new(Xyz2sRgbConverter::new()))
+    } else if from_colorspace == ColorSpaceType::XYZ && to_colorspace == ColorSpaceType::xyY {
+        Ok(Box::new(Xyz2xyYConverter::new()))
+    } else if from_colorspace == ColorSpaceType::XYZ && to_colorspace == ColorSpaceType::pRGB {
+        Ok(Box::new(Xyz2pRgbConverter::new()))
+    } else if from_colorspace == ColorSpaceType::RAD && to_colorspace == ColorSpaceType::iRGB {
+        Ok(Box::new(Rad2iRgbConverter::new()))
+    } else if from_colorspace == ColorSpaceType::iRGB && to_colorspace == ColorSpaceType::XYZ {
+        Ok(Box::new(IRgb2XyzConverter::new()))
+    } else if from_colorspace == ColorSpaceType::sRGB && to_colorspace == ColorSpaceType::pRGB {
+        Ok(Box::new(SRgb2pRgbConverter::new()))
+    } else if from_colorspace == ColorSpaceType::RGB && to_colorspace == ColorSpaceType::sRGB {
+        Ok(Box::new(Rgb2sRgbConverter::new()))
+    } else {
+        Err(anyhow!(
+            "Colorspace conversion not supported: {:?} -> {:?}",
+            from_colorspace,
+            to_colorspace
+        ))
+    }
+}
+
+pub fn convert_color(from_color: &Color, to_colorspace: ColorSpaceType) -> Result<Color> {
+    match get_converter(from_color.space, to_colorspace) {
+        Ok(c) => c.convert(from_color),
+        Err(why) => Err(why),
     }
 }
