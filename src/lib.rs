@@ -16,6 +16,7 @@ pub mod decompanding;
 pub mod drawable;
 pub mod enums;
 
+pub mod color;
 #[deprecated]
 pub mod error;
 pub mod guassianblur;
