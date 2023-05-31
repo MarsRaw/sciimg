@@ -1,13 +1,15 @@
+use crate::color::Color;
 use crate::output;
 use crate::output::OutputFormat;
 use crate::{
-    debayer, decompanding, enums, hotpixel, imagebuffer::ImageBuffer, imagebuffer::Offset,
-    imagerot, inpaint, lowpass, max, min, noise, path, resize, Mask, MaskVec,
+    color, debayer, decompanding, enums, hotpixel, imagebuffer::ImageBuffer, imagebuffer::Offset,
+    imagerot, inpaint, lowpass, max, min, noise, path, resize, vector::Vector, Mask, MaskVec,
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use enums::ImageMode;
 use image::{open, ColorType::*, DynamicImage};
+use itertools::iproduct;
 
 // A simple image raster buffer.
 #[derive(Debug, Clone)]
@@ -646,6 +648,39 @@ impl Image {
                 .unwrap();
         }
         self.mode = enums::ImageMode::U12BIT;
+    }
+
+    pub fn convert_colorspace(
+        &mut self,
+        from_colorspace: color::ColorSpaceType,
+        to_colorspace: color::ColorSpaceType,
+    ) -> Result<()> {
+        if self.num_bands() != 3 {
+            return Err(anyhow!(
+                "Invalid image for three channel colorspace conversion"
+            ));
+        }
+        let converter = match color::get_converter(from_colorspace, to_colorspace) {
+            Ok(c) => c,
+            Err(why) => return Err(why),
+        };
+
+        iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
+            let c = color::Color {
+                value: Vector::new(
+                    self.bands[0].get(x, y) as f64,
+                    self.bands[1].get(x, y) as f64,
+                    self.bands[2].get(x, y) as f64,
+                ),
+                space: from_colorspace,
+            };
+            let converted = converter.convert(&c).unwrap();
+            self.bands[0].put(x, y, converted.value.x as f32);
+            self.bands[1].put(x, y, converted.value.y as f32);
+            self.bands[2].put(x, y, converted.value.z as f32);
+        });
+
+        Ok(())
     }
 
     fn color_range_determine_prep(&self) -> Image {

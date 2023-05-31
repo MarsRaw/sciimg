@@ -39,7 +39,7 @@ impl Matrix {
         }
     }
 
-    pub fn new_from_array(m: &[f64; 12]) -> Matrix {
+    pub fn new_from_array(m: &[f64; 16]) -> Matrix {
         Matrix { m: m.to_vec() }
     }
 
