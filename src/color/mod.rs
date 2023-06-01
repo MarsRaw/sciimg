@@ -25,10 +25,10 @@ pub struct ColorConversionMatrix {
 }
 
 impl ColorConversionMatrix {
-    pub fn new_from_vec(v: &Vec<f64>, color_scaling_factor: f64) -> ColorConversionMatrix {
+    pub fn new_from_vec(v: &[f64], color_scaling_factor: f64) -> ColorConversionMatrix {
         ColorConversionMatrix {
             m: Matrix::new_from_vec(&v.to_vec()).unwrap(),
-            color_scaling_factor: color_scaling_factor,
+            color_scaling_factor,
         }
     }
 
@@ -59,7 +59,7 @@ impl Xyz2sRgbConverter {
         Xyz2sRgbConverter {
             // CIE XYZ to sRGB D65 linear transformation matrix
             m: ColorConversionMatrix::new_from_vec(
-                &vec![
+                &[
                     3.2406255, -1.537208, -0.4986286, 0.0, -0.9689307, 1.8757561, 0.0415175, 0.0,
                     0.0557101, -0.2040211, 1.0569959, 0.0, 0.0, 0.0, 0.0, 1.0,
                 ],
@@ -198,7 +198,7 @@ impl IRgb2XyzConverter {
     pub fn new() -> Self {
         IRgb2XyzConverter {
             cm: ColorConversionMatrix::new_from_vec(
-                &vec![
+                &[
                     1.0875708,
                     -1.4314745,
                     3.2392806,
@@ -297,7 +297,7 @@ impl SRgb2pRgbConverter {
     pub fn new() -> Self {
         SRgb2pRgbConverter {
             cm: ColorConversionMatrix::new_from_vec(
-                &vec![
+                &[
                     0.7742, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.9156, 0.0, 0.0, 0.0,
                     0.0, 1.0,
                 ],

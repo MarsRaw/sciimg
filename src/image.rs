@@ -1,4 +1,3 @@
-use crate::color::Color;
 use crate::output;
 use crate::output::OutputFormat;
 use crate::{
@@ -660,6 +659,9 @@ impl Image {
                 "Invalid image for three channel colorspace conversion"
             ));
         }
+
+        let (_, prev_max) = self.get_min_max_all_channel();
+
         let converter = match color::get_converter(from_colorspace, to_colorspace) {
             Ok(c) => c,
             Err(why) => return Err(why),
@@ -679,6 +681,8 @@ impl Image {
             self.bands[1].put(x, y, converted.value.y as f32);
             self.bands[2].put(x, y, converted.value.z as f32);
         });
+
+        self.normalize_to_with_max(prev_max, prev_max.powf(1.0 / 2.2));
 
         Ok(())
     }
@@ -722,6 +726,16 @@ impl Image {
         }
 
         self.set_mode(enums::ImageMode::U16BIT);
+    }
+
+    pub fn normalize_to_with_max(&mut self, to_max: f32, max: f32) {
+        for i in 0..self.bands.len() {
+            self.bands[i] = self.bands[i]
+                .normalize_force_minmax(0.0, to_max, 0.0, max)
+                .unwrap();
+            self.bands[i].clip_mut(0.0, to_max);
+        }
+        self.mode = enums::ImageMode::U16BIT;
     }
 
     pub fn normalize_to_16bit_decorrelated(&mut self) {
