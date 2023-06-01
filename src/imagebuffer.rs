@@ -595,6 +595,12 @@ impl ImageBuffer {
         self.buffer.add_mut(&other.buffer);
     }
 
+    pub fn add_across(&self, other: Dn) -> Result<ImageBuffer> {
+        let mut m = self.clone();
+        m.add_across_mut(other);
+        Ok(m)
+    }
+
     pub fn add_across_mut(&mut self, other: Dn) {
         self.buffer.add_across_mut(other);
     }

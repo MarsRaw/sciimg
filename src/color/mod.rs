@@ -9,6 +9,7 @@ pub enum ColorSpaceType {
     iRGB,
     sRGB,
     pRGB,
+    wRGB,
     XYZ,
     RAD,
     xyY,
@@ -368,6 +369,51 @@ impl ColorConverter for Rgb2sRgbConverter {
 }
 
 ///////////////////////////////
+/// iRGB to wRGB
+/// NSYT_flat_fields.parms::SN_0210_iRGB_to_wRGB_matrix
+///////////////////////////////
+
+pub struct IRgb2wRgbConverter {
+    cm: ColorConversionMatrix,
+}
+
+impl IRgb2wRgbConverter {
+    pub fn new() -> Self {
+        IRgb2wRgbConverter {
+            cm: ColorConversionMatrix::new_from_vec(
+                &[
+                    0.7965, 0.000, 0.000, 0.0, 0.000, 1.0000000, 0.000, 0.0, 0.000, 0.000, 2.3038,
+                    0.0, 0.0, 0.0, 0.0, 1.0,
+                ],
+                1.0,
+            ),
+        }
+    }
+}
+
+impl Default for IRgb2wRgbConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ColorConverter for IRgb2wRgbConverter {
+    fn convert(&self, in_color: &Color) -> Result<Color> {
+        if in_color.space != ColorSpaceType::iRGB {
+            Err(anyhow!(
+                "Cannot convert to wRGB, invalid input colorspace: {:?}",
+                in_color.space
+            ))
+        } else {
+            Ok(Color {
+                value: self.cm.apply_to_vector(&in_color.value),
+                space: ColorSpaceType::wRGB,
+            })
+        }
+    }
+}
+
+///////////////////////////////
 /// XYZ to sRGB
 ///////////////////////////////
 ///////////////////////////////
@@ -387,6 +433,9 @@ impl ColorConverter for Rgb2sRgbConverter {
 ///////////////////////////////
 ///////////////////////////////
 /// RGB to sRGB
+///////////////////////////////
+///////////////////////////////
+/// iRGB to wRGB
 ///////////////////////////////
 
 pub type ColorConverterImpl = Box<dyn ColorConverter + 'static + Send + Sync>;
@@ -409,6 +458,8 @@ pub fn get_converter(
         Ok(Box::new(SRgb2pRgbConverter::new()))
     } else if from_colorspace == ColorSpaceType::RGB && to_colorspace == ColorSpaceType::sRGB {
         Ok(Box::new(Rgb2sRgbConverter::new()))
+    } else if from_colorspace == ColorSpaceType::iRGB && to_colorspace == ColorSpaceType::wRGB {
+        Ok(Box::new(IRgb2wRgbConverter::new()))
     } else {
         Err(anyhow!(
             "Colorspace conversion not supported: {:?} -> {:?}",
