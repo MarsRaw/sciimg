@@ -55,8 +55,8 @@ pub fn get_quality_estimation_on_buffer(image: &imagebuffer::ImageBuffer) -> f32
 pub fn get_quality_estimation(image: &image::Image) -> f32 {
     let mut q: Vec<f32> = vec![];
     for b in 0..image.num_bands() {
-        let band = image.get_band(b);
-        q.push(get_quality_estimation_on_buffer(band));
+        let band = image.get_band(b).normalize(0.0, 1.0).unwrap();
+        q.push(get_quality_estimation_on_buffer(&band));
     }
-    stats::mean(&q).unwrap_or(0.0)
+    stats::mean(&q).unwrap_or(0.0) * 100.0
 }
