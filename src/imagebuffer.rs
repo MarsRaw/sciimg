@@ -752,7 +752,7 @@ impl ImageBuffer {
     pub fn gamma_mut(&mut self, gamma: f32) {
         let mm = self.get_min_max();
         self.power_mut(1.0 / gamma);
-        self.buffer = self.normalize(mm.min, mm.max).unwrap().buffer;
+        self.normalize_mut(mm.min, mm.max);
     }
 
     pub fn levels(&mut self, black_level: f32, white_level: f32) -> ImageBuffer {
@@ -764,7 +764,7 @@ impl ImageBuffer {
     pub fn levels_mut(&mut self, black_level: f32, white_level: f32) {
         let mm = self.get_min_max();
         let rng = match self.mode {
-            enums::ImageMode::U8BIT => 256.0,
+            enums::ImageMode::U8BIT => 255.0,
             enums::ImageMode::U16BIT => 65535.0,
             enums::ImageMode::U12BIT => 2033.0, // I know, not really. Will need to adjust later for NSYT ILT
         };
@@ -773,7 +773,7 @@ impl ImageBuffer {
         let norm_max = (rng * white_level) + mm.min;
 
         self.clip_mut(norm_min, norm_max);
-        self.buffer = self.normalize(mm.min, mm.max).unwrap().buffer;
+        self.normalize_mut(mm.min, mm.max);
     }
 
     pub fn levels_with_gamma(
