@@ -743,6 +743,56 @@ impl ImageBuffer {
         Offset { h: ox, v: oy }
     }
 
+    pub fn gamma(&self, gamma: f32) -> ImageBuffer {
+        let mut copied = self.clone();
+        copied.gamma_mut(gamma);
+        copied
+    }
+
+    pub fn gamma_mut(&mut self, gamma: f32) {
+        let mm = self.get_min_max();
+        self.power_mut(1.0 / gamma);
+        self.buffer = self.normalize(mm.min, mm.max).unwrap().buffer;
+    }
+
+    pub fn levels(&mut self, black_level: f32, white_level: f32) -> ImageBuffer {
+        let mut copied = self.clone();
+        copied.levels_mut(black_level, white_level);
+        copied
+    }
+
+    pub fn levels_mut(&mut self, black_level: f32, white_level: f32) {
+        let mm = self.get_min_max();
+        let rng = match self.mode {
+            enums::ImageMode::U8BIT => 256.0,
+            enums::ImageMode::U16BIT => 65535.0,
+            enums::ImageMode::U12BIT => 2033.0, // I know, not really. Will need to adjust later for NSYT ILT
+        };
+
+        let norm_min = (rng * black_level) + mm.min;
+        let norm_max = (rng * white_level) + mm.min;
+
+        self.clip_mut(norm_min, norm_max);
+        self.buffer = self.normalize(mm.min, mm.max).unwrap().buffer;
+    }
+
+    pub fn levels_with_gamma(
+        &mut self,
+        black_level: f32,
+        white_level: f32,
+        gamma: f32,
+    ) -> ImageBuffer {
+        let mut copied = self.clone();
+        copied.levels(black_level, white_level);
+        copied.gamma(gamma);
+        copied
+    }
+
+    pub fn levels_with_gamma_mut(&mut self, black_level: f32, white_level: f32, gamma: f32) {
+        self.levels_mut(black_level, white_level);
+        self.gamma_mut(gamma);
+    }
+
     pub fn paste_mut(&mut self, src: &ImageBuffer, tl_x: usize, tl_y: usize) {
         self.buffer.paste_mut_2d(
             self.width,
