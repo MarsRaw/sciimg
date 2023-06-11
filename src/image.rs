@@ -283,23 +283,41 @@ impl Image {
         }
     }
 
-    pub fn levels(&mut self, black_level: f32, white_level: f32, gamma: f32) {
-        for b in 0..self.bands.len() {
-            let mm = self.bands[b].get_min_max();
+    pub fn gamma(&mut self, gamma: f32) {
+        // (0..self.bands.len()).for_each(|b| {
+        //     self.bands[b].gamma_mut(gamma);
+        // });
 
-            let rng = match self.mode {
-                enums::ImageMode::U8BIT => 256.0,
-                enums::ImageMode::U16BIT => 65535.0,
-                enums::ImageMode::U12BIT => 2033.0, // I know, not really. Will need to adjust later for NSYT ILT
-            };
+        let (mn_all, mx_all) = self.get_min_max_all_channel();
+        (0..self.bands.len()).for_each(|b| {
+            self.bands[b].power_mut(1.0 / gamma);
+        });
+        self.normalize_between(mn_all, mx_all);
+    }
 
-            let norm_min = (rng * black_level) + mm.min;
-            let norm_max = (rng * white_level) + mm.min;
+    pub fn levels(&mut self, black_level: f32, white_level: f32) {
+        // (0..self.bands.len()).for_each(|b| {
+        //     self.bands[b].levels_mut(black_level, white_level);
+        // });
+        let (mn_all, mx_all) = self.get_min_max_all_channel();
+        let rng = match self.mode {
+            enums::ImageMode::U8BIT => 256.0,
+            enums::ImageMode::U16BIT => 65535.0,
+            enums::ImageMode::U12BIT => 2033.0, // I know, not really. Will need to adjust later for NSYT ILT
+        };
 
+        let norm_min = (rng * black_level) + mn_all;
+        let norm_max = (rng * white_level) + mn_all;
+
+        (0..self.bands.len()).for_each(|b| {
             self.bands[b].clip_mut(norm_min, norm_max);
-            self.bands[b].power_mut(gamma);
-            self.bands[b] = self.bands[b].normalize(mm.min, mm.max).unwrap();
-        }
+        });
+        self.normalize_between(mn_all, mx_all);
+    }
+
+    pub fn levels_with_gamma(&mut self, black_level: f32, white_level: f32, gamma: f32) {
+        self.levels(black_level, white_level);
+        self.gamma(gamma);
     }
 
     pub fn put(&mut self, x: usize, y: usize, value: f32, band: usize) {
