@@ -701,6 +701,18 @@ impl Image {
         cloned
     }
 
+    pub fn normalize_to_with_min_max(
+        &mut self,
+        to_min: f32,
+        to_max: f32,
+        from_min: f32,
+        from_max: f32,
+    ) {
+        (0..self.bands.len()).for_each(|b| {
+            self.normalize_band_to_with_min_max(b, to_min, to_max, from_min, from_max);
+        })
+    }
+
     pub fn normalize_band_to_with_min_max(
         &mut self,
         band: usize,
