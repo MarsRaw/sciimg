@@ -283,14 +283,15 @@ impl Image {
         }
     }
 
-    pub fn gamma(&mut self, gamma: f32) {
-        // (0..self.bands.len()).for_each(|b| {
-        //     self.bands[b].gamma_mut(gamma);
-        // });
+    pub fn gamma_band(&mut self, band: usize, gamma: f32) {
+        check_band_in_bounds!(band, self);
+        self.bands[band].power_mut(gamma);
+    }
 
+    pub fn gamma(&mut self, gamma: f32) {
         let (mn_all, mx_all) = self.get_min_max_all_channel();
         (0..self.bands.len()).for_each(|b| {
-            self.bands[b].power_mut(1.0 / gamma);
+            self.gamma_band(b, gamma);
         });
         self.normalize_between(mn_all, mx_all);
     }
@@ -461,6 +462,12 @@ impl Image {
 
     pub fn flatfield(&mut self, flat: &Image) {
         self.apply_flat(flat);
+    }
+
+    pub fn apply_bias_subtraction(&mut self, bias: f32) {
+        (0..self.bands.len()).for_each(|b| {
+            self.bands[b].subtract_across_mut(bias);
+        });
     }
 
     pub fn calc_center_of_mass_offset(&self, threshold: f32, band: usize) -> Offset {
