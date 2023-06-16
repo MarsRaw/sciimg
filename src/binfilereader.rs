@@ -31,6 +31,7 @@ macro_rules! bytes_to_primitive {
     };
 }
 
+#[derive(Debug)]
 pub struct BinFileReader {
     file_ptr: File,
     map: Mmap,

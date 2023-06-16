@@ -1,13 +1,13 @@
-use crate::error;
 use crate::guassianblur::guassian_blur_nband;
 use crate::image::Image;
 use crate::imagebuffer::ImageBuffer;
+use anyhow::Result;
 
 pub fn unsharp_mask_nbands(
     buffers: &mut [ImageBuffer],
     sigma: f32,
     amount: f32,
-) -> error::Result<Vec<ImageBuffer>> {
+) -> Result<Vec<ImageBuffer>> {
     //FIXME: Unwraps :(
     match guassian_blur_nband(buffers, sigma) {
         Ok(blurred) => Ok((0..blurred.len())

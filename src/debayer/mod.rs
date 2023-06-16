@@ -11,9 +11,9 @@ mod bilinear;
 
 use std::str::FromStr;
 
-use crate::error::Result;
 use crate::image::Image;
 use crate::imagebuffer::ImageBuffer;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 // Filter patterns 'borrowed' from dcraw:
@@ -89,11 +89,12 @@ pub enum DebayerMethod {
 
 impl FromStr for DebayerMethod {
     fn from_str(s: &str) -> std::result::Result<DebayerMethod, std::string::String> {
-        Ok(match s.to_uppercase().as_str() {
-            "AMAZE" => DebayerMethod::AMaZE,
-            "BILINEAR" => DebayerMethod::Bilinear,
-            _ => DebayerMethod::Malvar, // "MALVAR"
-        })
+        match s.to_uppercase().as_str() {
+            "AMAZE" => Ok(DebayerMethod::AMaZE),
+            "BILINEAR" => Ok(DebayerMethod::Bilinear),
+            "MALVAR" => Ok(DebayerMethod::Malvar),
+            _ => Err("Invalid debayer algorithm identifier".to_string()),
+        }
     }
 
     type Err = String;

@@ -9,7 +9,8 @@
                we replace the pixel value with a median filter
 */
 
-use crate::{error, imagebuffer::ImageBuffer, stats};
+use crate::{imagebuffer::ImageBuffer, stats};
+use anyhow::Result;
 
 #[allow(dead_code)]
 pub struct ReplacedPixel {
@@ -48,7 +49,7 @@ pub fn hot_pixel_detection(
     buffer: &ImageBuffer,
     window_size: i32,
     threshold: f32,
-) -> error::Result<HpcResults> {
+) -> Result<HpcResults> {
     let mut map = ImageBuffer::new(buffer.width, buffer.height).unwrap();
     let mut replaced_pixels: Vec<ReplacedPixel> = Vec::new();
 

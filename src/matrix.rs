@@ -1,4 +1,5 @@
-use crate::{enums::Axis, error, vector::Vector};
+use crate::{enums::Axis, vector::Vector};
+use anyhow::Result;
 
 #[derive(Debug, Clone)]
 pub struct Matrix {
@@ -30,7 +31,7 @@ impl Matrix {
         }
     }
 
-    pub fn new_from_vec(m: &Vec<f64>) -> error::Result<Matrix> {
+    pub fn new_from_vec(m: &Vec<f64>) -> Result<Matrix> {
         if m.len() == 16 {
             Ok(Matrix { m: m.clone() })
         } else {
@@ -38,7 +39,7 @@ impl Matrix {
         }
     }
 
-    pub fn new_from_array(m: &[f64; 12]) -> Matrix {
+    pub fn new_from_array(m: &[f64; 16]) -> Matrix {
         Matrix { m: m.to_vec() }
     }
 

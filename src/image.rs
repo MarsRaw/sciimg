@@ -1,9 +1,14 @@
+use crate::output;
+use crate::output::OutputFormat;
 use crate::{
-    debayer, decompanding, enums, error, hotpixel, imagebuffer::ImageBuffer, imagebuffer::Offset,
-    imagerot, inpaint, lowpass, max, min, noise, path, resize, Mask, MaskVec,
+    color, debayer, decompanding, enums, hotpixel, imagebuffer::ImageBuffer, imagebuffer::Offset,
+    imagerot, inpaint, lowpass, max, min, noise, path, resize, vector::Vector, Mask, MaskVec,
 };
 
-use image::{open, ColorType::*, DynamicImage, Luma, Rgb, Rgba};
+use anyhow::{anyhow, Result};
+use enums::ImageMode;
+use image::{open, ColorType::*, DynamicImage};
+use itertools::iproduct;
 
 // A simple image raster buffer.
 #[derive(Debug, Clone)]
@@ -74,7 +79,7 @@ macro_rules! load_image {
 
 #[allow(dead_code)]
 impl Image {
-    pub fn new(width: usize, height: usize, mode: enums::ImageMode) -> error::Result<Image> {
+    pub fn new(width: usize, height: usize, mode: enums::ImageMode) -> Result<Image> {
         Ok(Image {
             bands: vec![],
             alpha: MaskVec::new(),
@@ -91,7 +96,7 @@ impl Image {
         height: usize,
         num_bands: usize,
         mode: enums::ImageMode,
-    ) -> error::Result<Image> {
+    ) -> Result<Image> {
         let mut bands: Vec<ImageBuffer> = vec![];
         for _ in 0..num_bands {
             bands.push(ImageBuffer::new(width, height).unwrap());
@@ -113,7 +118,7 @@ impl Image {
         num_bands: usize,
         mode: enums::ImageMode,
         mask_value: bool,
-    ) -> error::Result<Image> {
+    ) -> Result<Image> {
         let mut bands: Vec<ImageBuffer> = vec![];
         for _ in 0..num_bands {
             bands.push(ImageBuffer::new(width, height).unwrap());
@@ -130,7 +135,7 @@ impl Image {
         })
     }
 
-    pub fn new_empty() -> error::Result<Image> {
+    pub fn new_empty() -> Result<Image> {
         Ok(Image {
             bands: vec![],
             alpha: MaskVec::new(),
@@ -142,11 +147,11 @@ impl Image {
         })
     }
 
-    pub fn open_str(file_path: &str) -> error::Result<Image> {
+    pub fn open_str(file_path: &str) -> Result<Image> {
         Image::open(file_path)
     }
 
-    pub fn open(file_path: &str) -> error::Result<Image> {
+    pub fn open(file_path: &str) -> Result<Image> {
         if !path::file_exists(file_path) {
             panic!("File not found: {}", file_path);
         }
@@ -173,13 +178,37 @@ impl Image {
         green: &ImageBuffer,
         blue: &ImageBuffer,
         mode: enums::ImageMode,
-    ) -> error::Result<Image> {
+    ) -> Result<Image> {
         Ok(Image {
             bands: vec![red.clone(), green.clone(), blue.clone()],
             alpha: MaskVec::new(),
             uses_alpha: false,
             width: red.width,
             height: red.height,
+            mode,
+            empty: false,
+        })
+    }
+
+    pub fn new_from_buffer_mono(lum: &ImageBuffer) -> Result<Image> {
+        Ok(Image {
+            bands: vec![lum.clone()],
+            alpha: MaskVec::new(),
+            uses_alpha: false,
+            width: lum.width,
+            height: lum.height,
+            mode: lum.mode,
+            empty: false,
+        })
+    }
+
+    pub fn new_from_buffer_mono_use_mode(lum: &ImageBuffer, mode: ImageMode) -> Result<Image> {
+        Ok(Image {
+            bands: vec![lum.clone()],
+            alpha: MaskVec::new(),
+            uses_alpha: false,
+            width: lum.width,
+            height: lum.height,
             mode,
             empty: false,
         })
@@ -254,23 +283,42 @@ impl Image {
         }
     }
 
-    pub fn levels(&mut self, black_level: f32, white_level: f32, gamma: f32) {
-        for b in 0..self.bands.len() {
-            let mm = self.bands[b].get_min_max();
+    pub fn gamma_band(&mut self, band: usize, gamma: f32) {
+        check_band_in_bounds!(band, self);
+        self.bands[band].power_mut(gamma);
+    }
 
-            let rng = match self.mode {
-                enums::ImageMode::U8BIT => 256.0,
-                enums::ImageMode::U16BIT => 65535.0,
-                enums::ImageMode::U12BIT => 2033.0, // I know, not really. Will need to adjust later for NSYT ILT
-            };
+    pub fn gamma(&mut self, gamma: f32) {
+        let (mn_all, mx_all) = self.get_min_max_all_channel();
+        (0..self.bands.len()).for_each(|b| {
+            self.gamma_band(b, gamma);
+        });
+        self.normalize_between(mn_all, mx_all);
+    }
 
-            let norm_min = (rng * black_level) + mm.min;
-            let norm_max = (rng * white_level) + mm.min;
+    pub fn levels(&mut self, black_level: f32, white_level: f32) {
+        // (0..self.bands.len()).for_each(|b| {
+        //     self.bands[b].levels_mut(black_level, white_level);
+        // });
+        let (mn_all, mx_all) = self.get_min_max_all_channel();
+        let rng = match self.mode {
+            enums::ImageMode::U8BIT => 256.0,
+            enums::ImageMode::U16BIT => 65535.0,
+            enums::ImageMode::U12BIT => 2033.0, // I know, not really. Will need to adjust later for NSYT ILT
+        };
 
+        let norm_min = (rng * black_level) + mn_all;
+        let norm_max = (rng * white_level) + mn_all;
+
+        (0..self.bands.len()).for_each(|b| {
             self.bands[b].clip_mut(norm_min, norm_max);
-            self.bands[b].power_mut(gamma);
-            self.bands[b] = self.bands[b].normalize(mm.min, mm.max).unwrap();
-        }
+        });
+        self.normalize_between(mn_all, mx_all);
+    }
+
+    pub fn levels_with_gamma(&mut self, black_level: f32, white_level: f32, gamma: f32) {
+        self.levels(black_level, white_level);
+        self.gamma(gamma);
     }
 
     pub fn put(&mut self, x: usize, y: usize, value: f32, band: usize) {
@@ -414,6 +462,12 @@ impl Image {
 
     pub fn flatfield(&mut self, flat: &Image) {
         self.apply_flat(flat);
+    }
+
+    pub fn apply_bias_subtraction(&mut self, bias: f32) {
+        (0..self.bands.len()).for_each(|b| {
+            self.bands[b].subtract_across_mut(bias);
+        });
     }
 
     pub fn calc_center_of_mass_offset(&self, threshold: f32, band: usize) -> Offset {
@@ -620,6 +674,44 @@ impl Image {
         self.mode = enums::ImageMode::U12BIT;
     }
 
+    pub fn convert_colorspace(
+        &mut self,
+        from_colorspace: color::ColorSpaceType,
+        to_colorspace: color::ColorSpaceType,
+    ) -> Result<()> {
+        if self.num_bands() != 3 {
+            return Err(anyhow!(
+                "Invalid image for three channel colorspace conversion"
+            ));
+        }
+
+        let (_, prev_max) = self.get_min_max_all_channel();
+
+        let converter = match color::get_converter(from_colorspace, to_colorspace) {
+            Ok(c) => c,
+            Err(why) => return Err(why),
+        };
+
+        iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
+            let c = color::Color {
+                value: Vector::new(
+                    self.bands[0].get(x, y) as f64,
+                    self.bands[1].get(x, y) as f64,
+                    self.bands[2].get(x, y) as f64,
+                ),
+                space: from_colorspace,
+            };
+            let converted = converter.convert(&c).unwrap();
+            self.bands[0].put(x, y, converted.value.x as f32);
+            self.bands[1].put(x, y, converted.value.y as f32);
+            self.bands[2].put(x, y, converted.value.z as f32);
+        });
+
+        self.normalize_to_with_max(prev_max, prev_max.powf(1.0 / 2.2));
+
+        Ok(())
+    }
+
     fn color_range_determine_prep(&self) -> Image {
         let mut cloned = self.clone();
 
@@ -632,6 +724,18 @@ impl Image {
         cloned = lowpass::lowpass(&cloned, 5);
 
         cloned
+    }
+
+    pub fn normalize_to_with_min_max(
+        &mut self,
+        to_min: f32,
+        to_max: f32,
+        from_min: f32,
+        from_max: f32,
+    ) {
+        (0..self.bands.len()).for_each(|b| {
+            self.normalize_band_to_with_min_max(b, to_min, to_max, from_min, from_max);
+        })
     }
 
     pub fn normalize_band_to_with_min_max(
@@ -659,6 +763,16 @@ impl Image {
         }
 
         self.set_mode(enums::ImageMode::U16BIT);
+    }
+
+    pub fn normalize_to_with_max(&mut self, to_max: f32, max: f32) {
+        for i in 0..self.bands.len() {
+            self.bands[i] = self.bands[i]
+                .normalize_force_minmax(0.0, to_max, 0.0, max)
+                .unwrap();
+            self.bands[i].clip_mut(0.0, to_max);
+        }
+        self.mode = enums::ImageMode::U16BIT;
     }
 
     pub fn normalize_to_16bit_decorrelated(&mut self) {
@@ -705,234 +819,15 @@ impl Image {
         self.normalize_to_16bit_with_max(255.0);
     }
 
-    fn save_16bit_mono(&self, to_file: &str, band: usize) {
-        check_band_in_bounds!(band, self);
-        let mut out_img =
-            DynamicImage::new_luma16(self.width as u32, self.height as u32).into_luma16();
-
-        for y in 0..self.height {
-            for x in 0..self.width {
-                out_img.put_pixel(
-                    x as u32,
-                    y as u32,
-                    Luma([self.bands[band].get(x, y).round() as u16]),
-                );
-            }
-        }
-
-        if path::parent_exists_and_writable(to_file) {
-            out_img.save(to_file).unwrap();
-        } else {
-            panic!(
-                "Parent path does not exist or is unwritable: {}",
-                path::get_parent(to_file)
-            );
+    pub fn save(&self, to_file: &str) -> Result<()> {
+        match output::get_default_output_format() {
+            Ok(format) => output::save_image_with_format(to_file, format, self),
+            Err(why) => Err(why),
         }
     }
 
-    fn save_16bit_rgba(&self, to_file: &str) {
-        check_band_in_bounds!(2, self);
-        let mut out_img =
-            DynamicImage::new_rgba16(self.width as u32, self.height as u32).into_rgba16();
-
-        for y in 0..self.height {
-            for x in 0..self.width {
-                out_img.put_pixel(
-                    x as u32,
-                    y as u32,
-                    Rgba([
-                        self.bands[0].get(x, y).round() as u16,
-                        self.bands[1].get(x, y).round() as u16,
-                        self.bands[2].get(x, y).round() as u16,
-                        if self.get_alpha_at(x, y) {
-                            std::u16::MAX
-                        } else {
-                            std::u16::MIN
-                        },
-                    ]),
-                );
-            }
-        }
-
-        if path::parent_exists_and_writable(to_file) {
-            out_img.save(to_file).unwrap();
-        } else {
-            panic!(
-                "Parent path does not exist or is unwritable: {}",
-                path::get_parent(to_file)
-            );
-        }
-    }
-
-    fn save_16bit_rgb(&self, to_file: &str) {
-        check_band_in_bounds!(2, self);
-        let mut out_img =
-            DynamicImage::new_rgb16(self.width as u32, self.height as u32).into_rgb16();
-
-        for y in 0..self.height {
-            for x in 0..self.width {
-                out_img.put_pixel(
-                    x as u32,
-                    y as u32,
-                    Rgb([
-                        self.bands[0].get(x, y).round() as u16,
-                        self.bands[1].get(x, y).round() as u16,
-                        self.bands[2].get(x, y).round() as u16,
-                    ]),
-                );
-            }
-        }
-
-        if path::parent_exists_and_writable(to_file) {
-            out_img.save(to_file).unwrap();
-        } else {
-            panic!(
-                "Parent path does not exist or is unwritable: {}",
-                path::get_parent(to_file)
-            );
-        }
-    }
-
-    fn save_16bit(&self, to_file: &str) {
-        if self.bands.len() == 1 {
-            self.save_16bit_mono(to_file, 0);
-        } else if self.bands.len() >= 3 && self.uses_alpha {
-            self.save_16bit_rgba(to_file);
-        } else if self.bands.len() >= 3 && !self.uses_alpha {
-            self.save_16bit_rgb(to_file);
-        } else {
-            panic!("Unsupported number of bands. Cannot save as implemented");
-        }
-    }
-
-    fn save_8bit_mono(&self, to_file: &str, band: usize) {
-        check_band_in_bounds!(band, self);
-
-        let mut out_img =
-            DynamicImage::new_luma8(self.width as u32, self.height as u32).into_luma8();
-
-        for y in 0..self.height {
-            for x in 0..self.width {
-                out_img.put_pixel(
-                    x as u32,
-                    y as u32,
-                    Luma([self.bands[band].get(x, y).round() as u8]),
-                );
-            }
-        }
-
-        if path::parent_exists_and_writable(to_file) {
-            out_img.save(to_file).unwrap();
-        } else {
-            panic!(
-                "Parent path does not exist or is unwritable: {}",
-                path::get_parent(to_file)
-            );
-        }
-    }
-
-    fn save_8bit_rgba(&self, to_file: &str) {
-        check_band_in_bounds!(2, self);
-
-        let mut out_img =
-            DynamicImage::new_rgba8(self.width as u32, self.height as u32).into_rgba8();
-
-        for y in 0..self.height {
-            for x in 0..self.width {
-                out_img.put_pixel(
-                    x as u32,
-                    y as u32,
-                    Rgba([
-                        self.bands[0].get(x, y).round() as u8,
-                        self.bands[1].get(x, y).round() as u8,
-                        self.bands[2].get(x, y).round() as u8,
-                        if self.get_alpha_at(x, y) {
-                            std::u8::MAX
-                        } else {
-                            std::u8::MIN
-                        },
-                    ]),
-                );
-            }
-        }
-
-        if path::parent_exists_and_writable(to_file) {
-            out_img.save(to_file).unwrap();
-        } else {
-            panic!(
-                "Parent path does not exist or is unwritable: {}",
-                path::get_parent(to_file)
-            );
-        }
-    }
-
-    fn save_8bit_rgb(&self, to_file: &str) {
-        check_band_in_bounds!(2, self);
-
-        let mut out_img = DynamicImage::new_rgb8(self.width as u32, self.height as u32).into_rgb8();
-
-        for y in 0..self.height {
-            for x in 0..self.width {
-                out_img.put_pixel(
-                    x as u32,
-                    y as u32,
-                    Rgb([
-                        self.bands[0].get(x, y).round() as u8,
-                        self.bands[1].get(x, y).round() as u8,
-                        self.bands[2].get(x, y).round() as u8,
-                    ]),
-                );
-            }
-        }
-
-        if path::parent_exists_and_writable(to_file) {
-            out_img.save(to_file).unwrap();
-        } else {
-            panic!(
-                "Parent path does not exist or is unwritable: {}",
-                path::get_parent(to_file)
-            );
-        }
-    }
-
-    fn save_8bit(&self, to_file: &str) {
-        if self.bands.len() == 1 {
-            self.save_8bit_mono(to_file, 0);
-        } else if self.bands.len() >= 3 && self.uses_alpha {
-            self.save_8bit_rgba(to_file);
-        } else if self.bands.len() >= 3 && !self.uses_alpha {
-            self.save_8bit_rgb(to_file);
-        } else {
-            panic!("Unsupported number of bands. Cannot save as implemented");
-        }
-    }
-
-    pub fn save_mono(&self, to_file: &str, band: usize) {
-        match self.mode {
-            enums::ImageMode::U8BIT => self.save_8bit_mono(to_file, band),
-            _ => self.save_16bit_mono(to_file, band),
-        };
-    }
-
-    pub fn save_rgba(&self, to_file: &str) {
-        match self.mode {
-            enums::ImageMode::U8BIT => self.save_8bit_rgba(to_file),
-            _ => self.save_16bit_rgba(to_file),
-        };
-    }
-
-    pub fn save_rgb(&self, to_file: &str) {
-        match self.mode {
-            enums::ImageMode::U8BIT => self.save_8bit_rgb(to_file),
-            _ => self.save_16bit_rgb(to_file),
-        };
-    }
-
-    pub fn save(&self, to_file: &str) {
-        match self.mode {
-            enums::ImageMode::U8BIT => self.save_8bit(to_file),
-            _ => self.save_16bit(to_file),
-        };
+    pub fn save_with_format(&self, to_file: &str, format: OutputFormat) -> Result<()> {
+        output::save_image_with_format(to_file, format, self)
     }
 
     pub fn resize_to(&mut self, to_width: usize, to_height: usize) {

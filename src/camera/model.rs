@@ -1,4 +1,5 @@
-use crate::{camera::cahv, camera::cahvor, camera::cahvore, error, vector::Vector};
+use crate::{camera::cahv, camera::cahvor, camera::cahvore, vector::Vector};
+use anyhow::Result;
 
 pub static EPSILON: f64 = 1.0e-15;
 pub static CONV: f64 = 1.0e-6;
@@ -51,14 +52,22 @@ impl LookVector {
     }
 }
 
+pub type CameraModelType = Box<dyn CameraModelTrait + 'static + Send + Sync>;
+
+impl Clone for CameraModelType {
+    fn clone(&self) -> CameraModelType {
+        self.box_clone()
+    }
+}
+
 pub trait CameraModelTrait {
     fn model_type(&self) -> ModelType;
     fn f(&self) -> f64;
     fn pixel_angle_horiz(&self) -> f64;
     fn pixel_angle_vert(&self) -> f64;
-    fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> error::Result<LookVector>;
+    fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> Result<LookVector>;
     fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> ImageCoordinate;
-    fn box_clone(&self) -> Box<dyn CameraModelTrait + 'static>;
+    fn box_clone(&self) -> CameraModelType;
     fn c(&self) -> Vector;
     fn a(&self) -> Vector;
     fn h(&self) -> Vector;
@@ -71,11 +80,11 @@ pub trait CameraModelTrait {
 
 #[derive(Clone, Default)]
 pub struct CameraModel {
-    model: Option<Box<dyn CameraModelTrait + 'static>>,
+    model: Option<CameraModelType>,
 }
 
 impl CameraModel {
-    pub fn new(model: Box<dyn CameraModelTrait + 'static>) -> CameraModel {
+    pub fn new(model: CameraModelType) -> CameraModel {
         CameraModel { model: Some(model) }
     }
 
@@ -160,7 +169,7 @@ impl CameraModel {
         }
     }
 
-    pub fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> error::Result<LookVector> {
+    pub fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> Result<LookVector> {
         match &self.model {
             Some(m) => m.ls_to_look_vector(coordinate),
             None => panic!("Camera model is not valid"),
@@ -174,7 +183,7 @@ impl CameraModel {
         }
     }
 
-    pub fn convert_to_type(&self, model_type: ModelType) -> error::Result<CameraModel> {
+    pub fn convert_to_type(&self, model_type: ModelType) -> Result<CameraModel, &str> {
         match model_type {
             ModelType::CAHV => {
                 if let Some(m) = &self.model {
@@ -229,7 +238,7 @@ impl CameraModel {
         cahv_width: usize,
         cahv_height: usize,
         model_type: ModelType,
-    ) -> error::Result<CameraModel> {
+    ) -> Result<CameraModel, &str> {
         match model_type {
             ModelType::CAHV => {
                 if let Some(m) = &self.model {
@@ -298,7 +307,7 @@ impl CameraModel {
         cahvor_height: usize,
         cahv_width: usize,
         cahv_height: usize,
-    ) -> error::Result<CameraModel> {
+    ) -> Result<CameraModel, &str> {
         match self.model_type() {
             ModelType::CAHV => {
                 if let Some(m) = &self.model {

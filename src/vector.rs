@@ -1,4 +1,7 @@
-use crate::{enums::Axis, error, util::string_is_valid_f64};
+use crate::{enums::Axis, util::string_is_valid_f64};
+use anyhow::Result;
+use std::ops::Index;
+use std::ops::IndexMut;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector {
@@ -48,7 +51,7 @@ impl Vector {
         Vector { x, y, z }
     }
 
-    pub fn from_vec(v: &[f64]) -> error::Result<Vector> {
+    pub fn from_vec(v: &[f64]) -> Result<Vector> {
         if v.len() != 3 {
             panic!("Array size mismatch");
         } else {
@@ -334,7 +337,7 @@ fn vec_to_str(v: &[f64]) -> String {
     format!("({})", s)
 }
 
-fn str_to_vec(s: &str) -> error::Result<Vec<f64>> {
+fn str_to_vec(s: &str) -> Result<Vec<f64>> {
     let mut tuple_vec: Vec<f64> = Vec::new();
     let mut s0 = String::from(s);
     s0.remove(0);
@@ -381,6 +384,29 @@ pub mod vector_format {
                     Ok(vec)
                 }
             },
+        }
+    }
+}
+
+impl Index<usize> for Vector {
+    type Output = f64;
+    fn index<'a>(&'_ self, i: usize) -> &'_ f64 {
+        match i {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            _ => panic!("Index out of bounds: {}", i),
+        }
+    }
+}
+
+impl IndexMut<usize> for Vector {
+    fn index_mut<'a>(&'_ mut self, i: usize) -> &'_ mut f64 {
+        match i {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            2 => &mut self.z,
+            _ => panic!("Index out of bounds: {}", i),
         }
     }
 }
