@@ -24,7 +24,7 @@ fn isolate_window(buffer: &ImageBuffer, window_size: usize, x: usize, y: usize) 
     )
 }
 
-fn mean_of_window(buffer: &ImageBuffer, window_size: usize, x: usize, y: usize) -> Option<f32> {
+fn mean_of_window(buffer: &ImageBuffer, window_size: usize, x: usize, y: usize) -> f32 {
     let window_values = isolate_window(buffer, window_size, x, y);
     stats::mean(&window_values)
 }
@@ -36,9 +36,7 @@ pub fn lowpass_imagebuffer(imagebuff: &ImageBuffer, window_size: usize) -> Image
 
     (0..lowpass_buffer.height).for_each(|y| {
         (0..lowpass_buffer.width).for_each(|x| {
-            if let Some(m) = mean_of_window(imagebuff, window_size, x, y) {
-                lowpass_buffer.put(x, y, m);
-            }
+            lowpass_buffer.put(x, y, mean_of_window(imagebuff, window_size, x, y));
         });
     });
 

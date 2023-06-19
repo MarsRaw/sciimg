@@ -132,7 +132,7 @@ fn isolate_window(
 
 fn predict_value(buffer: &RgbVec, mask: &ImageBuffer, channel: usize, x: usize, y: usize) -> f32 {
     let window = isolate_window(buffer, mask, channel, DEFAULT_WINDOW_SIZE, x, y);
-    stats::mean(&window[0..]).unwrap()
+    stats::mean(&window[0..])
 }
 
 fn get_point_and_score_at_xy(mask: &ImageBuffer, x: i32, y: i32) -> Option<Point> {

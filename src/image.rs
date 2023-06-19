@@ -112,6 +112,28 @@ impl Image {
         })
     }
 
+    pub fn new_with_bands_and_fill(
+        width: usize,
+        height: usize,
+        num_bands: usize,
+        mode: enums::ImageMode,
+        fill_value: f32,
+    ) -> Result<Image> {
+        let mut bands: Vec<ImageBuffer> = vec![];
+        for _ in 0..num_bands {
+            bands.push(ImageBuffer::new_with_fill(width, height, fill_value).unwrap());
+        }
+        Ok(Image {
+            bands,
+            alpha: MaskVec::new(),
+            uses_alpha: false,
+            width,
+            height,
+            mode,
+            empty: false,
+        })
+    }
+
     pub fn new_with_bands_masked(
         width: usize,
         height: usize,
@@ -385,6 +407,88 @@ impl Image {
 
     pub fn copy_alpha_from(&mut self, src: &ImageBuffer) {
         self.alpha = ImageBuffer::buffer_to_mask(src);
+    }
+
+    pub fn calibrate_band2(
+        &mut self,
+        band: usize,
+        flat_field: &Option<Image>,
+        dark_field: &Option<Image>,
+        dark_flat_field: &Option<Image>,
+        bias_field: &Option<Image>,
+    ) {
+        let flat = match flat_field {
+            Some(b) => b.clone(),
+            None => Image::new_with_bands_and_fill(
+                self.width,
+                self.height,
+                self.num_bands(),
+                self.mode,
+                self.bands[band].mean(),
+            )
+            .unwrap(),
+        };
+        let dark = match dark_field {
+            Some(b) => b.clone(),
+            None => Image::new_with_bands_and_fill(
+                self.width,
+                self.height,
+                self.num_bands(),
+                self.mode,
+                0.0,
+            )
+            .unwrap(),
+        };
+        let dark_flat = match dark_flat_field {
+            Some(b) => b.clone(),
+            None => Image::new_with_bands_and_fill(
+                self.width,
+                self.height,
+                self.num_bands(),
+                self.mode,
+                0.0,
+            )
+            .unwrap(),
+        };
+        let bias = match bias_field {
+            Some(b) => b.clone(),
+            None => Image::new_with_bands_and_fill(
+                self.width,
+                self.height,
+                self.num_bands(),
+                self.mode,
+                0.0,
+            )
+            .unwrap(),
+        };
+
+        let frame_minus_bias = self.bands[band].subtract(&bias.bands[band]).unwrap();
+        let flat_minus_bias = flat.bands[band].subtract(&bias.bands[band]).unwrap();
+        let flat_dark_minus_bias = dark_flat.bands[band].subtract(&bias.bands[band]).unwrap();
+        let flat_minus_darkflat = flat_minus_bias.subtract(&flat_dark_minus_bias).unwrap();
+
+        let dark_minus_bias = dark.bands[band].subtract(&bias.bands[band]).unwrap();
+
+        let darkflat = flat_minus_darkflat.subtract(&dark_minus_bias).unwrap();
+        let mean_flat = darkflat.mean();
+        let frame_minus_dark = frame_minus_bias.subtract(&dark_minus_bias).unwrap();
+        self.bands[band] = frame_minus_dark
+            .scale(mean_flat)
+            .unwrap()
+            .divide(&flat_minus_darkflat)
+            .unwrap();
+    }
+
+    pub fn calibrate2(
+        &mut self,
+        flat_field: &Option<Image>,
+        dark_field: &Option<Image>,
+        dark_flat_field: &Option<Image>,
+        bias_field: &Option<Image>,
+    ) {
+        for i in 0..self.bands.len() {
+            self.calibrate_band2(i, flat_field, dark_field, dark_flat_field, bias_field);
+        }
     }
 
     pub fn calibrate_band(
