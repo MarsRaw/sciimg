@@ -300,7 +300,7 @@ pub fn apply_inpaint_to_buffer_with_mask(rgb: &Image, mask_src: &ImageBuffer) ->
 
     // Strip out extra bands. Perhaps a rewrite is needed to process only mono bands when needed.
     if rgb.num_bands() == 1 {
-        newimage = Image::new_from_buffer_mono(rgb.get_band(0))?;
+        newimage = Image::new_from_buffer_mono(newimage.get_band(0))?;
     }
 
     Ok(newimage)
