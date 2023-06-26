@@ -32,7 +32,7 @@ pub fn get_default_output_format() -> Result<OutputFormat> {
     if let Ok(output_format_str) = env::var("MARS_OUTPUT_FORMAT") {
         OutputFormat::from_string(&output_format_str)
     } else {
-        Ok(OutputFormat::PNG)
+        Ok(OutputFormat::TIFF)
     }
 }
 
