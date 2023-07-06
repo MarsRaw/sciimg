@@ -20,8 +20,17 @@ pub fn get_point_quality_estimation_on_buffer(
     x: usize,
     y: usize,
 ) -> f32 {
-    let blurred = apply_blur(image, 5);
-    let diff = blurred.subtract(image).unwrap();
+    let subframe = image
+        .get_subframe(
+            x - window_size / 2,
+            y - window_size / 2,
+            window_size,
+            window_size,
+        )
+        .expect("Failed to extract subframe");
+
+    let blurred = apply_blur(&subframe, 5);
+    let diff = blurred.subtract(&subframe).unwrap();
     get_point_quality_estimation_on_diff_buffer(&diff, window_size, x, y)
 }
 
