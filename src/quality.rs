@@ -31,7 +31,12 @@ pub fn get_point_quality_estimation_on_buffer(
 
     let blurred = apply_blur(&subframe, 5);
     let diff = blurred.subtract(&subframe).unwrap();
-    get_point_quality_estimation_on_diff_buffer(&diff, window_size, x, y)
+    get_point_quality_estimation_on_diff_buffer(
+        &diff,
+        window_size,
+        window_size / 2,
+        window_size / 2,
+    )
 }
 
 pub fn get_point_quality_estimation(
