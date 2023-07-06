@@ -220,13 +220,22 @@ fn rgb_image_to_vec(rgb: &Image) -> Result<RgbVec> {
     (0..rgb.height).for_each(|y| {
         (0..rgb.width).for_each(|x| {
             let idx = y * rgb.width + x;
-            let r = rgb.get_band(0).get(x, y);
-            let g = rgb.get_band(1).get(x, y);
-            let b = rgb.get_band(2).get(x, y);
+            if rgb.num_bands() == 1 {
+                let r = rgb.get_band(0).get(x, y);
+                v[idx][0] = r;
+                v[idx][1] = r;
+                v[idx][2] = r;
+            } else if rgb.num_bands() == 3 {
+                let r = rgb.get_band(0).get(x, y);
+                let g = rgb.get_band(1).get(x, y);
+                let b = rgb.get_band(2).get(x, y);
 
-            v[idx][0] = r;
-            v[idx][1] = g;
-            v[idx][2] = b;
+                v[idx][0] = r;
+                v[idx][1] = g;
+                v[idx][2] = b;
+            } else {
+                panic!("Unsupported number of bands");
+            }
         });
     });
 
@@ -284,10 +293,15 @@ pub fn apply_inpaint_to_buffer_with_mask(rgb: &Image, mask_src: &ImageBuffer) ->
         infill(&mut working_buffer, &mut mask, &pt);
     }
 
-    let newimage = match vec_to_rgb_image(&working_buffer) {
+    let mut newimage = match vec_to_rgb_image(&working_buffer) {
         Ok(i) => i,
         Err(e) => return Err(e),
     };
+
+    // Strip out extra bands. Perhaps a rewrite is needed to process only mono bands when needed.
+    if rgb.num_bands() == 1 {
+        newimage = Image::new_from_buffer_mono(newimage.get_band(0))?;
+    }
 
     Ok(newimage)
 }
