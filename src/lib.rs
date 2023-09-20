@@ -114,6 +114,15 @@ pub struct MinMax {
     pub max: Dn,
 }
 
+impl Default for MinMax {
+    fn default() -> Self {
+        MinMax {
+            min: std::f32::MAX,
+            max: std::f32::MIN,
+        }
+    }
+}
+
 //////////////////////////////////////////////////
 /// Dn Vector (Unmasked)
 //////////////////////////////////////////////////
@@ -1191,16 +1200,15 @@ impl VecMath for MaskedDnVec {
     }
 
     fn get_min_max(&self) -> MinMax {
-        let mut mm = MinMax {
-            min: std::f32::MAX,
-            max: std::f32::MIN,
-        };
-        (0..self.len()).for_each(|i| {
-            if self[i] != std::f32::INFINITY {
-                mm.min = min!(mm.min, self[i]);
-                mm.max = max!(mm.max, self[i]);
+        let mut mm = MinMax::default();
+
+        self.iter().for_each(|v| {
+            if v != std::f32::INFINITY {
+                mm.min = min!(mm.min, v);
+                mm.max = max!(mm.max, v);
             }
         });
+
         mm
     }
 
