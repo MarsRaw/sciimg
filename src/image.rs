@@ -13,7 +13,7 @@ use itertools::iproduct;
 // A simple image raster buffer.
 #[derive(Debug, Clone)]
 pub struct Image {
-    bands: Vec<ImageBuffer>,
+    pub bands: Vec<ImageBuffer>,
     alpha: MaskVec, // Intended to work as an alpha transparency band
     uses_alpha: bool,
     pub width: usize,

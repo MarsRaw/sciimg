@@ -705,6 +705,16 @@ impl ImageBuffer {
         Offset { h: ox, v: oy }
     }
 
+    pub fn swap_axis(&self) -> ImageBuffer {
+        let mut swapped = ImageBuffer::new(self.height, self.width).unwrap();
+
+        iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
+            swapped.put(y, x, self.get(x, y));
+        });
+
+        swapped
+    }
+
     pub fn gamma(&self, gamma: f32) -> ImageBuffer {
         let mut copied = self.clone();
         copied.gamma_mut(gamma);

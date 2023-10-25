@@ -1,228 +1,116 @@
-use crate::image::Image;
 use crate::imagebuffer::ImageBuffer;
-use crate::max;
-use crate::Dn;
-use crate::DnVec;
-use crate::VecMath;
-use anyhow::anyhow;
-use anyhow::Result;
+use itertools::iproduct;
 
-#[cfg(rayon)]
-use rayon::prelude::*;
-#[cfg(rayon)]
-use std::sync::Arc;
-#[cfg(rayon)]
-use std::sync::Mutex;
+// fn normalize_kernel(in_kernel: &[f32], radius: usize) -> Vec<f32> {
+//     let mut kernel = in_kernel.to_vec();
+//     let mut sum = kernel[0 + 0 * radius];
+//     (1..radius).for_each(|i| {
+//         sum += 2.0 * (kernel[i + 0 * radius] + kernel[0 + i * radius]);
+//     });
 
-#[cfg(not(rayon))]
-//  SSSSSLLLLOOOOOOWWWWWWW.....
-pub fn guassian_blur_nband(buffers: &mut [ImageBuffer], sigma: f32) -> Result<Vec<ImageBuffer>> {
-    if buffers.is_empty() {
-        return Err(anyhow!("No buffers provided"));
-    }
+//     iproduct!(1..radius, 1..radius).for_each(|(i, j)| {
+//         sum += 4.0 * kernel[i + j * radius];
+//     });
 
-    let sig_squared = sigma.powi(2);
-    let radius = max!((3.0 * sigma).ceil(), 1.0) as usize;
+//     (0..radius.pow(2)).for_each(|i| {
+//         kernel[i] /= sum;
+//     });
 
-    let kernel_length = radius * 2 + 1;
+//     kernel
+// }
 
-    let mut kernel = DnVec::zeros(kernel_length);
-    let mut sum = 0.0;
+// fn calculate_gaussian_kernel(len: usize, sigma: f32, normalize: bool) -> Vec<f32> {
+//     let mut kernel: Vec<f32> = (0..len).map(|_| 0.0).collect();
 
-    let r = radius as i32;
+//     iproduct!(0..len, 0..len).for_each(|(i, j)| {
+//         let fi = i as f32;
+//         let fj = j as f32;
+//         kernel[i + j * len] = (-(fi.powi(2) + fj.powi(2)) / (2.0 * sigma.powi(2))).exp();
+//     });
+//     if normalize {
+//         kernel = normalize_kernel(&kernel, len);
+//     }
+//     kernel
+// }
 
-    (-r..r).for_each(|i| {
-        let exponent_numerator = -(i * i) as Dn;
-        let exponent_denominator = 2.0 * sig_squared;
-
-        let e_expression =
-            (std::f32::consts::E as Dn).powf(exponent_numerator / exponent_denominator);
-        let kernel_value = e_expression / std::f32::consts::TAU * sig_squared;
-
-        kernel[(i + r) as usize] = kernel_value;
-        sum += kernel_value;
-    });
-
-    // Normalize kernel
-    kernel.iter_mut().for_each(|i| {
-        *i /= sum;
-    });
-
-    let buffer_width = buffers[0].width;
-    let buffer_height = buffers[0].height;
-    let buff_len: usize = buffers.len();
-
-    // 1st pass: Horizontal Blur
-    (0..buffer_width).for_each(|x| {
-        (0..buffer_height).for_each(|y| {
-            let mut values = DnVec::zeros(buff_len);
-
-            (-r..r).for_each(|kernel_i| {
-                // Protect image bounds
-                if x as i32 - kernel_i < 0 || x as i32 - kernel_i >= buffer_width as i32 {
-                    let kernel_value = kernel[(kernel_i + r) as usize];
-
-                    (0..buff_len).for_each(|b| {
-                        values[b] += buffers[b].get(x - kernel_i as usize, y) * kernel_value;
-                    });
-                }
-            });
-
-            (0..buff_len).for_each(|i| {
-                buffers[i].put(x, y, values[i]);
-            });
-        });
-    });
-
-    // 2nd pass: Vertical Blur
-    (0..buffer_width).for_each(|x| {
-        (0..buffer_height).for_each(|y| {
-            let mut values = DnVec::zeros(buff_len);
-
-            (-r..r).for_each(|kernel_i| {
-                // Protect image bounds
-                if y as i32 - kernel_i < 0 || y as i32 - kernel_i >= buffer_height as i32 {
-                    let kernel_value = kernel[(kernel_i + r) as usize];
-                    (0..buff_len).for_each(|b| {
-                        //FIXME: unsafe unwrap
-                        values[b] += buffers[b].get(x, y - kernel_i as usize) * kernel_value;
-                    });
-                }
-            });
-
-            (0..buff_len).for_each(|i| {
-                buffers[i].put(x, y, values[i]);
-            });
-        });
-    });
-    Ok(buffers.into())
-}
-
-#[cfg(rayon)]
-/*
-Hopefully a little faster?, naive optimisations.
-There's no test for this one so, we'll see how we go..
-*/
-pub fn guassian_blur_nband(
-    buffers: &mut [ImageBuffer],
+fn calculate_gaussian_kernel_projection(
+    in_kernel: &[f32],
+    radius: i32,
     sigma: f32,
-) -> error::Result<Vec<ImageBuffer>> {
-    if buffers.is_empty() {
-        return Err("No buffers provided");
+    normalize: bool,
+) -> Vec<f32> {
+    let mut kernel = in_kernel.to_vec();
+    (0..(2 * radius - 1)).for_each(|i| {
+        kernel[i as usize] =
+            (-((radius as f32 - 1.0) - i as f32).powi(2) / (2.0 * sigma * sigma)).exp();
+    });
+
+    if normalize {
+        let sum = (0..(2 * radius - 1))
+            .map(|i| kernel[i as usize])
+            .sum::<f32>();
+        (0..(2 * radius - 1)).for_each(|i| {
+            kernel[i as usize] /= sum;
+        });
     }
-
-    let sig_squared = sigma.powi(2);
-    let radius = max!((3.0 * sigma).ceil(), 1.0) as usize;
-
-    let kernel_length = radius.powi(2) + 1;
-
-    let mut kernel = DnVec::zeros(kernel_length);
-
-    let r = radius as i32;
-
-    let sum: Dn = (-r..r)
-        .par_iter()
-        .map(|i| {
-            let exponent_numerator = -(i * i) as Dn;
-            let exponent_denominator = sig_squared.powi(2);
-
-            let e_expression =
-                (std::f32::consts::E as Dn).powf(exponent_numerator / exponent_denominator);
-
-            let kernel_value = e_expression / std::f32::consts::TAU * sig_squared;
-
-            kernel[(i + r) as usize] = kernel_value;
-
-            kernel_value
-        })
-        .sum();
-
-    // Normalize kernel
-    kernel.par_iter_mut().for_each(|i| {
-        *i /= sum;
-    });
-
-    // Setup some paralelle iterators, reusable epsilons and locks.
-    let buffer_width = buffers[0].width;
-    let buffer_height = buffers[0].height;
-    let buff_len: usize = buffers.len();
-
-    let width_iter = (0..buffer_width).into_par_iter();
-    let height_iter = (0..buffer_height).into_iter();
-
-    // Smart mutually exclusive smart pointer to allow for us to mutate the buffer across threads.
-    let m_buffers = Arc::new(Mutex::new(buffers.to_vec()));
-
-    // Without a test to run against it's hard to know if this will help, or just thrash heaps of mutex contention.
-    // in theory if the indexes into the buffer are guaranteed to be unique we shouldn't need locks at all..
-    // I will probs refactor this to an mpsc pattern to try that next.
-
-    // 1st pass: Horizontal Blur
-    width_iter.clone().for_each(|x| {
-        let m_c_buffers = m_buffers.clone(); // These are only clones of the pointer
-
-        height_iter.clone().for_each(|y| {
-            let values = (-r..r)
-                .filter(|&kernel_i| {
-                    x as i32 - kernel_i < 0 || x as i32 - kernel_i >= buffer_width as i32
-                })
-                .flat_map(|kernel_i| {
-                    let kernel_value = kernel[(kernel_i + r) as usize];
-                    (0..buff_len).map(move |b| {
-                        buffers[b].get(x - kernel_i as usize, y).unwrap() * kernel_value
-                    })
-                })
-                .fold(DnVec::zeros(buff_len), |acc, v| acc + v);
-
-            (0..buff_len).for_each(|i| {
-                let mut buffers = m_c_buffers.lock().unwrap();
-                buffers[i].put(x, y, values[i]);
-            });
-        });
-    });
-
-    // 2nd pass: Vertical Blur
-    width_iter.for_each(|x| {
-        let m_c_buffers = m_buffers.clone();
-        height_iter.clone().for_each(|y| {
-            //TODO: the logic is basically the same as the above so break out into a helper and pass in the variables.
-            let values = (-r..r)
-                .filter(|&kernel_i| {
-                    y as i32 - kernel_i < 0 || y as i32 - kernel_i >= buffer_height as i32
-                })
-                .flat_map(|kernel_i| {
-                    let kernel_value = kernel[(kernel_i + r) as usize];
-                    (0..buff_len).map(move |b| {
-                        buffers[b].get(y - kernel_i as usize, y).unwrap() * kernel_value
-                    })
-                })
-                .fold(DnVec::zeros(buff_len), |acc, v| acc + v);
-
-            (0..buff_len).for_each(|i| {
-                let mut buffers = m_c_buffers.lock().unwrap(); // Move mutable borrow outside of inner closure
-                buffers[i].put(x, y, values[i]);
-            });
-        });
-    });
-
-    Ok(buffers.into())
+    kernel
 }
 
-pub trait RgbImageBlur {
-    fn guassian_blur(&mut self, sigma: f32);
-}
+// fn calculate_half_1d_gaussian_kernel(radius: usize, sigma: f32) -> Vec<f32> {
+//     let kernel: Vec<f32> = (0..radius as i32)
+//         .map(|i: i32| (-i as f32 * i as f32 / (2.0 * sigma * sigma)).exp())
+//         .collect();
 
-impl RgbImageBlur for Image {
-    fn guassian_blur(&mut self, sigma: f32) {
-        let mut buffers = vec![];
-        (0..self.num_bands()).for_each(|b| {
-            buffers.push(self.get_band(b).to_owned());
-        });
+//     let sum = kernel.clone().into_iter().map(|v| 2.0 * v).sum::<f32>();
 
-        if let Ok(buffers) = guassian_blur_nband(&mut buffers, sigma) {
-            buffers.iter().enumerate().for_each(|(b, _)| {
-                self.set_band(&buffers[b], b);
-            });
+//     kernel.into_iter().map(|v| v / sum).collect()
+// }
+
+pub fn gaussian_blur_1d_vec(values: &[f32], sigma: f32) -> Vec<f32> {
+    let radius: i32 = (3.0 * sigma).ceil() as i32;
+    let mut kernel: Vec<f32> = (0..(2 * radius - 1)).map(|_| 0.0).collect();
+    kernel = calculate_gaussian_kernel_projection(&kernel, radius, sigma, true);
+
+    let mut result = values.to_vec();
+
+    iproduct!(0..values.len() as i32, 0..(2 * radius - 1)).for_each(|(i, j)| {
+        let mut influence_src_idx = i - (radius - 1) + j;
+
+        if influence_src_idx < 0 {
+            influence_src_idx = 0;
+        } else if influence_src_idx >= values.len() as i32 {
+            influence_src_idx = values.len() as i32 - 1;
         }
-    }
+        let influence_src = values[influence_src_idx as usize];
+        result[i as usize] += influence_src * kernel[j as usize];
+    });
+    result
+}
+
+pub fn gaussian_blur_1d(values: &ImageBuffer, sigma: f32) -> ImageBuffer {
+    ImageBuffer::from_vec(
+        &gaussian_blur_1d_vec(&values.to_vector(), sigma),
+        values.width,
+        values.height,
+    )
+    .unwrap()
+}
+
+pub fn gaussian_blur_2d(buffer: &ImageBuffer, sigma: f32) -> ImageBuffer {
+    let horiz = gaussian_blur_1d(&buffer, sigma);
+
+    let vert = gaussian_blur_1d(&buffer.swap_axis(), sigma);
+
+    horiz
+        .scale(0.5)
+        .unwrap()
+        .add(&vert.swap_axis().scale(0.5).unwrap())
+        .unwrap()
+}
+
+pub fn gaussian_blur_2d_nbands(buffers: &[ImageBuffer], sigma: f32) -> Vec<ImageBuffer> {
+    buffers
+        .into_iter()
+        .map(|b| gaussian_blur_2d(&b, sigma))
+        .collect()
 }
