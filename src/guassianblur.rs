@@ -97,7 +97,7 @@ pub fn gaussian_blur_1d(values: &ImageBuffer, sigma: f32) -> ImageBuffer {
 }
 
 pub fn gaussian_blur_2d(buffer: &ImageBuffer, sigma: f32) -> ImageBuffer {
-    let horiz = gaussian_blur_1d(&buffer, sigma);
+    let horiz = gaussian_blur_1d(buffer, sigma);
 
     let vert = gaussian_blur_1d(&buffer.swap_axis(), sigma);
 
@@ -109,8 +109,5 @@ pub fn gaussian_blur_2d(buffer: &ImageBuffer, sigma: f32) -> ImageBuffer {
 }
 
 pub fn gaussian_blur_2d_nbands(buffers: &[ImageBuffer], sigma: f32) -> Vec<ImageBuffer> {
-    buffers
-        .into_iter()
-        .map(|b| gaussian_blur_2d(&b, sigma))
-        .collect()
+    buffers.iter().map(|b| gaussian_blur_2d(b, sigma)).collect()
 }
