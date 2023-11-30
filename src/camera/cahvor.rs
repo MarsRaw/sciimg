@@ -312,7 +312,7 @@ pub fn linearize(
         v: Vector::default(),
     };
 
-    let hpts = vec![
+    let hpts = [
         Vector::default(),
         Vector::new(0.0, (cahvor_height as f64 - 1.0) / 2.0, 0.0),
         Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
@@ -326,7 +326,7 @@ pub fn linearize(
             .subtract(&Vector::new(1.0, 1.0, 0.0)),
     ];
 
-    let vpts = vec![
+    let vpts = [
         Vector::default(),
         Vector::new((cahvor_width as f64 - 1.0) / 2.0, 0.0, 0.0),
         Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
