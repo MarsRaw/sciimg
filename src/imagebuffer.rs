@@ -749,14 +749,14 @@ impl ImageBuffer {
     }
 
     pub fn levels_with_gamma(
-        &mut self,
+        &self,
         black_level: f32,
         white_level: f32,
         gamma: f32,
     ) -> ImageBuffer {
         let mut copied = self.clone();
-        copied.levels(black_level, white_level);
-        copied.gamma(gamma);
+        copied.levels_mut(black_level, white_level);
+        copied.gamma_mut(gamma);
         copied
     }
 
