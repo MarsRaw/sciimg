@@ -280,6 +280,12 @@ impl Image {
         }
     }
 
+    pub fn divide_into_each(&mut self, divisor:f32) {
+        for i in 0..self.bands.len() {
+            self.bands[i].divide_into_mut(divisor);
+        }
+    }
+
     pub fn add_to_each(&mut self, other: &ImageBuffer) {
         if self.width != other.width || self.height != other.height {
             panic!("Array size mismatch");
