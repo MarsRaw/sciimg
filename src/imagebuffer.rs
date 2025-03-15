@@ -458,7 +458,17 @@ impl ImageBuffer {
             let index = y * self.width + x;
             self.buffer[index]
         } else {
-            panic!("Invalid pixel coordinates");
+            panic!("Invalid pixel coordinates, x={}, y={}", x, y);
+        }
+    }
+
+    #[inline(always)]
+    pub fn safe_get(&self, x: usize, y: usize) -> Option<f32> {
+        if x < self.width && y < self.height {
+            let index = y * self.width + x;
+            Some(self.buffer[index])
+        } else {
+            None
         }
     }
 

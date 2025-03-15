@@ -26,6 +26,12 @@ macro_rules! check_band_in_bounds {
     };
 }
 
+impl Image {
+    pub fn buffers(&self) -> &[ImageBuffer] {
+        &self.bands
+    }
+}
+
 fn image_uses_alpha(buffer: &DynamicImage) -> bool {
     matches!(buffer.color(), La8 | Rgba8 | La16 | Rgba16 | Rgba32F)
 }

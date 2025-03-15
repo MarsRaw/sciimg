@@ -18,7 +18,7 @@ pub mod enums;
 
 #[deprecated]
 pub mod error;
-pub mod guassianblur;
+pub mod gaussianblur;
 pub mod hotpixel;
 pub mod image;
 pub mod imagebuffer;
