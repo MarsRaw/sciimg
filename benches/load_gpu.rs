@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pollster::block_on;
 use sciimg::{
-    gpu_image::{GpuContext, GpuImage},
+    gpu::{gpu_context::GpuContext, image::GpuImage},
     image::Image,
 };
 use std::time::Duration;
@@ -20,8 +20,8 @@ fn bench_gpu_processing(c: &mut Criterion) {
     // Load test image
     let test_image = setup_benchmark_data();
 
-    group.bench_function("gpu_load_and_retrieve", |b| {
-        // Initialize GPU context - this is expensive so do it outside the benchmark
+    group.bench_function("gpu_init_compute_then_retrieve", |b| {
+        // Initialize GPU context - this is EXPLICITLY here to show howlong the startup time is.
         let gpu_context = block_on(GpuContext::new());
 
         // Convert image to GPU format
@@ -66,6 +66,7 @@ fn bench_compute_operation(c: &mut Criterion) {
 
     // Setup data
     let test_image = setup_benchmark_data();
+    // Note how the GPU setup is OUTISDE the loop here :wink
     let gpu_context = block_on(GpuContext::new());
     let gpu_image = GpuImage::from_sciimg_rgb(&test_image);
 
@@ -158,33 +159,40 @@ fn bench_compute_operation(c: &mut Criterion) {
                     push_constant_ranges: &[],
                 });
 
+        // let cs = gpu_context
+        //     .device
+        //     .create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+
         // Create shader module with a simple copy operation
-        let shader_src = r#"
+        // Using the image dimensions for proper indexing
+        let width = gpu_image.width;
+        let shader_src = format!(
+            r#"
             @group(0) @binding(0) var<storage, read> input_data: array<vec3<f32>>;
             @group(1) @binding(0) var<storage, read_write> output_data: array<vec3<f32>>;
             
             @compute @workgroup_size(16, 16)
-            fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-                let index = global_id.x + global_id.y * 1024u; // Adjust width as needed
-                if (index >= arrayLength(&input_data)) {
+            fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
+                let width = {width}u;
+                let index = global_id.x + global_id.y * width;
+                if (index >= arrayLength(&input_data)) {{
                     return;
-                }
+                }}
                 
                 // Simple operation: copy with slight modification
                 output_data[index] = input_data[index] * 1.1;
-            }
-        "#;
+            }}
+        "#
+        );
 
-        let shader_module = gpu_context
+        let cs = gpu_context
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("Compute Shader"),
                 source: wgpu::ShaderSource::Wgsl(shader_src.into()),
             });
 
-        // Create compute pipeline
-        let compute_pipeline =
-            gpu_context.create_compute_pipeline(&pipeline_layout, &shader_module, "main");
+        let compute_pipeline = gpu_context.create_compute_pipeline(&pipeline_layout, &cs, "main");
 
         // Benchmark the compute operation
         b.iter(|| {

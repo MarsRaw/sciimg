@@ -21,7 +21,7 @@ pub mod enums;
 #[deprecated]
 pub mod error;
 pub mod gaussianblur;
-pub mod gpu_image;
+pub mod gpu;
 pub mod hotpixel;
 pub mod image;
 pub mod imagebuffer;
