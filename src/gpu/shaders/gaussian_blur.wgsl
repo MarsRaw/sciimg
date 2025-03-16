@@ -26,7 +26,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     if (x >= w || y >= h) { return; }
 
     // CPU logic uses radius ~ 3*sigma.
-    let rad = max(1, i32(round(3.0 * blur_params.sigma)));
+    //TODO: move this 'sigma' multiplier into the params.
+    // let rad = max(1, i32(round(3.0 * blur_params.sigma)));
+    let rad = i32(blur_params.radius);
     let sigma2 = blur_params.sigma * blur_params.sigma;
     let two_sigma2 = 2.0 * sigma2;
     // For a normalised 2D Gaussian: divisor = pi * 2 * sigma^2, i.e. TAU * sigma^2

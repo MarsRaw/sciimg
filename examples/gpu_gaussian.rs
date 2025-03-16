@@ -1,3 +1,4 @@
+use log::info;
 use sciimg::{
     enums,
     gpu::{gpu_context::GpuContext, image::GpuImage},
@@ -15,17 +16,17 @@ fn main() -> anyhow::Result<()> {
     let gpu_start = Instant::now();
     let gpu = pollster::block_on(GpuContext::new());
     let gpu_creation_time = gpu_start.elapsed();
-    println!("GPU context created in: {:?}", gpu_creation_time);
+    info!("GPU context created in: {:?}", gpu_creation_time);
 
     let load_start = Instant::now();
     let mut start_img = Image::open(&String::from(EXAMPLE_IMG)).unwrap();
     let load_time = load_start.elapsed();
-    println!("Original sciimg loaded in: {:?}", load_time);
+    info!("Original sciimg loaded in: {:?}", load_time);
 
     let conversion_start = Instant::now();
     let gpu_img = GpuImage::from_sciimg_rgb(&start_img);
     let conversion_time = conversion_start.elapsed();
-    println!("Conversion to gpuimg complete in: {:?}", conversion_time);
+    info!("Conversion to gpuimg complete in: {:?}", conversion_time);
 
     let radius = 32;
     let sigma = 2.8;
@@ -34,9 +35,9 @@ fn main() -> anyhow::Result<()> {
     let blur_start = Instant::now();
     let res = gpu.gaussian_blur(&gpu_img, width as u32, height as u32, radius, sigma);
     let blur_time = blur_start.elapsed();
-    println!("Gaussian blur completed in: {:?}", blur_time);
+    info!("Gaussian blur completed in: {:?}", blur_time);
 
-    println!("Saving the processed image...");
+    info!("Saving the processed image...");
     let save_start = Instant::now();
     let size = gpu_img.data.len();
     let mut red_buf = Vec::with_capacity(size);
@@ -47,13 +48,10 @@ fn main() -> anyhow::Result<()> {
         green_buf.push(px.y);
         blue_buf.push(px.z);
         // Ignoring alpha for now.
+        // Although note for stride reasons we always use vec4<f32> on the GPU side so
+        // alpha is ALWAYS there.
     }
-    // for px in &res.data {
-    //     red_buf.push(px.x.clamp(0.0, 1.0));
-    //     green_buf.push(px.y.clamp(0.0, 1.0));
-    //     blue_buf.push(px.z.clamp(0.0, 1.0));
-    //     // Ignoring alpha for now.
-    // }
+
     let red_band =
         ImageBuffer::from_vec_as_mode(&red_buf, width, height, enums::ImageMode::U16BIT)?;
 
@@ -69,11 +67,11 @@ fn main() -> anyhow::Result<()> {
 
     start_img.save_rgba("gaussian_gpu.png");
     let save_time = save_start.elapsed();
-    println!(
+    info!(
         "Processed image saved as 'gaussian_gpu.png' in: {:?}",
         save_time
     );
 
-    println!("Total runtime {}", gpu_start.elapsed().as_secs_f32());
+    info!("Total runtime {}", gpu_start.elapsed().as_secs_f32());
     Ok(())
 }
