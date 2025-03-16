@@ -11,7 +11,7 @@ const EXAMPLE_IMG: &str =
     "tests/testdata/ZL0_0053_0671642352_402ECM_N0032046ZCAM05025_110085J01.png";
 
 fn main() -> anyhow::Result<()> {
-    _ = pretty_env_logger::init();
+    pretty_env_logger::init();;
 
     let gpu_start = Instant::now();
     let gpu = pollster::block_on(GpuContext::new());

@@ -1,5 +1,4 @@
 //! image processing
-#![allow(unused_imports, dead_code)]
 use crate::{
     enums,
     gpu::{
@@ -9,16 +8,13 @@ use crate::{
     image::Image,
     max, min, path, Dn, DnVec, Mask, MaskVec, MaskedDnVec, MinMax, VecMath,
 };
-use log;
-
-use bytemuck::{Pod, Zeroable};
-
 use encase::{
     internal::{CreateFrom, ReadFrom, WriteInto},
     ArrayLength, ShaderSize, ShaderType, StorageBuffer,
 };
 use glam::{Vec4, Vec4Swizzles};
-use thiserror;
+use log;
+
 use wgpu::Features;
 
 #[derive(ShaderType)]
@@ -205,8 +201,8 @@ impl GpuContext {
             });
 
         // 9) Dispatch the work! ** Actually run shit on the GPU **
-        let gx = (width + 15) / 16;
-        let gy = (height + 15) / 16;
+        let gx = width.div_ceil(16);
+        let gy = height.div_ceil(16);
         compute_pass.dispatch_workgroups(gx, gy, 1);
         drop(compute_pass);
 
@@ -272,6 +268,6 @@ mod test {
             res_as_sciimg.get_band(0).buffer.len(),
         );
         let zeroes = Vec4::ZERO.to_array();
-        assert_eq!(res.data.iter().all(|v| v.to_array() != zeroes), true);
+        assert!(res.data.iter().all(|v| v.to_array() != zeroes));
     }
 }

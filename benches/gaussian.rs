@@ -61,7 +61,8 @@ fn benchmark_gaussian_blur(c: &mut Criterion) {
             |b, &sigma| {
                 b.iter(|| {
                     let mut img = setup_benchmark_data();
-                    black_box(st(&mut img, sigma))
+                    st(&mut img, sigma);
+                    black_box(())
                 })
             },
         );
@@ -74,7 +75,8 @@ fn benchmark_gaussian_blur(c: &mut Criterion) {
             group.bench_with_input(BenchmarkId::new("rayon", sigma), sigma, |b, &sigma| {
                 b.iter(|| {
                     let mut img = setup_benchmark_data();
-                    black_box(rayon(&mut img, sigma))
+                    rayon(&mut img, sigma);
+                    black_box(())
                 })
             });
         }

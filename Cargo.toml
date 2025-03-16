@@ -10,15 +10,17 @@ keywords = ["planetary", "astrophotography", "science", "imaging"]
 license = "MIT"
 
 [features]
-default = []
+default = ["full"]
 rayon = ["dep:rayon"]
 wgpu = [
     "dep:wgpu",
     "dep:glam",
     "dep:pollster",
     "dep:log",
+    "dep:encase",
     "dep:pretty_env_logger",
 ]
+full = ["wgpu", "rayon"]
 
 
 [dependencies]
