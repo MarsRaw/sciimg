@@ -1,6 +1,9 @@
 //! So this is a carbon copy of the two implementations in src/gaussian.rs
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use sciimg::image::Image;
+use sciimg::{
+    gpu::{gpu_context::GpuContext, image::GpuImage},
+    image::Image,
+};
 
 use std::time::Duration;
 
@@ -72,6 +75,23 @@ fn benchmark_gaussian_blur(c: &mut Criterion) {
                 b.iter(|| {
                     let mut img = setup_benchmark_data();
                     black_box(rayon(&mut img, sigma))
+                })
+            });
+        }
+    }
+
+    {
+        let gpu = pollster::block_on(GpuContext::new());
+        let img = Image::open(&String::from(INPAINT_TEST_IMAGE)).unwrap();
+        let img = GpuImage::from_sciimg_rgb(&img);
+
+        let radius = 4;
+
+        for sigma in sigma_values.iter() {
+            // Benchmark original implementation
+            group.bench_with_input(BenchmarkId::new("gpu", sigma), sigma, |b, &sigma| {
+                b.iter(|| {
+                    black_box(gpu.gaussian_blur(&img, radius, sigma));
                 })
             });
         }
