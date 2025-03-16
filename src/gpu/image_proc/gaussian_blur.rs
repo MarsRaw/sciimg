@@ -13,10 +13,10 @@ use crate::{
 use bytemuck::{Pod, Zeroable};
 
 use encase::{
-    internal::{ReadFrom, WriteInto},
+    internal::{CreateFrom, ReadFrom, WriteInto},
     ArrayLength, ShaderSize, ShaderType, StorageBuffer,
 };
-use glam::{Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles};
+use glam::{Vec4, Vec4Swizzles};
 use thiserror;
 use wgpu::Features;
 
@@ -27,14 +27,26 @@ struct GaussianBlurUniform {
     pub width: u32,
     pub height: u32,
 }
-
+// #[derive(ShaderType)]
+// pub struct GpuImage {
+//     length: ArrayLength,
+//     #[size(runtime)]
+//     pub data: Vec<Vec4>,
+// }
 impl GpuContext {
-    pub fn gaussian_blur(&self, img: &GpuImage<Vec3>, radius: u32, sigma: f32) -> GpuImage<Vec3> {
+    pub fn gaussian_blur(
+        &self,
+        img: &GpuImage,
+        width: u32,
+        height: u32,
+        radius: u32,
+        sigma: f32,
+    ) -> GpuImage {
         let uniform_data = GaussianBlurUniform {
             radius,
             sigma,
-            width: img.width,
-            height: img.height,
+            width,
+            height,
         };
 
         // 1) Create & fill input buffer
@@ -44,6 +56,7 @@ impl GpuContext {
             sbuf.write(img).unwrap();
         }
         let input_size = input_bytes.len() as wgpu::BufferAddress;
+
         let input_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("GaussianBlur Input"),
             size: input_size,
@@ -52,18 +65,27 @@ impl GpuContext {
         });
         self.queue.write_buffer(&input_buffer, 0, &input_bytes);
 
-        // 2) Output buffer
+        // 2a) Output buffer
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("GaussianBlur Output"),
-            size: input_size,
+            size: input_buffer.size(), // Must be the same
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+        // We don't write to this in Rust code, because the shader writes to it in the shader code.
+
+        // 2b) we make a final buffer that can be read FROM the cpu
+        let readback_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("GaussianBlur Staging"),
+            size: input_size,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         // 3) Uniform buffer
         let mut uniform_bytes = Vec::new();
         {
-            let mut ubuf = encase::StorageBuffer::new(&mut uniform_bytes);
+            let mut ubuf = encase::UniformBuffer::new(&mut uniform_bytes);
             ubuf.write(&uniform_data).unwrap();
         }
         let uniform_size = uniform_bytes.len() as wgpu::BufferAddress;
@@ -76,10 +98,11 @@ impl GpuContext {
         self.queue.write_buffer(&uniform_buffer, 0, &uniform_bytes);
 
         // 4) Bind group layouts
+        // @group(0)
         let layout0 = self
             .device
             .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("GaussianBlur layout0"),
+                label: Some("GaussianBlur Inputs & Uniforms"),
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
@@ -92,7 +115,7 @@ impl GpuContext {
                         count: None,
                     },
                     wgpu::BindGroupLayoutEntry {
-                        binding: 100,
+                        binding: 1,
                         visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: true },
@@ -103,12 +126,14 @@ impl GpuContext {
                     },
                 ],
             });
+
+        // @group(1)
         let layout1 = self
             .device
             .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("GaussianBlur layout1"),
+                label: Some("GaussianBlur ReadBack"),
                 entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 100,
+                    binding: 0,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: false },
@@ -129,7 +154,7 @@ impl GpuContext {
                     resource: uniform_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 100,
+                    binding: 1,
                     resource: input_buffer.as_entire_binding(),
                 },
             ],
@@ -138,7 +163,7 @@ impl GpuContext {
             label: Some("GaussianBlur bind_group1"),
             layout: &layout1,
             entries: &[wgpu::BindGroupEntry {
-                binding: 100,
+                binding: 0,
                 resource: output_buffer.as_entire_binding(),
             }],
         });
@@ -156,40 +181,64 @@ impl GpuContext {
             .create_shader_module(wgpu::include_wgsl!("../shaders/gaussian_blur.wgsl"));
         let pipeline = self.create_compute_pipeline(&pipeline_layout, &cs_module, "main");
 
-        // 7) Dispatch job.
-        let gx = (img.width + 15) / 16;
-        let gy = (img.height + 15) / 16;
-        self.run_compute_job(&pipeline, &[&bind_group0, &bind_group1], gx, gy, 1);
+        // 7) Bind things TO that Pipeline
+        let bind_groups: &[&wgpu::BindGroup] = &[&bind_group0, &bind_group1];
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Sciimg Compute Encoder"),
+            });
 
-        // 8) Readback DtoH results
-        let staging_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("GaussianBlur Staging"),
-            size: input_size,
-            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
+        // 8) Build a compute pass for the Pipeline, bind the binds to it.
+        let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some("Sciimg Compute Pass"),
+            timestamp_writes: None,
         });
-        {
-            let mut encoder = self
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-            encoder.copy_buffer_to_buffer(&output_buffer, 0, &staging_buffer, 0, input_size);
-            self.queue.submit([encoder.finish()]);
-        }
-        self.device.poll(wgpu::PollType::Wait).unwrap();
+        compute_pass.set_pipeline(&pipeline);
+        // @group(0..n) binding(0..n) are set for the ComputePass
+        bind_groups
+            .iter()
+            .enumerate()
+            .for_each(|(idx, bind_group)| {
+                compute_pass.set_bind_group(idx as u32, *bind_group, &[]);
+            });
 
-        // Map (DtoH) results
-        let buffer_slice = staging_buffer.slice(..);
+        // 9) Dispatch the work! ** Actually run shit on the GPU **
+        let gx = (width + 15) / 16;
+        let gy = (height + 15) / 16;
+        compute_pass.dispatch_workgroups(gx, gy, 1);
+        drop(compute_pass);
+
+        // 10) enque a copy Device -> Host & submit it.
+        encoder.copy_buffer_to_buffer(&output_buffer, 0, &readback_buffer, 0, output_buffer.size());
+        let submit = encoder.finish();
+        self.queue.submit([submit]);
+
+        // 11) Read stuff back n wait...
+        let buffer_slice = readback_buffer.slice(..);
         buffer_slice.map_async(wgpu::MapMode::Read, |_| ());
         self.device.poll(wgpu::PollType::Wait).unwrap();
+
+        // 12) Map (DtoH) results
         let mapped_range = buffer_slice.get_mapped_range();
         let mut final_bytes = mapped_range.to_vec();
         drop(mapped_range);
-        staging_buffer.unmap();
+        readback_buffer.unmap();
+        assert!(
+            !final_bytes.is_empty(),
+            "Failed to copy any data back from the Shader's output..."
+        );
 
-        // Decode
+        // 13) Decode
         let sbuf = encase::StorageBuffer::new(&mut final_bytes);
-        let mut new_image = GpuImage::empty();
-        sbuf.read(&mut new_image).unwrap();
+        let mut new_image: GpuImage = GpuImage::empty();
+        match sbuf.read(&mut new_image) {
+            Ok(_) => {
+                assert!(!new_image.data.is_empty());
+                println!("Successfully read data: {} elements", new_image.data.len())
+            }
+            Err(e) => panic!("Failed to deserialize buffer: {:?}", e),
+        };
 
         new_image
     }
@@ -203,15 +252,22 @@ mod test {
 
     #[test]
     fn gpu_gaussian_blur() {
+        _ = pretty_env_logger::init();
         let gpu = pollster::block_on(GpuContext::new());
-        let img = Image::open(&String::from(INPAINT_TEST_IMAGE)).unwrap();
-        let img = GpuImage::from_sciimg_rgb(&img);
+        let start_img = Image::open(&String::from(INPAINT_TEST_IMAGE)).unwrap();
+        let gpu_img = GpuImage::from_sciimg_rgb(&start_img);
 
         let radius = 2;
         let sigma = 2.8;
+        let (width, height) = (start_img.width, start_img.height);
 
-        let res = gpu.gaussian_blur(&img, radius, sigma);
+        let res = gpu.gaussian_blur(&gpu_img, width as u32, height as u32, radius, sigma);
+        assert_eq!(start_img.get_band(0).buffer.len(), res.data.len(),);
+        let res_as_sciimg = res.to_sciimg_rgb(width, height).unwrap();
 
-        let res_as_sciimg = res.to_sciimg_rgb().unwrap();
+        assert_eq!(
+            start_img.get_band(0).buffer.len(),
+            res_as_sciimg.get_band(0).buffer.len(),
+        )
     }
 }

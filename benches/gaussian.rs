@@ -83,6 +83,7 @@ fn benchmark_gaussian_blur(c: &mut Criterion) {
     {
         let gpu = pollster::block_on(GpuContext::new());
         let img = Image::open(&String::from(INPAINT_TEST_IMAGE)).unwrap();
+        let (width, height) = (img.width, img.height);
         let img = GpuImage::from_sciimg_rgb(&img);
 
         let radius = 4;
@@ -91,7 +92,7 @@ fn benchmark_gaussian_blur(c: &mut Criterion) {
             // Benchmark original implementation
             group.bench_with_input(BenchmarkId::new("gpu", sigma), sigma, |b, &sigma| {
                 b.iter(|| {
-                    black_box(gpu.gaussian_blur(&img, radius, sigma));
+                    black_box(gpu.gaussian_blur(&img, width as u32, height as u32, radius, sigma));
                 })
             });
         }
