@@ -80,6 +80,7 @@ fn benchmark_gaussian_blur(c: &mut Criterion) {
         }
     }
 
+    #[cfg(feature = "wgpu")]
     {
         let gpu = pollster::block_on(GpuContext::new());
         let img = Image::open(&String::from(INPAINT_TEST_IMAGE)).unwrap();

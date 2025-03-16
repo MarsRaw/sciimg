@@ -44,3 +44,5 @@ CPU: Intel i7-4960HQ (8) @ 2.60GHz
 GPU: Intel Iris Pro, NVIDIA GeForce GT 750M
 Memory: 10927MiB / 16384MiB
 ```
+
+> Note the reason we provide an example like this with such verbose timing information is that it's not always worthwhile to use GPU acceleration, we provide benchmarks in the `./benches/gaussian.rs` so you can reference them and be armed with the best tools to get your work done as efficiently as possible.

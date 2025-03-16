@@ -10,6 +10,9 @@ macro_rules! not_implemented {
     }};
 }
 
+#[cfg(feature = "wgpu")]
+pub mod gpu;
+
 pub mod binfilereader;
 pub mod blur;
 pub mod camera;
@@ -21,7 +24,7 @@ pub mod enums;
 #[deprecated]
 pub mod error;
 pub mod gaussianblur;
-pub mod gpu;
+
 pub mod hotpixel;
 pub mod image;
 pub mod imagebuffer;
