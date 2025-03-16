@@ -41,7 +41,10 @@ fn bench_gpu_processing(c: &mut Criterion) {
             let result = black_box(gpu_context.retrieve_storage_data(&buffer, buffer_size));
 
             // Verify dimensions to ensure the test is valid
-            assert_eq!(result.dimensions(), gpu_image.dimensions());
+            assert_eq!(
+                (gpu_image.width, gpu_image.height),
+                (result.width as u32, result.height as u32)
+            );
         });
     });
 
@@ -50,7 +53,7 @@ fn bench_gpu_processing(c: &mut Criterion) {
         b.iter(|| {
             let gpu_image = black_box(GpuImage::from_sciimg_rgb(&test_image));
             assert_eq!(
-                gpu_image.dimensions(),
+                (gpu_image.width, gpu_image.height),
                 (test_image.width as u32, test_image.height as u32)
             );
         });
@@ -210,7 +213,10 @@ fn bench_compute_operation(c: &mut Criterion) {
                 // Set to true to verify during development
                 let result =
                     black_box(gpu_context.retrieve_storage_data(&output_buffer, input_size));
-                // assert_eq!(result.dimensions(), gpu_image.dimensions());
+                assert_eq!(
+                    (gpu_image.width, gpu_image.height),
+                    (result.width as u32, result.height as u32)
+                );
             }
         });
     });
