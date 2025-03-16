@@ -42,10 +42,10 @@ flume = "0.11.1"
 [dev-dependencies]
 criterion = "0.5.1"
 
-# [[bench]]
-# name = "gaussian"
-# harness = false
-
 [[bench]]
-name = "load_gpu"
+name = "gaussian"
 harness = false
+
+# [[bench]]
+# name = "load_gpu"
+# harness = false
