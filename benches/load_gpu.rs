@@ -29,7 +29,7 @@ fn bench_gpu_processing(c: &mut Criterion) {
 
         b.iter(|| {
             // Create and use storage buffer directly
-            let (buffer, buffer_size) = gpu_context.create_storage_buffer(
+            let (buffer, buffer_size) = gpu_context.store_img(
                 &gpu_image,
                 Some("Benchmark Input Buffer"),
                 wgpu::BufferUsages::STORAGE
@@ -76,7 +76,7 @@ fn bench_compute_operation(c: &mut Criterion) {
     // Test specific compute operation
     group.bench_function("simple_compute_job", |b| {
         // Create input storage buffer
-        let (input_buffer, input_size) = gpu_context.create_storage_buffer(
+        let (input_buffer, input_size) = gpu_context.store_img(
             &gpu_image,
             Some("Compute Input Buffer"),
             wgpu::BufferUsages::STORAGE

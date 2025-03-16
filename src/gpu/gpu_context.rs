@@ -218,7 +218,7 @@ impl GpuContext {
         result
     }
 
-    pub fn create_storage_buffer<T: ShaderType + WriteInto>(
+    pub fn store_img<T: ShaderType + WriteInto>(
         &self,
         data: &T,
         label: Option<&str>,
