@@ -252,7 +252,7 @@ mod test {
 
     #[test]
     fn gpu_gaussian_blur() {
-        _ = pretty_env_logger::init();
+        // _ = pretty_env_logger::init();
         let gpu = pollster::block_on(GpuContext::new());
         let start_img = Image::open(&String::from(INPAINT_TEST_IMAGE)).unwrap();
         let gpu_img = GpuImage::from_sciimg_rgb(&start_img);

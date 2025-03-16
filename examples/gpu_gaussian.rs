@@ -1,10 +1,22 @@
-use sciimg::{gpu::image::GpuImage, image::Image};
+use sciimg::{
+    gpu::{gpu_context::GpuContext, image::GpuImage},
+    image::Image,
+};
 
-const INPAINT_TEST_IMAGE: &str = "tests/testdata/MSL_MAHLI_INPAINT_Sol2904_V1.png";
+const EXAMPLE_IMG: &str = "tests/testdata/MSL_MAHLI_INPAINT_Sol2904_V1.png";
 
 fn main() {
-    let gpu = pollster::block_on(sciimg::gpu::gpu_context::GpuContext::new());
-    let img = Image::open(&String::from(INPAINT_TEST_IMAGE)).unwrap();
+    _ = pretty_env_logger::init();
+    let gpu = pollster::block_on(GpuContext::new());
+    let start_img = Image::open(&String::from(EXAMPLE_IMG)).unwrap();
+    let gpu_img = GpuImage::from_sciimg_rgb(&start_img);
 
-    // res_as_sciimg.save_rgb("gaussian_gpu.png");
+    let radius = 2;
+    let sigma = 2.8;
+    let (width, height) = (start_img.width, start_img.height);
+
+    let res = gpu.gaussian_blur(&gpu_img, width as u32, height as u32, radius, sigma);
+
+    let res_as_sciimg = res.to_sciimg_rgb(width, height).unwrap();
+    res_as_sciimg.save_rgb("gaussian_gpu.png");
 }
