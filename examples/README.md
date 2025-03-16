@@ -1,13 +1,25 @@
-# GPU Gaussian Blur Example
+# Examples
+
+To see them all:
+`cargo run --example`
+
+## Table of Contents
+
+1. [Examples](#examples)
+   - [GPU Gaussian Blur Example](#gpu-gaussian-blur-example)
+   - [Hotpixel detection & Correction] TODO
+
+## GPU Gaussian Blur Example
+
+| Before                                                                                                                                    | After                                                                                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| ![before](https://github.com/MarsRaw/sciimg/blob/main/tests/testdata/ZL0_0053_0671642352_402ECM_N0032046ZCAM05025_110085J01.png?raw=true) | ![after](https://github.com/alphastrata/sciimg/blob/play/assets/gaussian_gpu.png?raw=true) |
 
 This crate contains multiple Gaussian blur options, a single threaded, a rayon multithreaded and a GPU accelerated version.
 
-![before]("/Users/smak/Documents/sciimg/tests/testdata/ZL0_0053_0671642352_402ECM_N0032046ZCAM05025_110085J01.png")
-![after]("../assets/gaussian_gpu.png)
+This example demonstrates performing a Gaussian blur on an image using our `GpuImage` type, which can be constructed from our `sciimg::Image` type.
 
-This example demonstrates performing a Gaussian blur on an image using GPU acceleration with the `sciimg` crate. It provides a benchmark of the GPU processing time.
-
-## Running the Example
+### Running the Example
 
 This example requires a working Rust installation and the `sciimg` crate. You can run it with the following command:
 
