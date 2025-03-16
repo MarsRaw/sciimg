@@ -6,6 +6,7 @@ use crate::{
 
 use bytemuck::{Pod, Zeroable};
 
+use dimensions::ImgDimensions;
 use encase::{
     internal::{ReadFrom, WriteInto},
     ArrayLength, ShaderSize, ShaderType, StorageBuffer,
@@ -16,6 +17,22 @@ use wgpu::Features;
 pub type RGB = Vec3;
 pub type RGBA = Vec4;
 
+#[derive(ShaderType)]
+pub struct ImageUniform {
+    pub width: u32,
+    pub height: u32,
+    // pub alpha: bool,
+}
+impl ImageUniform {
+    pub fn from_img<C>(img: &GpuImage<C>) -> Self
+    where
+        C: ShaderSize + WriteInto + ReadFrom,
+    {
+        let (width, height) = (img.width, img.height);
+
+        Self { width, height }
+    }
+}
 // A simple image raster buffer.
 #[derive(ShaderType)]
 pub struct GpuImage<C: ShaderSize + WriteInto + ReadFrom> {
@@ -44,9 +61,6 @@ impl<C: ShaderSize + WriteInto + ReadFrom> GpuImage<C> {
         let mut buffer = encase::UniformBuffer::new(Vec::new());
         buffer.write(self)?;
         Ok(buffer.into_inner())
-    }
-    pub fn dimensions(&self) -> (u32, u32) {
-        (self.width, self.height)
     }
 }
 
@@ -123,5 +137,17 @@ impl Empty for GpuImage<Vec4> {
             length: ArrayLength,
             data: Vec::new(),
         }
+    }
+}
+
+pub mod dimensions {
+    use glam::{Vec3, Vec4};
+
+    use super::GpuImage;
+
+    pub trait ImgDimensions {
+        fn dimensions(&self) -> (u32, u32);
+        fn width(&self) -> u32;
+        fn height(&self) -> u32;
     }
 }

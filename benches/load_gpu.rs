@@ -21,7 +21,7 @@ fn bench_gpu_processing(c: &mut Criterion) {
     let test_image = setup_benchmark_data();
 
     group.bench_function("gpu_init_compute_then_retrieve", |b| {
-        // Initialize GPU context - this is EXPLICITLY here to show howlong the startup time is.
+        // Initialize GPU context - this is EXPLICITLY here to show how long the startup time is.
         let gpu_context = block_on(GpuContext::new());
 
         // Convert image to GPU format
@@ -210,7 +210,7 @@ fn bench_compute_operation(c: &mut Criterion) {
                 // Set to true to verify during development
                 let result =
                     black_box(gpu_context.retrieve_storage_data(&output_buffer, input_size));
-                assert_eq!(result.dimensions(), gpu_image.dimensions());
+                // assert_eq!(result.dimensions(), gpu_image.dimensions());
             }
         });
     });

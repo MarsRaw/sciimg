@@ -12,9 +12,9 @@ use encase::{
 };
 use glam::{Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles};
 use thiserror;
-use wgpu::Features;
+use wgpu::{BufferUsages, Features};
 
-use super::image::{Empty, GpuImage};
+use super::image::{dimensions::ImgDimensions, Empty, GpuImage, ImageUniform};
 /// A `gpu` wrapper, holding all the wgpu goodies we need to get stuff done
 // NOTE: You should implement things ON this.
 pub struct GpuContext {
@@ -160,9 +160,7 @@ impl GpuContext {
 
         self.device.poll(wgpu::PollType::Wait).unwrap();
     }
-}
 
-impl GpuContext {
     pub fn retrieve_storage_data(
         &self,
         output_buffer: &wgpu::Buffer,
@@ -209,10 +207,7 @@ impl GpuContext {
 
         result
     }
-}
 
-// Add this implementation to your GpuContext struct
-impl GpuContext {
     pub fn create_storage_buffer<T: ShaderType + WriteInto>(
         &self,
         data: &T,
@@ -237,5 +232,27 @@ impl GpuContext {
 
         // Return the buffer and its size
         (gpu_buffer, byte_buffer.len() as u64)
+    }
+}
+
+impl GpuContext {
+    pub fn add_image_info_to_uniform<C>(&self, img: &GpuImage<C>) -> (wgpu::Buffer, u64)
+    where
+        C: ShaderSize + WriteInto + ReadFrom,
+    {
+        let uniform = ImageUniform::from_img(&img);
+        let mut buffer = encase::UniformBuffer::new(Vec::new());
+        buffer.write(&uniform).unwrap();
+        let usage = BufferUsages::UNIFORM | BufferUsages::COPY_DST;
+        let byte_buffer = buffer.into_inner();
+        let gpu_uniform_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Image Uniform Buffer"),
+            size: byte_buffer.len() as u64,
+            usage,
+            mapped_at_creation: false,
+        });
+        self.queue
+            .write_buffer(&gpu_uniform_buffer, 0, &byte_buffer);
+        (gpu_uniform_buffer, byte_buffer.len() as u64)
     }
 }
