@@ -71,26 +71,28 @@ impl GpuImage {
         }
     }
 
-    pub fn to_sciimg_rgb(&self, width: usize, height: usize) -> anyhow::Result<Image> {
+    pub fn to_sciimg(&self, width: usize, height: usize) -> anyhow::Result<Image> {
         let size = self.data.len();
 
         // Split Vec3 channels
         let mut red_buf = Vec::with_capacity(size);
         let mut green_buf = Vec::with_capacity(size);
         let mut blue_buf = Vec::with_capacity(size);
+        // for px in &self.data {
+        //     red_buf.push(px.x);
+        //     green_buf.push(px.y);
+        //     blue_buf.push(px.z);
+        //     // Ignoring alpha for now.
+        // }
         for px in &self.data {
-            red_buf.push(px.x);
-            green_buf.push(px.y);
-            blue_buf.push(px.z);
+            red_buf.push(px.x.clamp(0.0, 1.0));
+            green_buf.push(px.y.clamp(0.0, 1.0));
+            blue_buf.push(px.z.clamp(0.0, 1.0));
             // Ignoring alpha for now.
         }
 
-        let red_band = ImageBuffer::from_vec_as_mode(
-            &red_buf,
-            width,
-            height,
-            enums::ImageMode::U16BIT, // or U8BIT, etc
-        )?;
+        let red_band =
+            ImageBuffer::from_vec_as_mode(&red_buf, width, height, enums::ImageMode::U16BIT)?;
 
         let green_band =
             ImageBuffer::from_vec_as_mode(&green_buf, width, height, enums::ImageMode::U16BIT)?;

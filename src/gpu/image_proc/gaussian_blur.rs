@@ -250,6 +250,7 @@ mod test {
     use super::*;
     const INPAINT_TEST_IMAGE: &str =
         "tests/testdata/ZL0_0038_0670307360_057ECM_N0031392ZCAM08007_1100LUJ.png";
+    use glam::Vec4Swizzles;
 
     #[test]
     fn gpu_gaussian_blur() {
@@ -264,11 +265,13 @@ mod test {
 
         let res = gpu.gaussian_blur(&gpu_img, width as u32, height as u32, radius, sigma);
         assert_eq!(start_img.get_band(0).buffer.len(), res.data.len(),);
-        let res_as_sciimg = res.to_sciimg_rgb(width, height).unwrap();
+        let res_as_sciimg = res.to_sciimg(width, height).unwrap();
 
         assert_eq!(
             start_img.get_band(0).buffer.len(),
             res_as_sciimg.get_band(0).buffer.len(),
-        )
+        );
+        let zeroes = Vec4::ZERO.to_array();
+        assert_eq!(res.data.iter().all(|v| v.to_array() != zeroes), true);
     }
 }

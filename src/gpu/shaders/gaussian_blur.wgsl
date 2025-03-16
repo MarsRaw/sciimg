@@ -17,35 +17,38 @@ struct GpuImg{
 @compute @workgroup_size(16, 16)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     output_data.length = input_data.length;
-    let x = gid.x;
-    let y = gid.y;
-    if (x >= blur_params.width || y >= blur_params.height) {
-        return;
-    }
-    let idx = y * blur_params.width + x;
 
-    let rad = i32(blur_params.radius);
+    let x = i32(gid.x);
+    let y = i32(gid.y);
+    let w = i32(blur_params.width);
+    let h = i32(blur_params.height);
+
+    if (x >= w || y >= h) { return; }
+
+    // CPU logic uses radius ~ 3*sigma.
+    let rad = max(1, i32(round(3.0 * blur_params.sigma)));
     let sigma2 = blur_params.sigma * blur_params.sigma;
     let two_sigma2 = 2.0 * sigma2;
-    let denom = 3.1415926535 * two_sigma2;
+    // For a normalised 2D Gaussian: divisor = pi * 2 * sigma^2, i.e. TAU * sigma^2
+    let denom = 6.283185307 * sigma2; // ~ std::f32::consts::TAU * sigma^2
 
     var sum_weights = 0.0;
     var accum = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
     for (var dy = -rad; dy <= rad; dy = dy + 1) {
         for (var dx = -rad; dx <= rad; dx = dx + 1) {
-            let sx = clamp(i32(x) + dx, 0, i32(blur_params.width) - 1);
-            let sy = clamp(i32(y) + dy, 0, i32(blur_params.height) - 1);
-            let dist_x = f32(dx);
-            let dist_y = f32(dy);
-            let dist2 = (dist_x * dist_x) + (dist_y * dist_y);
-            let w = exp(-dist2 / two_sigma2) / denom;
-            let sample_idx = (sy * i32(blur_params.width) + sx);
-            let sample_color = input_data.data[sample_idx];
-            accum = accum + (sample_color * w);
-            sum_weights = sum_weights + w;
+            let sx = clamp(x + dx, 0, w - 1);
+            let sy = clamp(y + dy, 0, h - 1);
+            let sample_idx = u32(sy) * blur_params.width + u32(sx);
+
+            let dist2 = f32(dx * dx + dy * dy);
+            let w_gauss = exp(-dist2 / two_sigma2) / denom;
+
+            accum += input_data.data[sample_idx] * w_gauss;
+            sum_weights += w_gauss;
         }
     }
 
-    output_data.data[idx] = accum / sum_weights;
+    // Normalise
+    output_data.data[u32(y) * blur_params.width + u32(x)] = accum / sum_weights;
 }
