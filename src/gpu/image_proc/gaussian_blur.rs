@@ -9,6 +9,7 @@ use crate::{
     image::Image,
     max, min, path, Dn, DnVec, Mask, MaskVec, MaskedDnVec, MinMax, VecMath,
 };
+use log;
 
 use bytemuck::{Pod, Zeroable};
 
@@ -235,7 +236,7 @@ impl GpuContext {
         match sbuf.read(&mut new_image) {
             Ok(_) => {
                 assert!(!new_image.data.is_empty());
-                println!("Successfully read data: {} elements", new_image.data.len())
+                log::trace!("Successfully read data: {} elements", new_image.data.len())
             }
             Err(e) => panic!("Failed to deserialize buffer: {:?}", e),
         };

@@ -30,17 +30,17 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let denom = 3.1415926535 * two_sigma2;
 
     var sum_weights = 0.0;
-    var accum = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    var accum = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
     for (var dy = -rad; dy <= rad; dy = dy + 1) {
         for (var dx = -rad; dx <= rad; dx = dx + 1) {
-            let sample_x = clamp(x + u32(max(dx, 0)), 0u, blur_params.width - 1u);
-            let sample_y = clamp(y + u32(max(dy, 0)), 0u, blur_params.height - 1u);
+            let sx = clamp(i32(x) + dx, 0, i32(blur_params.width) - 1);
+            let sy = clamp(i32(y) + dy, 0, i32(blur_params.height) - 1);
             let dist_x = f32(dx);
             let dist_y = f32(dy);
             let dist2 = (dist_x * dist_x) + (dist_y * dist_y);
             let w = exp(-dist2 / two_sigma2) / denom;
-            let sample_idx = sample_y * blur_params.width + sample_x;
+            let sample_idx = (sy * i32(blur_params.width) + sx);
             let sample_color = input_data.data[sample_idx];
             accum = accum + (sample_color * w);
             sum_weights = sum_weights + w;
