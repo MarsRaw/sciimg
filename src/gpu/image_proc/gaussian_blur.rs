@@ -14,7 +14,6 @@ use encase::{
 };
 use glam::{Vec4, Vec4Swizzles};
 use log;
-
 use wgpu::Features;
 
 #[derive(ShaderType)]

@@ -1,4 +1,5 @@
 //! The GPU version of a `sciimg::Image`
+use super::image::{dimensions::ImgDimensions, Empty, GpuImage, ImageUniform};
 use crate::{
     enums, image::Image, max, min, path, Dn, DnVec, Mask, MaskVec, MaskedDnVec, MinMax, VecMath,
 };
@@ -9,7 +10,6 @@ use encase::{
 use glam::{Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles};
 use wgpu::{BufferUsages, Features};
 
-use super::image::{dimensions::ImgDimensions, Empty, GpuImage, ImageUniform};
 /// A `gpu` wrapper, holding all the wgpu goodies we need to get stuff done
 // NOTE: You should implement things ON this.
 pub struct GpuContext {

@@ -1,18 +1,7 @@
 //! The GPU version of a `sciimg::Image`
-
-use crate::{
-    enums, image::Image, max, min, path, prelude::ImageBuffer, Dn, DnVec, Mask, MaskVec,
-    MaskedDnVec, MinMax, VecMath,
-};
-
-use dimensions::ImgDimensions;
-use encase::{
-    internal::{ReadFrom, WriteInto},
-    ArrayLength, ShaderSize, ShaderType, StorageBuffer,
-};
-use glam::{Vec3, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles};
-
-use wgpu::Features;
+use crate::{enums, image::Image, prelude::ImageBuffer};
+use encase::{ArrayLength, ShaderType};
+use glam::Vec4;
 
 #[derive(ShaderType)]
 pub struct ImageUniform {
