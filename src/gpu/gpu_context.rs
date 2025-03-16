@@ -58,23 +58,24 @@ impl GpuContext {
         }
     }
 
-    pub fn load_image_as_storage<C: ShaderSize + WriteInto + ReadFrom>(
+    /// Host to Device.
+    pub fn htod<C: ShaderSize + WriteInto + ReadFrom>(
         &self,
-        image: &GpuImage<C>,
+        img: &GpuImage<C>,
     ) -> (wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
-        let buffer_size = (std::mem::size_of::<C>() * image.data.len()) as wgpu::BufferAddress;
+        let buffer_size = (std::mem::size_of::<C>() * img.data.len()) as wgpu::BufferAddress;
         let buffer_desc = wgpu::BufferDescriptor {
-            label: Some("GpuImage Storage Buffer"),
+            label: Some("GpuImage"),
             size: buffer_size,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         };
-        let buffer = self.device.create_buffer(&buffer_desc);
+
+        let storage = self.device.create_buffer(&buffer_desc);
         self.queue.write_buffer(
-            &buffer,
+            &storage,
             0,
-            &image
-                .as_wgsl_bytes()
+            &img.as_wgsl_bytes()
                 .expect("Unable to write your GpuImage to GPU buffer."),
         );
 
@@ -82,7 +83,8 @@ impl GpuContext {
             self.device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
+                        // Storate is (for **THIS** repo by convention up around 100)
+                        binding: 100,
                         visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: true },
@@ -94,16 +96,24 @@ impl GpuContext {
                     label: Some("SciImg Storage Bind Group Layout"),
                 });
 
+        let (uniform, _uniform_size) = self.add_image_info_to_uniform(&img);
+
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: uniform.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 100,
+                    resource: storage.as_entire_binding(),
+                },
+            ],
             label: Some("SciImg Storage Bind Group"),
         });
 
-        (buffer, bind_group_layout, bind_group)
+        (storage, bind_group_layout, bind_group)
     }
 
     pub fn create_compute_pipeline(
@@ -233,9 +243,7 @@ impl GpuContext {
         // Return the buffer and its size
         (gpu_buffer, byte_buffer.len() as u64)
     }
-}
 
-impl GpuContext {
     pub fn add_image_info_to_uniform<C>(&self, img: &GpuImage<C>) -> (wgpu::Buffer, u64)
     where
         C: ShaderSize + WriteInto + ReadFrom,
@@ -251,6 +259,7 @@ impl GpuContext {
             usage,
             mapped_at_creation: false,
         });
+
         self.queue
             .write_buffer(&gpu_uniform_buffer, 0, &byte_buffer);
         (gpu_uniform_buffer, byte_buffer.len() as u64)
