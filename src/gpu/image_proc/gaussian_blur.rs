@@ -198,7 +198,8 @@ impl GpuContext {
 #[cfg(test)]
 mod test {
     use super::*;
-    const INPAINT_TEST_IMAGE: &str = "tests/testdata/MSL_MAHLI_INPAINT_Sol2904_V1.png";
+    const INPAINT_TEST_IMAGE: &str =
+        "tests/testdata/ZL0_0038_0670307360_057ECM_N0031392ZCAM08007_1100LUJ.png";
 
     #[test]
     fn gpu_gaussian_blur() {
@@ -209,6 +210,8 @@ mod test {
         let radius = 2;
         let sigma = 2.8;
 
-        gpu.gaussian_blur(&img, radius, sigma);
+        let res = gpu.gaussian_blur(&img, radius, sigma);
+
+        let res_as_sciimg = res.to_sciimg_rgb().unwrap();
     }
 }

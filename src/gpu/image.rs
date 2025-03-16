@@ -69,6 +69,10 @@ impl GpuImage<Vec3> {
     pub fn from_sciimg_rgb(img: &Image) -> Self {
         let size = img.width * img.height;
         let mut data = Vec::with_capacity(size);
+
+        assert!(img.num_bands() == 3);
+        assert!(img.buffers().iter().all(|b| b.buffer.len() == size));
+
         for i in 0..size {
             data.push(Vec3::new(
                 img.get_band(0).buffer[i],
@@ -76,6 +80,12 @@ impl GpuImage<Vec3> {
                 img.get_band(2).buffer[i],
             ));
         }
+        println!(
+            "width:{} * height:{} = {}",
+            img.width,
+            img.height,
+            img.width * img.height
+        );
 
         Self {
             width: img.width as u32,
@@ -85,8 +95,12 @@ impl GpuImage<Vec3> {
         }
     }
 
-    pub fn to_sciimg_rgb(&self) -> Result<Image> {
+    pub fn to_sciimg_rgb(&self) -> anyhow::Result<Image> {
         let size = (self.width * self.height) as usize;
+        let (width, height) = (self.width as usize, self.height as usize);
+
+        eprintln!("size: {}", size);
+        eprintln!("width:{} height:{}", width, height);
 
         // Split Vec3 channels
         let mut red_buf = Vec::with_capacity(size);
@@ -98,38 +112,25 @@ impl GpuImage<Vec3> {
             blue_buf.push(px.z);
         }
 
+        dbg!("red");
         let red_band = ImageBuffer::from_vec_as_mode(
-            &DnVec(red_buf),
-            self.width as usize,
-            self.height as usize,
+            &red_buf,
+            width,
+            height,
             enums::ImageMode::U16BIT, // or U8BIT, etc
         )?;
+        dbg!("green");
+        let green_band =
+            ImageBuffer::from_vec_as_mode(&green_buf, width, height, enums::ImageMode::U16BIT)?;
 
-        let green_band = ImageBuffer::from_vec_as_mode(
-            &DnVec(green_buf),
-            self.width as usize,
-            self.height as usize,
-            enums::ImageMode::U16BIT,
-        )?;
+        dbg!("blue");
+        let blue_band =
+            ImageBuffer::from_vec_as_mode(&blue_buf, width, height, enums::ImageMode::U16BIT)?;
 
-        let blue_band = ImageBuffer::from_vec_as_mode(
-            &DnVec(blue_buf),
-            self.width as usize,
-            self.height as usize,
-            enums::ImageMode::U16BIT,
-        )?;
-
-        Ok(Image {
-            bands: vec![red_band, green_band, blue_band],
-            alpha: MaskVec::new(size, false),
-            uses_alpha: false,
-            width: self.width as usize,
-            height: self.height as usize,
-            mode: enums::ImageMode::U16BIT,
-            empty: false,
-        })
+        Image::new_from_buffers_rgb(&red_band, &green_band, &blue_band, enums::ImageMode::U16BIT)
     }
 }
+
 impl GpuImage<Vec4> {
     pub fn from_sciimg_with_alpha(img: &Image) -> Self {
         let size = img.width * img.height;

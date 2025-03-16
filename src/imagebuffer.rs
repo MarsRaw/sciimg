@@ -118,7 +118,11 @@ impl ImageBuffer {
         mode: enums::ImageMode,
     ) -> Result<ImageBuffer> {
         if v.len() != (width * height) {
-            panic!("Dimensions to not match vector length");
+            panic!(
+                "Dimensions to not match vector length, expected:{}, found:{}",
+                width * height,
+                v.len()
+            );
         }
 
         Ok(ImageBuffer {
