@@ -1,12 +1,7 @@
 // https://www.researchgate.net/publication/238183352_An_Image_Inpainting_Technique_Based_on_the_Fast_Marching_Method
 
 use crate::{enums, image::Image, imagebuffer::ImageBuffer, stats};
-use anyhow::anyhow;
-use anyhow::Result;
-use itertools::iproduct;
-
-#[cfg(rayon)]
-use rayon::prelude::*;
+use anyhow::{anyhow, Result};
 
 #[derive(Debug, Clone)]
 pub struct Point {
@@ -80,21 +75,8 @@ fn get_num_good_neighbors(mask: &ImageBuffer, x: i32, y: i32) -> u32 {
     s
 }
 
-#[cfg(rayon)]
 pub fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
-    let height_iter = (0..mask.height.clone()).into_par_iter();
-
-    for (y, x) in iproduct!(height_iter, (0..mask.width)) {
-        if mask.get(x, y) > 0.0 {
-            return Some(Point { x, y, score: 0 });
-        }
-    }
-    None
-}
-
-#[cfg(not(rayon))]
-pub fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
-    for (y, x) in iproduct!((0..mask.height), (0..mask.width)) {
+    for (y, x) in itertools::iproduct!((0..mask.height), (0..mask.width)) {
         if mask.get(x, y) > 0.0 {
             return Some(Point { x, y, score: 0 });
         }

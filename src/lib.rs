@@ -1,3 +1,5 @@
+#![feature(trivial_bounds)]
+
 use std::ops::{Index, IndexMut};
 
 #[macro_export]
@@ -7,6 +9,9 @@ macro_rules! not_implemented {
         Err(anyhow!("not implemented"))
     }};
 }
+
+#[cfg(feature = "wgpu")]
+pub mod gpu;
 
 pub mod binfilereader;
 pub mod blur;
@@ -18,7 +23,8 @@ pub mod enums;
 
 #[deprecated]
 pub mod error;
-pub mod guassianblur;
+pub mod gaussianblur;
+
 pub mod hotpixel;
 pub mod image;
 pub mod imagebuffer;

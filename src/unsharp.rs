@@ -1,4 +1,4 @@
-use crate::guassianblur::guassian_blur_nband;
+use crate::gaussianblur::gaussian_blur_nband;
 use crate::image::Image;
 use crate::imagebuffer::ImageBuffer;
 use anyhow::Result;
@@ -9,7 +9,7 @@ pub fn unsharp_mask_nbands(
     amount: f32,
 ) -> Result<Vec<ImageBuffer>> {
     //FIXME: Unwraps :(
-    match guassian_blur_nband(buffers, sigma) {
+    match gaussian_blur_nband(buffers, sigma) {
         Ok(blurred) => Ok((0..blurred.len())
             .map(|b| {
                 buffers[b]
