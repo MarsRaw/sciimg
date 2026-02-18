@@ -195,6 +195,91 @@ impl Image {
         }
     }
 
+    /// Opens a JPEG file with optional high-frequency AC coefficient zeroing.
+    /// This is useful for loading grayscale JPEGs that still have a Bayer filter pattern,
+    /// as it reduces compression artifacts that appear as green blocks after debayering.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to the JPEG file
+    /// * `zero_high_freq_ac` - If true, zeros out the 63rd AC coefficient in DCT blocks
+    ///
+    /// # Example
+    /// ```
+    /// // Load bayer JPEG with artifact reduction
+    /// let img = Image::open_bayer_jpeg("image.jpg", true)?;
+    /// img.debayer();
+    ///
+    /// // Load bayer JPEG without modification
+    /// let img = Image::open_bayer_jpeg("image.jpg", false)?;
+    /// ```
+    pub fn open_bayer_jpeg(file_path: &str, zero_high_freq_ac: bool) -> Result<Image> {
+        if !path::file_exists(file_path) {
+            return Err(anyhow!("File not found: {}", file_path));
+        }
+
+        let file = std::fs::File::open(file_path)?;
+        let mut decoder = jpeg_decoder::Decoder::new(file);
+
+        // Note: This requires a patched version of jpeg-decoder with the
+        // zero_high_frequency_ac() method. 
+        decoder.zero_high_frequency_ac(zero_high_freq_ac);
+
+        // Suppress unused variable warning when the patch isn't applied
+        let _ = zero_high_freq_ac;
+
+        let pixels = decoder.decode()
+            .map_err(|e| anyhow!("Failed to decode JPEG: {:?}", e))?;
+        let metadata = decoder.info()
+            .ok_or_else(|| anyhow!("Failed to get JPEG metadata"))?;
+
+        let width = metadata.width as usize;
+        let height = metadata.height as usize;
+
+        // Determine the image mode and number of bands based on pixel format
+        let (num_bands, mode) = match metadata.pixel_format {
+            jpeg_decoder::PixelFormat::L8 => (1, enums::ImageMode::U8BIT),
+            jpeg_decoder::PixelFormat::RGB24 => (3, enums::ImageMode::U8BIT),
+            jpeg_decoder::PixelFormat::L16 => (1, enums::ImageMode::U16BIT),
+            _ => return Err(anyhow!("Unsupported JPEG pixel format")),
+        };
+
+        let mut img = Image::new_with_bands(width, height, num_bands, mode)?;
+
+        // Copy pixel data into image bands
+        match metadata.pixel_format {
+            jpeg_decoder::PixelFormat::L8 => {
+                for y in 0..height {
+                    for x in 0..width {
+                        let idx = y * width + x;
+                        img.put(x, y, pixels[idx] as f32, 0);
+                    }
+                }
+            }
+            jpeg_decoder::PixelFormat::RGB24 => {
+                for y in 0..height {
+                    for x in 0..width {
+                        let idx = (y * width + x) * 3;
+                        img.put(x, y, pixels[idx] as f32, 0);     // R
+                        img.put(x, y, pixels[idx + 1] as f32, 1); // G
+                        img.put(x, y, pixels[idx + 2] as f32, 2); // B
+                    }
+                }
+            }
+            jpeg_decoder::PixelFormat::L16 => {
+                for y in 0..height {
+                    for x in 0..width {
+                        let idx = (y * width + x) * 2;
+                        let value = u16::from_be_bytes([pixels[idx], pixels[idx + 1]]);
+                        img.put(x, y, value as f32, 0);
+                    }
+                }
+            }
+            _ => unreachable!(),
+        }
+
+        Ok(img)
+    }
+
     pub fn new_from_buffers_rgb(
         red: &ImageBuffer,
         green: &ImageBuffer,

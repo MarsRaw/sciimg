@@ -26,3 +26,7 @@ string-builder = "0.2.0"
 itertools = "0.10.5"
 anyhow = "1.0.65"
 dng = "1.5.0"
+jpeg-decoder = "0.3.0"
+
+[patch.crates-io]
+jpeg-decoder = { git = "https://github.com/kmgill/jpeg-decoder.git", branch = "optional-zero-ac63" }
