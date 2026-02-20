@@ -1,4 +1,7 @@
-use crate::{enums, max, min, path, Dn, DnVec, Mask, MaskVec, MaskedDnVec, MinMax, VecMath};
+use crate::{
+    enums, image::Image, max, min, output, output::OutputFormat, path, Dn, DnVec, MaskVec,
+    MaskedDnVec, MinMax, VecMath,
+};
 
 extern crate image;
 use anyhow::Result;
@@ -151,15 +154,12 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec_u8(v_u8: &Vec<u8>, width: usize, height: usize) -> Result<ImageBuffer> {
+    pub fn from_vec_u8(v_u8: &[u8], width: usize, height: usize) -> Result<ImageBuffer> {
         if v_u8.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
 
-        let mut v = DnVec::zeros(width * height);
-        for i in 0..v_u8.len() {
-            v[i] = v_u8[i] as f32;
-        }
+        let v: Vec<f32> = v_u8.iter().map(|v| *v as f32).collect();
 
         Ok(ImageBuffer {
             buffer: MaskedDnVec::from_dnvec(&v),
@@ -172,7 +172,7 @@ impl ImageBuffer {
 
     // Creates a new image buffer at the requested width, height and data
     pub fn from_vec_u8_with_mask(
-        v_u8: &Vec<u8>,
+        v_u8: &[u8],
         width: usize,
         height: usize,
         mask: &MaskVec,
@@ -180,11 +180,7 @@ impl ImageBuffer {
         if v_u8.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
-
-        let mut v = DnVec::zeros(width * height);
-        for i in 0..v_u8.len() {
-            v[i] = v_u8[i] as f32;
-        }
+        let v: Vec<f32> = v_u8.iter().map(|v| *v as f32).collect();
 
         Ok(ImageBuffer {
             buffer: MaskedDnVec::from_dnvec_and_mask(&v, mask),
@@ -196,15 +192,12 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec_u16(v_u16: &Vec<u16>, width: usize, height: usize) -> Result<ImageBuffer> {
+    pub fn from_vec_u16(v_u16: &[u16], width: usize, height: usize) -> Result<ImageBuffer> {
         if v_u16.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
 
-        let mut v = DnVec::zeros(width * height);
-        for i in 0..v_u16.len() {
-            v[i] = v_u16[i] as f32;
-        }
+        let v: Vec<f32> = v_u16.iter().map(|v| *v as f32).collect();
 
         Ok(ImageBuffer {
             buffer: MaskedDnVec::from_dnvec(&v),
@@ -217,7 +210,7 @@ impl ImageBuffer {
 
     // Creates a new image buffer at the requested width, height and data
     pub fn from_vec_u16_with_mask(
-        v_u16: &Vec<u16>,
+        v_u16: &[u16],
         width: usize,
         height: usize,
         mask: &MaskVec,
@@ -226,10 +219,7 @@ impl ImageBuffer {
             panic!("Dimensions to not match vector length");
         }
 
-        let mut v = DnVec::zeros(width * height);
-        for i in 0..v_u16.len() {
-            v[i] = v_u16[i] as f32;
-        }
+        let v: Vec<f32> = v_u16.iter().map(|v| *v as f32).collect();
 
         Ok(ImageBuffer {
             buffer: MaskedDnVec::from_dnvec_and_mask(&v, mask),
@@ -301,16 +291,9 @@ impl ImageBuffer {
         let width = dims.0 as usize;
         let height = dims.1 as usize;
 
-        let mut v = DnVec::zeros(width * height);
-
-        for y in 0..height {
-            for x in 0..width {
-                let pixel = image_data.get_pixel(x as u32, y as u32);
-                let value = pixel[0] as f32;
-                let idx = y * width + x;
-                v[idx] = value;
-            }
-        }
+        let v: DnVec = iproduct!(0..height, 0..width)
+            .map(|(y, x)| image_data.get_pixel(x as u32, y as u32)[0] as f32)
+            .collect();
 
         ImageBuffer::from_vec(&v, width, height)
     }
@@ -354,25 +337,18 @@ impl ImageBuffer {
     }
 
     pub fn buffer_to_mask(buffer: &ImageBuffer) -> MaskVec {
-        let mut m = MaskVec::new_mask(buffer.buffer.len());
-        (0..buffer.buffer.len()).for_each(|i| {
-            m[i] = buffer.buffer[i] > 0.0;
-        });
-        m
+        buffer.buffer.iter().map(|v| v > 0.0).collect()
     }
 
     pub fn set_mask(&mut self, buffer: &ImageBuffer) {
-        let mask = ImageBuffer::buffer_to_mask(buffer);
-        self.buffer.apply_mask(&mask);
+        self.buffer.apply_mask(&ImageBuffer::buffer_to_mask(buffer));
     }
 
     pub fn copy_mask_to(&self, dest: &mut ImageBuffer) {
         if self.width != dest.width || self.height != dest.height {
             panic!("Cannot copy into ImageBuffer: Incompatible dimensions");
         }
-        (0..self.buffer.len()).for_each(|i| {
-            dest.buffer.mask[i] = self.buffer.mask[i];
-        });
+        dest.buffer.mask = self.buffer.mask.clone();
     }
 
     pub fn clear_mask(&mut self) {
@@ -398,27 +374,18 @@ impl ImageBuffer {
     }
 
     pub fn to_vector_u8(&self) -> Vec<u8> {
-        let need_len = self.buffer.len();
-        let mut v: Vec<u8> = vec![0; need_len];
-
-        (0..need_len).for_each(|i| {
-            v[i] = match self.mode {
-                enums::ImageMode::U8BIT => self.buffer[i] as u8,
-                enums::ImageMode::U12BIT => (self.buffer[i] / 2033.0 * 255.0) as u8,
-                enums::ImageMode::U16BIT => (self.buffer[i] / 65535.0 * 255.0) as u8,
-            }
-        });
-        v
+        self.buffer
+            .iter()
+            .map(|v| match self.mode {
+                enums::ImageMode::U8BIT => v as u8,
+                enums::ImageMode::U12BIT => (v / 2033.0 * 255.0) as u8,
+                enums::ImageMode::U16BIT => (v / 65535.0 * 255.0) as u8,
+            })
+            .collect()
     }
 
     pub fn to_vector_u16(&self) -> Vec<u16> {
-        let need_len = self.buffer.len();
-        let mut v: Vec<u16> = vec![0; need_len];
-
-        (0..need_len).for_each(|i| {
-            v[i] = self.buffer[i] as u16;
-        });
-        v
+        self.buffer.iter().map(|v| v as u16).collect()
     }
 
     pub fn to_vector(&self) -> Vec<f32> {
@@ -592,6 +559,12 @@ impl ImageBuffer {
         self.buffer.add_mut(&other.buffer);
     }
 
+    pub fn add_across(&self, other: Dn) -> Result<ImageBuffer> {
+        let mut m = self.clone();
+        m.add_across_mut(other);
+        Ok(m)
+    }
+
     pub fn add_across_mut(&mut self, other: Dn) {
         self.buffer.add_across_mut(other);
     }
@@ -715,16 +688,14 @@ impl ImageBuffer {
         let mut oy: Dn = 0.0;
         let mut count: u32 = 0;
 
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let val = self.get(x, y);
-                if val >= threshold {
-                    ox += x as Dn;
-                    oy += y as Dn;
-                    count += 1;
-                }
+        iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
+            let val = self.get(x, y);
+            if val >= threshold {
+                ox += x as Dn;
+                oy += y as Dn;
+                count += 1;
             }
-        }
+        });
 
         if count > 0 {
             ox = (self.width as Dn / 2.0) - (ox / (count as Dn));
@@ -732,6 +703,61 @@ impl ImageBuffer {
         }
 
         Offset { h: ox, v: oy }
+    }
+
+    pub fn swap_axis(&self) -> ImageBuffer {
+        let mut swapped = ImageBuffer::new(self.height, self.width).unwrap();
+
+        iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
+            swapped.put(y, x, self.get(x, y));
+        });
+
+        swapped
+    }
+
+    pub fn gamma(&self, gamma: f32) -> ImageBuffer {
+        let mut copied = self.clone();
+        copied.gamma_mut(gamma);
+        copied
+    }
+
+    pub fn gamma_mut(&mut self, gamma: f32) {
+        let mm = self.get_min_max();
+        self.power_mut(1.0 / gamma);
+        self.normalize_mut(mm.min, mm.max);
+    }
+
+    pub fn levels(&mut self, black_level: f32, white_level: f32) -> ImageBuffer {
+        let mut copied = self.clone();
+        copied.levels_mut(black_level, white_level);
+        copied
+    }
+
+    pub fn levels_mut(&mut self, black_level: f32, white_level: f32) {
+        let mm = self.get_min_max();
+        let rng = match self.mode {
+            enums::ImageMode::U8BIT => 255.0,
+            enums::ImageMode::U16BIT => 65535.0,
+            enums::ImageMode::U12BIT => 2033.0, // I know, not really. Will need to adjust later for NSYT ILT
+        };
+
+        let norm_min = (rng * black_level) + mm.min;
+        let norm_max = (rng * white_level) + mm.min;
+
+        self.clip_mut(norm_min, norm_max);
+        self.normalize_mut(mm.min, mm.max);
+    }
+
+    pub fn levels_with_gamma(&self, black_level: f32, white_level: f32, gamma: f32) -> ImageBuffer {
+        let mut copied = self.clone();
+        copied.levels_mut(black_level, white_level);
+        copied.gamma_mut(gamma);
+        copied
+    }
+
+    pub fn levels_with_gamma_mut(&mut self, black_level: f32, white_level: f32, gamma: f32) {
+        self.levels_mut(black_level, white_level);
+        self.gamma_mut(gamma);
     }
 
     pub fn paste_mut(&mut self, src: &ImageBuffer, tl_x: usize, tl_y: usize) {
@@ -819,16 +845,15 @@ impl ImageBuffer {
     }
 
     pub fn get_min_max_ignore_black(&self) -> MinMax {
-        let mut mm = MinMax {
-            min: std::f32::MAX,
-            max: std::f32::MIN,
-        };
-        (0..self.buffer.len()).for_each(|i| {
-            if self.buffer[i] != std::f32::INFINITY && self.buffer[i] > 0.0 {
-                mm.min = min!(mm.min, self.buffer[i]);
-                mm.max = max!(mm.max, self.buffer[i]);
+        let mut mm = MinMax::default();
+
+        self.buffer.iter().for_each(|v| {
+            if v != f32::INFINITY && v > 0.0 {
+                mm.min = min!(mm.min, v);
+                mm.max = max!(mm.max, v);
             }
         });
+
         mm
     }
 
@@ -839,9 +864,9 @@ impl ImageBuffer {
         iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
             let val = self.get(x, y).round() as u8;
             let a = if self.get_mask_at_point(x, y) {
-                std::u8::MAX
+                u8::MAX
             } else {
-                std::u8::MIN
+                u8::MIN
             };
             out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
         });
@@ -858,9 +883,9 @@ impl ImageBuffer {
         iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
             let val = self.get(x, y).round() as u16;
             let a = if self.get_mask_at_point(x, y) {
-                std::u16::MAX
+                u16::MAX
             } else {
-                std::u16::MIN
+                u16::MIN
             };
             out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
         });
@@ -868,62 +893,27 @@ impl ImageBuffer {
         out_img
     }
 
-    pub fn save_16bit(&self, to_file: &str) {
-        let mut out_img =
-            DynamicImage::new_rgba16(self.width as u32, self.height as u32).into_rgba16();
-
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let val = self.get(x, y) as u16;
-                let a = if self.get_mask_at_point(x, y) {
-                    std::u16::MAX
-                } else {
-                    std::u16::MIN
-                };
-                out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
-            }
-        }
-
-        if path::parent_exists_and_writable(to_file) {
-            out_img.save(to_file).unwrap();
-        } else {
-            panic!(
-                "Parent path does not exist or is unwritable: {}",
-                path::get_parent(to_file)
-            );
+    pub fn save_use_mode(&self, to_file: &str, mode: enums::ImageMode) -> Result<()> {
+        match output::get_default_output_format() {
+            Ok(format) => self.save_with_mode_and_format(to_file, mode, format),
+            Err(why) => Err(why),
         }
     }
 
-    pub fn save_8bit(&self, to_file: &str) {
-        let mut out_img =
-            DynamicImage::new_rgba8(self.width as u32, self.height as u32).into_rgba8();
-
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let val = self.get(x, y).round() as u8;
-                let a = if self.get_mask_at_point(x, y) {
-                    std::u8::MAX
-                } else {
-                    std::u8::MIN
-                };
-                out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
-            }
-        }
-
-        if path::parent_exists_and_writable(to_file) {
-            out_img.save(to_file).unwrap();
-        } else {
-            panic!(
-                "Parent path does not exist or is unwritable: {}",
-                path::get_parent(to_file)
-            );
-        }
+    pub fn save(&self, to_file: &str) -> Result<()> {
+        self.save_use_mode(to_file, self.mode)
     }
 
-    pub fn save(&self, to_file: &str, mode: enums::ImageMode) {
-        match mode {
-            enums::ImageMode::U8BIT => self.save_8bit(to_file),
-            _ => self.save_16bit(to_file),
-        };
+    pub fn save_with_mode_and_format(
+        &self,
+        to_file: &str,
+        mode: enums::ImageMode,
+        format: OutputFormat,
+    ) -> Result<()> {
+        output::save_image_with_format(
+            to_file,
+            format,
+            &Image::new_from_buffer_mono_use_mode(self, mode).unwrap(),
+        )
     }
 }

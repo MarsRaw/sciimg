@@ -117,10 +117,7 @@ impl<T: Clone> IndexMut<i32> for Vek<T> {
     }
 }
 
-fn vec_of_size<T: Clone>(size: usize, fill_value: T) -> Vek<T>
-where
-    T: Clone,
-{
+fn vec_of_size<T: Clone>(size: usize, fill_value: T) -> Vek<T> {
     let mut v = Vek::with_capacity(size);
     v.resize(size, fill_value);
     v

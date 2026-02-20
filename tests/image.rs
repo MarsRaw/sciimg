@@ -8,10 +8,10 @@ const M20_ZCAM_ECM_RGB: &str =
 #[test]
 fn test_grayscale_check() {
     let img_gray = Image::open(&String::from(M20_ZCAM_ECM_GRAY)).unwrap();
-    assert_eq!(img_gray.is_grayscale(), true);
+    assert!(img_gray.is_grayscale());
 
     let img_rgb = Image::open(&String::from(M20_ZCAM_ECM_RGB)).unwrap();
-    assert_eq!(img_rgb.is_grayscale(), false);
+    assert!(!img_rgb.is_grayscale());
 }
 
 #[test]

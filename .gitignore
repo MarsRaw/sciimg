@@ -2,3 +2,4 @@
 Cargo.lock
 debug/
 .rustc_info.json
+.idea

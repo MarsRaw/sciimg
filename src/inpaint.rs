@@ -94,7 +94,7 @@ pub fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
 
 #[cfg(not(rayon))]
 pub fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
-    for (y, x) in iproduct!((0..mask.height), (0..mask.width)) {
+    for (y, x) in iproduct!(0..mask.height, 0..mask.width) {
         if mask.get(x, y) > 0.0 {
             return Some(Point { x, y, score: 0 });
         }
@@ -132,7 +132,7 @@ fn isolate_window(
 
 fn predict_value(buffer: &RgbVec, mask: &ImageBuffer, channel: usize, x: usize, y: usize) -> f32 {
     let window = isolate_window(buffer, mask, channel, DEFAULT_WINDOW_SIZE, x, y);
-    stats::mean(&window[0..]).unwrap()
+    stats::mean(&window[0..])
 }
 
 fn get_point_and_score_at_xy(mask: &ImageBuffer, x: i32, y: i32) -> Option<Point> {
@@ -181,13 +181,8 @@ fn find_next_point(mask: &ImageBuffer, x: i32, y: i32) -> Option<Point> {
 
     let mut largest_score: Option<Point> = None;
 
-    for opt_pt in pts.iter() {
-        match opt_pt {
-            Some(pt) => {
-                largest_score = Some(find_larger(largest_score, pt));
-            }
-            None => (),
-        }
+    for pt in pts.iter().flatten() {
+        largest_score = Some(find_larger(largest_score, pt));
     }
 
     largest_score
@@ -220,13 +215,22 @@ fn rgb_image_to_vec(rgb: &Image) -> Result<RgbVec> {
     (0..rgb.height).for_each(|y| {
         (0..rgb.width).for_each(|x| {
             let idx = y * rgb.width + x;
-            let r = rgb.get_band(0).get(x, y);
-            let g = rgb.get_band(1).get(x, y);
-            let b = rgb.get_band(2).get(x, y);
+            if rgb.num_bands() == 1 {
+                let r = rgb.get_band(0).get(x, y);
+                v[idx][0] = r;
+                v[idx][1] = r;
+                v[idx][2] = r;
+            } else if rgb.num_bands() == 3 {
+                let r = rgb.get_band(0).get(x, y);
+                let g = rgb.get_band(1).get(x, y);
+                let b = rgb.get_band(2).get(x, y);
 
-            v[idx][0] = r;
-            v[idx][1] = g;
-            v[idx][2] = b;
+                v[idx][0] = r;
+                v[idx][1] = g;
+                v[idx][2] = b;
+            } else {
+                panic!("Unsupported number of bands");
+            }
         });
     });
 
@@ -258,10 +262,7 @@ fn vec_to_rgb_image(buffer: &RgbVec) -> Result<Image> {
 
 // Embarrassingly slow and inefficient. Runs slow in debug. A lot faster with a release build.
 pub fn apply_inpaint_to_buffer_with_mask(rgb: &Image, mask_src: &ImageBuffer) -> Result<Image> {
-    let mut working_buffer = match rgb_image_to_vec(rgb) {
-        Ok(b) => b,
-        Err(e) => return Err(e),
-    };
+    let mut working_buffer = rgb_image_to_vec(rgb)?;
 
     let mut mask = mask_src.clone();
 
@@ -284,10 +285,12 @@ pub fn apply_inpaint_to_buffer_with_mask(rgb: &Image, mask_src: &ImageBuffer) ->
         infill(&mut working_buffer, &mut mask, &pt);
     }
 
-    let newimage = match vec_to_rgb_image(&working_buffer) {
-        Ok(i) => i,
-        Err(e) => return Err(e),
-    };
+    let mut newimage = vec_to_rgb_image(&working_buffer)?;
+
+    // Strip out extra bands. Perhaps a rewrite is needed to process only mono bands when needed.
+    if rgb.num_bands() == 1 {
+        newimage = Image::new_from_buffer_mono(newimage.get_band(0))?;
+    }
 
     Ok(newimage)
 }
@@ -297,10 +300,7 @@ pub fn apply_inpaint_to_buffer(rgb: &Image, mask: &ImageBuffer) -> Result<Image>
 }
 
 pub fn make_mask_from_red(rgbimage: &Image) -> Result<ImageBuffer> {
-    let mut new_mask = match ImageBuffer::new(rgbimage.width, rgbimage.height) {
-        Ok(b) => b,
-        Err(e) => return Err(e),
-    };
+    let mut new_mask = ImageBuffer::new(rgbimage.width, rgbimage.height)?;
     for y in 0..rgbimage.height {
         for x in 0..rgbimage.width {
             let r = rgbimage.get_band(0).get(x, y);

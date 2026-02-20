@@ -1,30 +1,28 @@
-use crate::guassianblur::guassian_blur_nband;
+use crate::guassianblur::gaussian_blur_2d_nbands;
 use crate::image::Image;
 use crate::imagebuffer::ImageBuffer;
-use anyhow::Result;
 
-pub fn unsharp_mask_nbands(
-    buffers: &mut [ImageBuffer],
-    sigma: f32,
-    amount: f32,
-) -> Result<Vec<ImageBuffer>> {
-    //FIXME: Unwraps :(
-    match guassian_blur_nband(buffers, sigma) {
-        Ok(blurred) => Ok((0..blurred.len())
-            .map(|b| {
-                buffers[b]
-                    .add(
-                        &buffers[b]
-                            .subtract(&blurred[b])
-                            .unwrap()
-                            .scale(amount)
-                            .unwrap(),
-                    )
-                    .unwrap()
-            })
-            .collect()),
-        Err(why) => Err(why),
-    }
+pub fn unsharp_mask_nbands(buffers: &[ImageBuffer], sigma: f32, amount: f32) -> Vec<ImageBuffer> {
+    gaussian_blur_2d_nbands(buffers, sigma)
+        .into_iter()
+        .enumerate()
+        .map(|(i, b)| {
+            let mm0 = buffers[i].get_min_max();
+            let mm1 = b.get_min_max();
+            println!("mm0: {:?}  -- mm1: {:?}", mm0, mm1);
+
+            let c = b.normalize(mm0.min, mm0.max).unwrap();
+            buffers[i]
+                .add(&buffers[i].subtract(&c).unwrap().scale(amount).unwrap())
+                .unwrap()
+        })
+        .collect()
+}
+
+pub fn unsharp_image(image: &Image, sigma: f32, amount: f32) -> Image {
+    let mut unsharped_image = image.clone();
+    unsharped_image.bands = unsharp_mask_nbands(&unsharped_image.bands, sigma, amount);
+    unsharped_image
 }
 
 pub trait RgbImageUnsharpMask {
@@ -33,14 +31,6 @@ pub trait RgbImageUnsharpMask {
 
 impl RgbImageUnsharpMask for Image {
     fn unsharp_mask(&mut self, sigma: f32, amount: f32) {
-        let mut buffers: Vec<ImageBuffer> = (0..self.num_bands())
-            .map(|b| self.get_band(b).to_owned())
-            .collect();
-
-        if let Ok(buffers) = unsharp_mask_nbands(&mut buffers, sigma, amount) {
-            buffers.into_iter().enumerate().for_each(|(b, buffer)| {
-                self.set_band(&buffer, b);
-            });
-        }
+        self.bands = unsharp_mask_nbands(&self.bands, sigma, amount);
     }
 }
