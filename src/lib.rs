@@ -114,15 +114,15 @@ pub struct MinMax {
 impl Default for MinMax {
     fn default() -> Self {
         MinMax {
-            min: std::f32::MAX,
-            max: std::f32::MIN,
+            min: f32::MAX,
+            max: f32::MIN,
         }
     }
 }
 
-//////////////////////////////////////////////////
-/// Dn Vector (Unmasked)
-//////////////////////////////////////////////////
+// ////////////////////////////////////////////////
+// / Dn Vector (Unmasked)
+// ////////////////////////////////////////////////
 
 pub trait VecMath {
     fn fill(capacity: usize, fill_value: Dn) -> Self;
@@ -543,7 +543,7 @@ impl VecMath for DnVec {
     }
 
     fn min(&self) -> Dn {
-        let mut m = std::f32::MAX;
+        let mut m = f32::MAX;
         (0..self.len()).for_each(|i| {
             m = min!(m, self[i]);
         });
@@ -551,7 +551,7 @@ impl VecMath for DnVec {
     }
 
     fn max(&self) -> Dn {
-        let mut m = std::f32::MIN;
+        let mut m = f32::MIN;
         (0..self.len()).for_each(|i| {
             m = max!(m, self[i]);
         });
@@ -560,8 +560,8 @@ impl VecMath for DnVec {
 
     fn get_min_max(&self) -> MinMax {
         let mut mm = MinMax {
-            min: std::f32::MAX,
-            max: std::f32::MIN,
+            min: f32::MAX,
+            max: f32::MIN,
         };
         (0..self.len()).for_each(|i| {
             mm.min = min!(mm.min, self[i]);
@@ -582,9 +582,9 @@ impl VecMath for DnVec {
     }
 }
 
-//////////////////////////////////////////////////
-/// Mask
-//////////////////////////////////////////////////
+// ////////////////////////////////////////////////
+// / Mask
+// ////////////////////////////////////////////////
 
 pub type MaskVec = Vec<bool>;
 pub trait Mask {
@@ -1181,7 +1181,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn min(&self) -> Dn {
-        let mut m = std::f32::MAX;
+        let mut m = f32::MAX;
         (0..self.len()).for_each(|i| {
             m = min!(m, self[i]);
         });
@@ -1189,7 +1189,7 @@ impl VecMath for MaskedDnVec {
     }
 
     fn max(&self) -> Dn {
-        let mut m = std::f32::MIN;
+        let mut m = f32::MIN;
         (0..self.len()).for_each(|i| {
             m = max!(m, self[i]);
         });
@@ -1200,7 +1200,7 @@ impl VecMath for MaskedDnVec {
         let mut mm = MinMax::default();
 
         self.iter().for_each(|v| {
-            if v != std::f32::INFINITY {
+            if v != f32::INFINITY {
                 mm.min = min!(mm.min, v);
                 mm.max = max!(mm.max, v);
             }

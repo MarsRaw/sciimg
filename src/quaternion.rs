@@ -108,9 +108,9 @@ impl Quaternion {
     pub fn invert(&self) -> Quaternion {
         Quaternion {
             q0: self.q0,
-            q1: self.q1 * -1.0,
-            q2: self.q2 * -1.0,
-            q3: self.q3 * -1.0,
+            q1: -self.q1,
+            q2: -self.q2,
+            q3: -self.q3,
         }
     }
 

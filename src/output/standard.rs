@@ -67,9 +67,9 @@ pub fn save_image_to_rgba_16bpp(output_file_name: &str, image: &Image) -> Result
                 image.get_band(1).get(x, y).round() as u16,
                 image.get_band(2).get(x, y).round() as u16,
                 if image.get_alpha_at(x, y) {
-                    std::u16::MAX
+                    u16::MAX
                 } else {
-                    std::u16::MIN
+                    u16::MIN
                 },
             ]),
         );
@@ -176,9 +176,9 @@ pub fn save_image_to_rgba_8bpp(output_file_name: &str, image: &Image) -> Result<
                 image.get_band(1).get(x, y).round() as u8,
                 image.get_band(2).get(x, y).round() as u8,
                 if image.get_alpha_at(x, y) {
-                    std::u8::MAX
+                    u8::MAX
                 } else {
-                    std::u8::MIN
+                    u8::MIN
                 },
             ]),
         );

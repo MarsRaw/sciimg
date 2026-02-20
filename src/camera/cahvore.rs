@@ -167,7 +167,7 @@ impl CameraModelTrait for Cahvore {
                 }
 
                 let linchi = self.linearity * chi;
-                let theta = if self.linearity < (-1.0 * EPSILON) {
+                let theta = if self.linearity < -EPSILON {
                     linchi.asin() / self.linearity
                 } else if self.linearity < EPSILON {
                     linchi.atan() / self.linearity
@@ -248,7 +248,7 @@ impl CameraModelTrait for Cahvore {
             p_c
         } else {
             let linth = self.linearity * theta;
-            let chi = if self.linearity < (-1.0 * EPSILON) {
+            let chi = if self.linearity < -EPSILON {
                 linth.sin() / self.linearity
             } else if self.linearity > EPSILON {
                 linth.tan() / self.linearity

@@ -142,9 +142,9 @@ impl Vector {
 
     pub fn inversed(&self) -> Vector {
         Vector {
-            x: self.x * -1.0,
-            y: self.y * -1.0,
-            z: self.z * -1.0,
+            x: -self.x,
+            y: -self.y,
+            z: -self.z,
         }
     }
 

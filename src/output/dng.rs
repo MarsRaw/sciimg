@@ -44,7 +44,7 @@ pub fn save_image_to_rgb_16bpp(output_file_name: &str, image: &Image) -> Result<
 
     let mut band_bytes = Vec::with_capacity(image.width * image.height * 2 * 3);
 
-    let band_values = vec![
+    let band_values = [
         image.get_band(0).to_vector_u16(),
         image.get_band(1).to_vector_u16(),
         image.get_band(2).to_vector_u16(),
@@ -172,7 +172,7 @@ pub fn save_image_to_rgb_8bpp(output_file_name: &str, image: &Image) -> Result<(
 
     let mut band_bytes = Vec::with_capacity(image.width * image.height * 3);
 
-    let band_values = vec![
+    let band_values = [
         image.get_band(0).to_vector_u8(),
         image.get_band(1).to_vector_u8(),
         image.get_band(2).to_vector_u8(),
