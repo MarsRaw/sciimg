@@ -38,4 +38,4 @@ name = "gaussian"
 harness = false
 
 [patch.crates-io]
-jpeg-decoder = { git = "https://github.com/kmgill/jpeg-decoder.git", branch = "optional-zero-ac63" }
+jpeg-decoder = { git = "https://github.com/MarsRaw/jpeg-decoder.git", branch = "optional-zero-ac63" }
