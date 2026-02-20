@@ -31,9 +31,9 @@ impl Matrix {
         }
     }
 
-    pub fn new_from_vec(m: &Vec<f64>) -> Result<Matrix> {
+    pub fn new_from_vec(m: &[f64]) -> Result<Matrix> {
         if m.len() == 16 {
-            Ok(Matrix { m: m.clone() })
+            Ok(Matrix { m: m.to_vec() })
         } else {
             panic!("Array size mismatch");
         }
@@ -164,11 +164,7 @@ impl Matrix {
     pub fn rotate(angle: f64, axis: Axis) -> Matrix {
         let mut m = Matrix::identity();
 
-        let _a = if axis != Axis::YAxis {
-            angle
-        } else {
-            angle * -1.0
-        };
+        let _a = if axis != Axis::YAxis { angle } else { -angle };
 
         let c = _a.cos();
         let s = _a.sin();

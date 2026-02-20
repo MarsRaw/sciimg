@@ -1,4 +1,4 @@
-use crate::{debayer::FilterPattern, image::Image, imagebuffer::ImageBuffer, not_implemented};
+use crate::{debayer::FilterPattern, image::Image, imagebuffer::ImageBuffer};
 use anyhow::Result;
 /// Debayers a single channel image buffer using the default (RGGB) filter pattern
 ///

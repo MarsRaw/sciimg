@@ -154,7 +154,7 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec_u8(v_u8: &Vec<u8>, width: usize, height: usize) -> Result<ImageBuffer> {
+    pub fn from_vec_u8(v_u8: &[u8], width: usize, height: usize) -> Result<ImageBuffer> {
         if v_u8.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
@@ -172,7 +172,7 @@ impl ImageBuffer {
 
     // Creates a new image buffer at the requested width, height and data
     pub fn from_vec_u8_with_mask(
-        v_u8: &Vec<u8>,
+        v_u8: &[u8],
         width: usize,
         height: usize,
         mask: &MaskVec,
@@ -192,7 +192,7 @@ impl ImageBuffer {
     }
 
     // Creates a new image buffer at the requested width, height and data
-    pub fn from_vec_u16(v_u16: &Vec<u16>, width: usize, height: usize) -> Result<ImageBuffer> {
+    pub fn from_vec_u16(v_u16: &[u16], width: usize, height: usize) -> Result<ImageBuffer> {
         if v_u16.len() != (width * height) {
             panic!("Dimensions to not match vector length");
         }
@@ -210,7 +210,7 @@ impl ImageBuffer {
 
     // Creates a new image buffer at the requested width, height and data
     pub fn from_vec_u16_with_mask(
-        v_u16: &Vec<u16>,
+        v_u16: &[u16],
         width: usize,
         height: usize,
         mask: &MaskVec,
@@ -748,12 +748,7 @@ impl ImageBuffer {
         self.normalize_mut(mm.min, mm.max);
     }
 
-    pub fn levels_with_gamma(
-        &self,
-        black_level: f32,
-        white_level: f32,
-        gamma: f32,
-    ) -> ImageBuffer {
+    pub fn levels_with_gamma(&self, black_level: f32, white_level: f32, gamma: f32) -> ImageBuffer {
         let mut copied = self.clone();
         copied.levels_mut(black_level, white_level);
         copied.gamma_mut(gamma);
@@ -853,7 +848,7 @@ impl ImageBuffer {
         let mut mm = MinMax::default();
 
         self.buffer.iter().for_each(|v| {
-            if v != std::f32::INFINITY && v > 0.0 {
+            if v != f32::INFINITY && v > 0.0 {
                 mm.min = min!(mm.min, v);
                 mm.max = max!(mm.max, v);
             }
@@ -869,9 +864,9 @@ impl ImageBuffer {
         iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
             let val = self.get(x, y).round() as u8;
             let a = if self.get_mask_at_point(x, y) {
-                std::u8::MAX
+                u8::MAX
             } else {
-                std::u8::MIN
+                u8::MIN
             };
             out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
         });
@@ -888,9 +883,9 @@ impl ImageBuffer {
         iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
             let val = self.get(x, y).round() as u16;
             let a = if self.get_mask_at_point(x, y) {
-                std::u16::MAX
+                u16::MAX
             } else {
-                std::u16::MIN
+                u16::MIN
             };
             out_img.put_pixel(x as u32, y as u32, Rgba([val, val, val, a]));
         });

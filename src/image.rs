@@ -202,16 +202,6 @@ impl Image {
     /// # Arguments
     /// * `file_path` - Path to the JPEG file
     /// * `zero_high_freq_ac` - If true, zeros out the 63rd AC coefficient in DCT blocks
-    ///
-    /// # Example
-    /// ```
-    /// // Load bayer JPEG with artifact reduction
-    /// let img = Image::open_bayer_jpeg("image.jpg", true)?;
-    /// img.debayer();
-    ///
-    /// // Load bayer JPEG without modification
-    /// let img = Image::open_bayer_jpeg("image.jpg", false)?;
-    /// ```
     pub fn open_bayer_jpeg(file_path: &str, zero_high_freq_ac: bool) -> Result<Image> {
         if !path::file_exists(file_path) {
             return Err(anyhow!("File not found: {}", file_path));
@@ -221,15 +211,17 @@ impl Image {
         let mut decoder = jpeg_decoder::Decoder::new(file);
 
         // Note: This requires a patched version of jpeg-decoder with the
-        // zero_high_frequency_ac() method. 
+        // zero_high_frequency_ac() method.
         decoder.zero_high_frequency_ac(zero_high_freq_ac);
 
         // Suppress unused variable warning when the patch isn't applied
         let _ = zero_high_freq_ac;
 
-        let pixels = decoder.decode()
+        let pixels = decoder
+            .decode()
             .map_err(|e| anyhow!("Failed to decode JPEG: {:?}", e))?;
-        let metadata = decoder.info()
+        let metadata = decoder
+            .info()
             .ok_or_else(|| anyhow!("Failed to get JPEG metadata"))?;
 
         let width = metadata.width as usize;
@@ -259,7 +251,7 @@ impl Image {
                 for y in 0..height {
                     for x in 0..width {
                         let idx = (y * width + x) * 3;
-                        img.put(x, y, pixels[idx] as f32, 0);     // R
+                        img.put(x, y, pixels[idx] as f32, 0); // R
                         img.put(x, y, pixels[idx + 1] as f32, 1); // G
                         img.put(x, y, pixels[idx + 2] as f32, 2); // B
                     }
@@ -365,7 +357,7 @@ impl Image {
         }
     }
 
-    pub fn divide_into_each(&mut self, divisor:f32) {
+    pub fn divide_into_each(&mut self, divisor: f32) {
         for i in 0..self.bands.len() {
             self.bands[i].divide_into_mut(divisor);
         }
@@ -777,11 +769,11 @@ impl Image {
             return true;
         }
 
-        let mut v = std::f32::MIN;
+        let mut v = f32::MIN;
 
         for i in 0..self.bands.len() {
             let b = self.bands[i].get(x, y);
-            if v == std::f32::MIN {
+            if v == f32::MIN {
                 v = b;
             } else if v != b {
                 return false;
@@ -828,8 +820,8 @@ impl Image {
     }
 
     pub fn get_min_max_all_channel(&self) -> (f32, f32) {
-        let mut minval = std::f32::MAX;
-        let mut maxval = std::f32::MIN;
+        let mut minval = f32::MAX;
+        let mut maxval = f32::MIN;
 
         for i in 0..self.bands.len() {
             let mnmx = self.bands[i].get_min_max();
@@ -882,10 +874,7 @@ impl Image {
 
         let (_, prev_max) = self.get_min_max_all_channel();
 
-        let converter = match color::get_converter(from_colorspace, to_colorspace) {
-            Ok(c) => c,
-            Err(why) => return Err(why),
-        };
+        let converter = color::get_converter(from_colorspace, to_colorspace)?;
 
         iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
             let c = color::Color {
