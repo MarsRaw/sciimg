@@ -657,6 +657,12 @@ impl Image {
         });
     }
 
+    pub fn desmear_ccd_image(&mut self, epsilon: f32) {
+        (0..self.bands.len()).for_each(|b| {
+            self.bands[b].desmear_ccd_image(epsilon);
+        });
+    }
+
     pub fn calc_center_of_mass_offset(&self, threshold: f32, band: usize) -> Offset {
         check_band_in_bounds!(band, self);
 

@@ -494,6 +494,18 @@ impl ImageBuffer {
         });
     }
 
+    pub fn desmear_ccd_image(&mut self, epsilon: f32) {
+        let mut running_sum = vec![0.0f32; self.width];
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let pixel_value = self.get(x, y);
+                let corrected_value = pixel_value - (epsilon * running_sum[x]);
+                self.put(x, y, corrected_value);
+                running_sum[x] += corrected_value;
+            }
+        }
+    }
+
     // Computes the mean of all pixel values
     pub fn mean(&self) -> Dn {
         self.buffer.mean()
