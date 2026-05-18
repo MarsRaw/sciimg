@@ -657,6 +657,12 @@ impl Image {
         });
     }
 
+    pub fn dark_signal_correction_with_ref_cols(&mut self, masked_col_index: usize) {
+        (0..self.bands.len()).for_each(|b| {
+            self.bands[b].dark_signal_correction_with_ref_cols(masked_col_index);
+        });
+    }
+
     pub fn desmear_ccd_image(&mut self, epsilon: f32) {
         (0..self.bands.len()).for_each(|b| {
             self.bands[b].desmear_ccd_image(epsilon);
