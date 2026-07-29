@@ -58,7 +58,7 @@ pub fn hot_pixel_detection(
             let pixel_value = buffer.get(x, y);
             let window = isolate_window(buffer, window_size, x, y);
             let z_score = stats::z_score(pixel_value, &window[0..]);
-            if z_score > threshold {
+            if z_score.abs() > threshold {
                 let m = stats::mean(&window[0..]);
                 map.put(x, y, m);
 
