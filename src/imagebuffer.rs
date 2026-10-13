@@ -506,7 +506,7 @@ impl ImageBuffer {
         let mut column_sums = vec![0.0f32; self.width];
 
         for y in 0..self.height {
-            for x in 0..self.width {
+            for (x, col) in column_sums.iter_mut().enumerate().take(self.width) {
                 if x == masked_col_index {
                     continue;
                 }
@@ -519,10 +519,11 @@ impl ImageBuffer {
 
                 // Overwrite the image buffer with the pedestal-subtracted value
                 // so Phase 3 starts from the correct baseline.
-                self.put(x, y, pedestal_subtracted as f32);
+                self.put(x, y, pedestal_subtracted);
 
                 // Add ONLY the true light to the column sum for smear calculation
-                column_sums[x] += pedestal_subtracted;
+                //column_sums[x] += pedestal_subtracted;
+                *col += pedestal_subtracted;
             }
         }
     }
@@ -537,18 +538,18 @@ impl ImageBuffer {
         // Pass 1: Calculate the total measured sum for each column
         let mut column_sums = vec![0.0f32; self.width];
         for y in 0..self.height {
-            for x in 0..self.width {
-                column_sums[x] += self.get(x, y);
+            for (x, col) in column_sums.iter_mut().enumerate().take(self.width) {
+                *col += self.get(x, y);
             }
         }
 
         // Pass 2: Uniformly subtract the true smear from the entire column
         for y in 0..self.height {
-            for x in 0..self.width {
+            for (x, col) in column_sums.iter().enumerate().take(self.width) {
                 let pixel_value = self.get(x, y);
 
                 // Smear is constant across the entire column
-                let mut corrected_value = pixel_value - (smear_factor * column_sums[x]);
+                let mut corrected_value = pixel_value - (smear_factor * col);
 
                 // Clamp to avoid negative values in the noise floor
                 corrected_value = corrected_value.max(0.0);

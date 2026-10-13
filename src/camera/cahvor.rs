@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[deprecated]
 pub struct Cahvor {
     // Camera center vector C
     #[serde(with = "crate::vector::vector_format")]

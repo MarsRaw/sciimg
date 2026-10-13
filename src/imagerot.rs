@@ -7,7 +7,12 @@ use imageproc::geometric_transformations::{rotate_about_center, Interpolation};
 pub fn rotate_8(buffer: &imagebuffer::ImageBuffer, theta: f32) -> Result<imagebuffer::ImageBuffer> {
     let image = buffer.buffer_to_image_8bit();
     let default_pixel = Rgba([0, 0, 0, 0]);
-    let rotated = rotate_about_center(&image, theta, Interpolation::Bicubic, default_pixel);
+    let rotated = rotate_about_center(
+        &image,
+        theta,
+        Interpolation::Bicubic,
+        imageproc::geometric_transformations::Border::Constant(default_pixel),
+    );
 
     imagebuffer::ImageBuffer::from_image_u8(&rotated)
 }
@@ -18,7 +23,12 @@ pub fn rotate_16(
 ) -> Result<imagebuffer::ImageBuffer> {
     let image = buffer.buffer_to_image_16bit();
     let default_pixel = Rgba([0, 0, 0, 0]);
-    let rotated = rotate_about_center(&image, theta, Interpolation::Bicubic, default_pixel);
+    let rotated = rotate_about_center(
+        &image,
+        theta,
+        Interpolation::Bicubic,
+        imageproc::geometric_transformations::Border::Constant(default_pixel),
+    );
 
     imagebuffer::ImageBuffer::from_image_u16(&rotated)
 }

@@ -121,6 +121,14 @@ impl Vector {
         }
     }
 
+    pub fn norm_squared(&self) -> f64 {
+        self.x * self.x + self.y * self.y + self.z * self.z
+    }
+
+    pub fn norm(&self) -> f64 {
+        self.norm_squared().sqrt()
+    }
+
     pub fn multiply(&self, other: &Vector) -> Vector {
         Vector::new(self.x * other.x, self.y * other.y, self.z * other.z)
     }
