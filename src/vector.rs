@@ -2,6 +2,7 @@ use crate::{enums::Axis, util::string_is_valid_f64};
 use anyhow::Result;
 use std::ops::Index;
 use std::ops::IndexMut;
+use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector {
@@ -326,6 +327,198 @@ impl Vector {
             x: self.get_az(),
             y: self.get_el(),
             z: range,
+        }
+    }
+}
+
+impl Add<f64> for Vector {
+    type Output = Vector;
+
+    fn add(self, other: f64) -> Self::Output {
+        Vector {
+            x: self.x + other,
+            y: self.y + other,
+            z: self.z + other,
+        }
+    }
+}
+
+impl Add for Vector {
+    type Output = Vector;
+
+    fn add(self, other: Vector) -> Self::Output {
+        Vector {
+            x: self.x + other.x,
+            y: self.y + other.y,
+            z: self.z + other.z,
+        }
+    }
+}
+
+impl Add for &Vector {
+    type Output = Vector;
+
+    fn add(self, other: &Vector) -> Self::Output {
+        Vector {
+            x: self.x + other.x,
+            y: self.y + other.y,
+            z: self.z + other.z,
+        }
+    }
+}
+
+impl Add<Vector> for f64 {
+    type Output = Vector;
+
+    fn add(self, other: Vector) -> Self::Output {
+        Vector {
+            x: self + other.x,
+            y: self + other.y,
+            z: self + other.z,
+        }
+    }
+}
+
+impl Sub<f64> for Vector {
+    type Output = Vector;
+
+    fn sub(self, other: f64) -> Self::Output {
+        Vector {
+            x: self.x - other,
+            y: self.y - other,
+            z: self.z - other,
+        }
+    }
+}
+
+impl Sub for Vector {
+    type Output = Vector;
+
+    fn sub(self, other: Vector) -> Self::Output {
+        Vector {
+            x: self.x - other.x,
+            y: self.y - other.y,
+            z: self.z - other.z,
+        }
+    }
+}
+
+impl Sub for &Vector {
+    type Output = Vector;
+
+    fn sub(self, other: &Vector) -> Self::Output {
+        Vector {
+            x: self.x - other.x,
+            y: self.y - other.y,
+            z: self.z - other.z,
+        }
+    }
+}
+
+impl Sub<Vector> for f64 {
+    type Output = Vector;
+
+    fn sub(self, other: Vector) -> Self::Output {
+        Vector {
+            x: self - other.x,
+            y: self - other.y,
+            z: self - other.z,
+        }
+    }
+}
+
+impl Mul<f64> for Vector {
+    type Output = Vector;
+
+    fn mul(self, other: f64) -> Self::Output {
+        Vector {
+            x: self.x * other,
+            y: self.y * other,
+            z: self.z * other,
+        }
+    }
+}
+
+impl Mul for Vector {
+    type Output = Vector;
+
+    fn mul(self, other: Vector) -> Self::Output {
+        Vector {
+            x: self.x * other.x,
+            y: self.y * other.y,
+            z: self.z * other.z,
+        }
+    }
+}
+
+impl Mul for &Vector {
+    type Output = Vector;
+
+    fn mul(self, other: &Vector) -> Self::Output {
+        Vector {
+            x: self.x * other.x,
+            y: self.y * other.y,
+            z: self.z * other.z,
+        }
+    }
+}
+
+impl Mul<Vector> for f64 {
+    type Output = Vector;
+
+    fn mul(self, other: Vector) -> Self::Output {
+        Vector {
+            x: self * other.x,
+            y: self * other.y,
+            z: self * other.z,
+        }
+    }
+}
+
+impl Div<f64> for Vector {
+    type Output = Vector;
+
+    fn div(self, other: f64) -> Self::Output {
+        Vector {
+            x: self.x / other,
+            y: self.y / other,
+            z: self.z / other,
+        }
+    }
+}
+
+impl Div for Vector {
+    type Output = Vector;
+
+    fn div(self, other: Vector) -> Self::Output {
+        Vector {
+            x: self.x / other.x,
+            y: self.y / other.y,
+            z: self.z / other.z,
+        }
+    }
+}
+
+impl Div for &Vector {
+    type Output = Vector;
+
+    fn div(self, other: &Vector) -> Self::Output {
+        Vector {
+            x: self.x / other.x,
+            y: self.y / other.y,
+            z: self.z / other.z,
+        }
+    }
+}
+
+impl Div<Vector> for f64 {
+    type Output = Vector;
+
+    fn div(self, other: Vector) -> Self::Output {
+        Vector {
+            x: self / other.x,
+            y: self / other.y,
+            z: self / other.z,
         }
     }
 }

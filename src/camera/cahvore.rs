@@ -1,4 +1,4 @@
-use crate::{camera::model::*, max, min, util::vec_to_str, vector::Vector};
+use crate::{camera::model::*, util::vec_to_str, vector::Vector};
 
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
@@ -20,11 +20,31 @@ impl PupilType {
     }
 }
 
+// For use when indexing a vector of components during (de)serialization
+pub mod components {
+    pub const CENTER: usize = 0;
+    pub const AXIS: usize = 1;
+    pub const HORIZONTAL: usize = 2;
+    pub const VERTICAL: usize = 3;
+    pub const OPTICAL: usize = 4;
+    pub const RADIAL: usize = 5;
+    pub const ENTRANCE: usize = 6;
+    pub const PUPIL_TYPE: usize = 7;
+    pub const LINEARITY: usize = 8;
+}
+
+pub mod linearity {
+    pub static LINEARITY_FISHEYE: f64 = 0.0;
+    pub static LINEARITY_PERSPECTIVE: f64 = 1.0;
+    pub static LINEARITY_GENERAL: f64 = 2.0;
+}
+
+const LIN_EPS: f64 = 1e-10;
+
 pub static CHIP_LIMIT: f64 = 1e-8;
 pub static NEWTON_ITERATION_MAX: usize = 100;
 
-pub static LINEARITY_PERSPECTIVE: f64 = 1.0;
-pub static LINEARITY_FISHEYE: f64 = 0.0;
+pub static TOLERANCE: f64 = 1e-12;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Cahvore {
@@ -70,8 +90,8 @@ impl Default for Cahvore {
             o: Vector::default(),
             r: Vector::default(),
             e: Vector::default(),
-            pupil_type: PupilType::General,
-            linearity: LINEARITY_FISHEYE,
+            pupil_type: PupilType::Perspective,
+            linearity: linearity::LINEARITY_PERSPECTIVE,
         }
     }
 }
@@ -108,11 +128,11 @@ impl Cahvore {
             a,
             h,
             v,
-            o: Vector::new(0.0, 0.0, 1.0),
+            o: a,
             r: Vector::new(0.0, 0.0, 0.0),
             e: Vector::new(0.0, 0.0, 0.0),
-            pupil_type: PupilType::General,
-            linearity: LINEARITY_FISHEYE,
+            pupil_type: PupilType::Perspective,
+            linearity: linearity::LINEARITY_PERSPECTIVE,
         }
     }
 
@@ -125,143 +145,116 @@ impl Cahvore {
             o,
             r,
             e: Vector::new(0.0, 0.0, 0.0),
-            pupil_type: PupilType::General,
-            linearity: LINEARITY_FISHEYE,
+            pupil_type: PupilType::Perspective,
+            linearity: linearity::LINEARITY_PERSPECTIVE,
         }
     }
 
     //  Adapted from https://github.com/digimatronics/ComputerVision/blob/master/src/vw/Camera/CAHVOREModel.cc
     pub fn linearize(
         &self,
-        cahvor_width: usize,
-        cahvor_height: usize,
-        cahv_width: usize,
-        cahv_height: usize,
-    ) -> Cahvore {
-        let limfov = std::f64::consts::PI * (3.0 / 4.0);
-        let minfov = true;
+        src_width: usize,
+        src_height: usize,
+        out_width: usize,
+        out_height: usize,
+    ) -> Result<Cahvore> {
+        // A perspective model can't reach 90 degrees; keep the half-FOV safely below it.
+        let max_half_fov = std::f64::consts::PI * 85.0 / 180.0;
+        let min_fov = true; // true: crop to the narrowest edge angle; false: widest
 
-        // let mut output_camera = Cahv {
-        //     c: camera_model.c,
-        //     a: Vector::default(),
-        //     h: Vector::default(),
-        //     v: Vector::default(),
-        // };
-        let mut output_camera = Cahvore::default();
+        let sw = src_width as f64;
+        let sh = src_height as f64;
+        let mid_x = (sw - 1.0) / 2.0;
+        let mid_y = (sh - 1.0) / 2.0;
 
-        let hpts = [
-            Vector::default(),
-            Vector::new(0.0, (cahvor_height as f64 - 1.0) / 2.0, 0.0),
-            Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
-            Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
-            Vector::new(
-                cahvor_width as f64 - 1.0,
-                (cahvor_height as f64 - 1.0) / 2.0,
-                0.0,
-            ),
-            Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0)
-                .subtract(&Vector::new(1.0, 1.0, 0.0)),
-        ];
-
-        let vpts = [
-            Vector::default(),
-            Vector::new((cahvor_width as f64 - 1.0) / 2.0, 0.0, 0.0),
-            Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
-            Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
-            Vector::new(
-                (cahvor_width as f64 - 1.0) / 2.0,
-                cahvor_height as f64 - 1.0,
-                0.0,
-            ),
-            Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0)
-                .subtract(&Vector::new(1.0, 1.0, 0.0)),
-        ];
-
-        let p2_sample = (cahvor_width as f64 - 1.0) / 2.0;
-        let p2_line = (cahvor_height as f64 - 1.0) / 2.0;
-
-        output_camera.a = self
+        // Boresight of the output camera: the ray through the middle of the source image.
+        let a = self
             .ls_to_look_vector(&ImageCoordinate {
-                line: p2_line,
-                sample: p2_sample,
-            })
-            .expect("Failed to project boresight")
-            .look_direction;
+                line: mid_y,
+                sample: mid_x,
+            })?
+            .look_direction
+            .normalized();
 
-        let mut dn = self.a.cross_product(&self.h);
-        //let mut rt = dn.cross_product(&camera_model.a).normalized();
-        dn = dn.normalized();
+        // Right/down basis perpendicular to `a`, seeded with the source camera's "down".
+        let down_in = self.a.cross_product(&self.h).normalized();
+        let rt = down_in.cross_product(&a).normalized();
+        let dn = a.cross_product(&rt).normalized();
 
-        let mut rt = dn.cross_product(&output_camera.a);
-        dn = output_camera.a.cross_product(&rt).normalized();
-        rt = rt.normalized();
+        // (sample, line) points along the left/right edges and the top/bottom edges.
+        let left_right = [
+            (0.0, 0.0),
+            (0.0, mid_y),
+            (0.0, sh - 1.0),
+            (sw - 1.0, 0.0),
+            (sw - 1.0, mid_y),
+            (sw - 1.0, sh - 1.0),
+        ];
+        let top_bottom = [
+            (0.0, 0.0),
+            (mid_x, 0.0),
+            (sw - 1.0, 0.0),
+            (0.0, sh - 1.0),
+            (mid_x, sh - 1.0),
+            (sw - 1.0, sh - 1.0),
+        ];
 
-        let mut hmin = 1.0;
-        let mut hmax = -1.0;
-        for local in hpts.iter() {
-            if let Ok(lv) = self.ls_to_look_vector(&ImageCoordinate {
-                line: local.y,
-                sample: local.x,
-            }) {
-                let cs = output_camera.a.dot_product(
-                    &lv.look_direction
-                        .subtract(&dn.scale(dn.dot_product(&lv.look_direction)))
-                        .normalized(),
-                );
-                hmin = min!(hmin, cs);
-                hmax = max!(hmax, cs);
+        // Range of cos(angle from `a`) after projecting each edge ray into the plane
+        // perpendicular to `perp`. Points that fail to unproject are skipped.
+        let cos_range = |pts: &[(f64, f64)], perp: &Vector| -> Option<(f64, f64)> {
+            let mut range: Option<(f64, f64)> = None;
+            for &(sample, line) in pts {
+                let Ok(lv) = self.ls_to_look_vector(&ImageCoordinate { line, sample }) else {
+                    continue;
+                };
+                let d = lv.look_direction.normalized();
+                let flat = d.subtract(&perp.scale(perp.dot_product(&d))).normalized();
+                let cs = a.dot_product(&flat).clamp(-1.0, 1.0);
+                range = Some(match range {
+                    None => (cs, cs),
+                    Some((lo, hi)) => (lo.min(cs), hi.max(cs)),
+                });
             }
+            range
+        };
+
+        let (h_lo, h_hi) = cos_range(&left_right, &dn)
+            .ok_or_else(|| anyhow!("linearize: no left/right edge points could be unprojected"))?;
+        let (v_lo, v_hi) = cos_range(&top_bottom, &rt)
+            .ok_or_else(|| anyhow!("linearize: no top/bottom edge points could be unprojected"))?;
+
+        let (mut cos_h, mut cos_v) = if min_fov { (h_hi, v_hi) } else { (h_lo, v_lo) };
+
+        // cos is decreasing on [0, pi], so this limits the half-FOV to max_half_fov.
+        let min_cos = max_half_fov.cos();
+        cos_h = cos_h.max(min_cos);
+        cos_v = cos_v.max(min_cos);
+
+        let sin2_h = 1.0 - cos_h * cos_h;
+        let sin2_v = 1.0 - cos_v * cos_v;
+        if sin2_h < 1e-12 || sin2_v < 1e-12 {
+            return Err(anyhow!("linearize: degenerate field of view"));
         }
 
-        let mut vmin = 1.0;
-        let mut vmax = -1.0;
-        for local in vpts.iter() {
-            if let Ok(lv) = self.ls_to_look_vector(&ImageCoordinate {
-                line: local.y,
-                sample: local.x,
-            }) {
-                let cs = output_camera.a.dot_product(
-                    &lv.look_direction
-                        .subtract(&rt.scale(rt.dot_product(&lv.look_direction)))
-                        .normalized(),
-                );
-                vmin = min!(vmin, cs);
-                vmax = max!(vmax, cs);
-            }
-        }
+        // Pixel scale: half the output size times cot(half-FOV).
+        let hs = (out_width as f64 / 2.0) * cos_h / sin2_h.sqrt();
+        let vs = (out_height as f64 / 2.0) * cos_v / sin2_v.sqrt();
 
-        let cahv_image_size = Vector::new(cahv_height as f64, cahv_width as f64, 0.0);
+        // Principal point at the center of the output image (width -> H, height -> V).
+        let hc = (out_width as f64 - 1.0) / 2.0;
+        let vc = (out_height as f64 - 1.0) / 2.0;
 
-        let mut cosines = Vector::new(0.0, 0.0, 1.0);
-        if minfov {
-            cosines.x = hmax;
-            cosines.y = vmax;
-        } else {
-            cosines.x = hmin;
-            cosines.y = vmin;
-        }
-
-        if cosines.x.acos() > limfov {
-            cosines.x = limfov.cos();
-        }
-        if cosines.y.acos() > limfov {
-            cosines.y = limfov.cos();
-        }
-
-        let scalars = cahv_image_size.scale(0.5).multiply(&cosines).divide(
-            &Vector::new(1.0, 1.0, 0.0)
-                .subtract(&cosines.multiply(&cosines))
-                .sqrt(),
-        );
-
-        let centers = cahv_image_size
-            .subtract(&Vector::new(1.0, 1.0, 0.0))
-            .scale(0.5);
-
-        output_camera.h = output_camera.a.scale(centers.x).add(&rt.scale(scalars.x));
-        output_camera.v = output_camera.a.scale(centers.y).add(&dn.scale(scalars.y));
-
-        output_camera
+        Ok(Cahvore {
+            c: self.c,
+            a,
+            h: a.scale(hc).add(&rt.scale(hs)),
+            v: a.scale(vc).add(&dn.scale(vs)),
+            o: a, // no distortion, so O = A
+            r: Vector::new(0.0, 0.0, 0.0),
+            e: Vector::new(0.0, 0.0, 0.0),
+            pupil_type: PupilType::Perspective,
+            linearity: linearity::LINEARITY_PERSPECTIVE,
+        })
     }
 
     fn invert_distortion(&self, chip: f64) -> Result<f64> {
@@ -270,15 +263,14 @@ impl Cahvore {
         } else {
             let mut chi = chip;
 
-            for x in 1..=NEWTON_ITERATION_MAX {
+            for x in 0..=NEWTON_ITERATION_MAX {
                 let chi2 = chi * chi;
                 let chi4 = chi2 * chi2;
 
                 let poly = 1.0 + self.r.x + self.r.y * chi2 + self.r.z * chi4;
                 let f = chi * poly - chip;
 
-                if f.abs() < CHIP_LIMIT {
-                    // TOLERANCE
+                if f.abs() < TOLERANCE {
                     return Ok(chi);
                 }
 
@@ -301,47 +293,11 @@ impl Cahvore {
                         chi
                     ));
                 }
-
-                /*
-                if x >= NEWTON_ITERATION_MAX {
-                    eprintln!("CAHVORE: Too many iterations without sufficient convergence");
-                    break;
-                }
-
-                let chi2 = chi * chi;
-                let chi3 = chi * chi2;
-                let chi4 = chi * chi3;
-                let chi5 = chi * chi4;
-
-                let deriv = 1.0 + self.r.x + 3.0 * self.r.y * chi2 + 5.0 * self.r.z * chi4;
-                //assert!(
-                //    deriv.abs() > EPSILON,
-                //    "cmod_cahvore_2d_to_3d_general deriv.abs() > EPSILON"
-                //);
-
-                let dchi = ((1.0 + self.r.x) * chi)
-                    + (self.r.y * chi3)
-                    + ((self.r.z * chi5) - chip) / deriv;
-                if dchi.abs() < CHIP_LIMIT {
-                    break;
-                }
-                // let dchi = if deriv == 0.0 {
-                //     0.0
-                // } else {
-                //     ((1.0 + self.r.x) * chi)
-                //         + (self.r.y * chi3)
-                //         + ((self.r.z * chi5) - chip) / deriv
-                // };
-
-                chi -= dchi;
-                */
             }
             Ok(chi)
         }
     }
-}
 
-impl Cahvore {
     pub fn model_type(&self) -> ModelType {
         ModelType::CAHVORE
     }
@@ -378,8 +334,91 @@ impl Cahvore {
         self.a.cross_product(&self.h).len()
     }
 
-    // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
+    fn theta_from_chi(chi: f64, lin: f64) -> Result<f64> {
+        if lin > LIN_EPS {
+            Ok((lin * chi).atan() / lin)
+        } else if lin < -LIN_EPS {
+            let x = lin * chi;
+            if x.abs() > 1.0 {
+                return Err(anyhow!("chi out of range for sin-type linearity"));
+            }
+            Ok(x.asin() / lin)
+        } else {
+            Ok(chi)
+        }
+    }
+
+    fn chi_from_theta(theta: f64, lin: f64) -> Result<f64> {
+        if lin > LIN_EPS {
+            if lin * theta >= std::f64::consts::FRAC_PI_2 {
+                return Err(anyhow!("Out of bounds: theta beyond the perspective limit"));
+            }
+            Ok((lin * theta).tan() / lin)
+        } else if lin < -LIN_EPS {
+            if (lin * theta).abs() > std::f64::consts::FRAC_PI_2 {
+                return Err(anyhow!("Out of bounds: theta beyond the sin-mapping limit"));
+            }
+            Ok((lin * theta).sin() / lin)
+        } else {
+            Ok(theta)
+        }
+    }
+
     pub fn ls_to_look_vector(&self, coordinate: &ImageCoordinate) -> Result<LookVector> {
+        let a = self.a.normalized();
+        let o = self.o.normalized();
+
+        // 1. CAHV ray for the pixel. Exact: no assumption that H' is perpendicular to V'.
+        let f = self.v - a * coordinate.line;
+        let g = self.h - a * coordinate.sample;
+        let denom = a.dot_product(&self.v.cross_product(&self.h));
+        if denom.abs() < 1e-12 {
+            return Err(anyhow!("Numerical error: degenerate H/V/A"));
+        }
+        let rp = f.cross_product(&g) / denom;
+
+        // 2. Decompose about the OPTICAL axis O (distortion is centered on O, not A).
+        let zetap = rp.dot_product(&o);
+        if zetap <= 0.0 {
+            return Err(anyhow!(
+                "Out of bounds: ray is at or beyond 90 deg from optical axis"
+            ));
+        }
+        let lambdap = rp - o * zetap;
+        let chip = lambdap.norm() / zetap;
+
+        // On-axis: no distortion, no pupil shift.
+        if chip < CHIP_LIMIT {
+            return Ok(LookVector {
+                origin: self.c,
+                look_direction: o,
+            });
+        }
+
+        // 3. Undo radial distortion, then undo the linearity mapping.
+        let chi = self.invert_distortion(chip)?;
+        let theta = Cahvore::theta_from_chi(chi, self.linearity)?;
+
+        let (sin_t, cos_t) = theta.sin_cos();
+
+        // 4. Entrance-pupil shift along O (moves the ray origin, not the direction).
+        let s = if theta.abs() > 1e-8 {
+            (theta / sin_t - 1.0) * (self.e.x + self.e.y * theta * theta + self.e.z * theta.powi(4))
+        } else {
+            0.0
+        };
+        let origin = self.c + o * s;
+
+        // 5. Ray of incidence: unit length.
+        let direction = lambdap.normalized() * sin_t + o * cos_t;
+
+        Ok(LookVector {
+            origin,
+            look_direction: direction,
+        })
+    }
+
+    pub fn ls_to_look_vector_old(&self, coordinate: &ImageCoordinate) -> Result<LookVector> {
         let line = coordinate.line;
         let samp = coordinate.sample;
 
@@ -436,85 +475,94 @@ impl Cahvore {
         })
     }
 
-    // Adapted from https://github.com/NASA-AMMOS/VICAR/blob/master/vos/java/jpl/mipl/mars/pig/PigCoreCAHVORE.java
-    pub fn xyz_to_ls(&self, xyz: &Vector, _infinity: bool) -> ImageCoordinate {
-        let p_c = xyz.subtract(&self.c);
-        let zeta = p_c.dot_product(&self.o);
-        let f = self.o.scale(zeta);
-        let lambda = p_c.subtract(&f);
-        let lamda_mag = lambda.len();
+    pub fn apply_distortion(chi: f64, r_params: &Vector) -> f64 {
+        let chi2 = chi * chi;
+        let chi4 = chi2 * chi2;
+        chi * (1.0 + r_params.x + r_params.y * chi2 + r_params.z * chi4)
+    }
 
-        let mut theta = lamda_mag.atan2(zeta);
+    pub fn xyz_to_ls(&self, xyz: &Vector, infinity: bool) -> Result<ImageCoordinate> {
+        let a = self.a.normalized();
+        let o = self.o.normalized();
 
-        for x in 1..=NEWTON_ITERATION_MAX {
-            let cos_theta = theta.cos();
-            let sin_theta = theta.sin();
-            let theta2 = theta * theta;
-            let theta3 = theta2 * theta;
-            let theta4 = theta3 * theta;
-
-            let upsilon = (zeta * cos_theta) + (lamda_mag * sin_theta)
-                - ((1.0 - cos_theta) * (self.e.x + self.e.y * theta2 + self.e.z * theta4))
-                - ((theta - sin_theta)
-                    * (self.e.x + 2.0 * self.e.y * theta + 4.0 * self.e.z * theta3));
-            let dtheta = ((zeta * sin_theta - lamda_mag * cos_theta)
-                - (theta - sin_theta) * (self.e.x + self.e.y * theta2 + self.e.z * theta4))
-                / upsilon;
-            theta -= dtheta;
-
-            if dtheta.abs() < CHIP_LIMIT {
-                break;
-            }
-
-            if x >= NEWTON_ITERATION_MAX {
-                eprintln!("CAHVORE: Too many iterations without sufficient convergence");
-                break;
-            }
-        }
-
-        if theta * self.linearity.abs() > (std::f64::consts::PI / 2.0) {
-            eprintln!("CAVHORE: theta out of bounds");
-            return ImageCoordinate {
-                sample: 0.0,
-                line: 0.0,
-            };
-            //panic!("CAVHORE: theta out of bounds");
-        }
-
-        let rp = if theta < CHIP_LIMIT {
-            p_c
+        // Vector from the camera center to the point. For points at infinity the
+        // input is a direction, and the pupil shift is negligible.
+        let p_c = if infinity { *xyz } else { xyz - &self.c };
+        let e = if infinity {
+            Vector::new(0.0, 0.0, 0.0)
         } else {
-            let linth = self.linearity * theta;
-            let chi = if self.linearity < -EPSILON {
-                linth.sin() / self.linearity
-            } else if self.linearity > EPSILON {
-                linth.tan() / self.linearity
-            } else {
-                theta
-            };
-
-            let chi2 = chi * chi;
-            let chi3 = chi2 * chi;
-            let chi4 = chi3 * chi;
-
-            let zetap = lamda_mag / chi;
-
-            let mu = self.r.x + self.r.y * chi2 + self.r.z * chi4;
-
-            let f = self.o.scale(zetap);
-            let g = lambda.scale(1.0 + mu);
-
-            f.add(&g)
+            self.e
         };
 
-        let alpha = rp.dot_product(&self.a);
-        let beta = rp.dot_product(&self.h);
-        let gamma = rp.dot_product(&self.v);
+        // Decompose about the optical axis O.
+        let zeta = p_c.dot_product(&o);
+        let lambda = p_c - o * zeta;
+        let lambda_mag = lambda.norm();
 
-        ImageCoordinate {
-            sample: beta / alpha,
-            line: gamma / alpha,
+        if p_c.norm() < 1e-12 {
+            return Err(anyhow!("Numerical error: point is at the camera center"));
         }
+
+        // Solve for theta, the angle of the incident ray from O, including the
+        // entrance-pupil shift s(theta) = (theta/sin(theta) - 1) * E(theta).
+        //   F(theta) = zeta*sin(t) - lambda*cos(t) - (t - sin(t)) * E(t) = 0
+        let mut theta = lambda_mag.atan2(zeta);
+
+        if lambda_mag > 1e-12 && e.norm() > 1e-15 {
+            let mut converged = false;
+            for _ in 0..NEWTON_ITERATION_MAX {
+                let (sin_t, cos_t) = theta.sin_cos();
+                let t2 = theta * theta;
+                let t3 = t2 * theta;
+                let t4 = t2 * t2;
+
+                let ee = e.x + e.y * t2 + e.z * t4;
+                let de = 2.0 * e.y * theta + 4.0 * e.z * t3;
+
+                let f = zeta * sin_t - lambda_mag * cos_t - (theta - sin_t) * ee;
+                let fp =
+                    zeta * cos_t + lambda_mag * sin_t - (1.0 - cos_t) * ee - (theta - sin_t) * de;
+
+                if fp.abs() < 1e-15 {
+                    return Err(anyhow!("Newton iteration: derivative too small"));
+                }
+
+                let dtheta = f / fp;
+                theta -= dtheta;
+
+                if dtheta.abs() < TOLERANCE {
+                    converged = true;
+                    break;
+                }
+            }
+            if !converged {
+                return Err(anyhow!("CAHVORE: theta Newton iteration did not converge"));
+            }
+        }
+
+        // Ray from the optical axis: undistorted chi, then radial distortion.
+        // rp is proportional to O + chi_dist * lambda_hat, so there is no division
+        // by chi and no special case near the axis.
+        let rp = if lambda_mag < 1e-12 || theta.abs() < CHIP_LIMIT {
+            o
+        } else {
+            let chi = Cahvore::chi_from_theta(theta, self.linearity)?;
+            let chi_dist = Cahvore::apply_distortion(chi, &self.r);
+            o + lambda * (chi_dist / lambda_mag)
+        };
+
+        // Standard CAHV projection of the (distorted) ray.
+        let alpha = rp.dot_product(&a);
+        if alpha <= 1e-12 {
+            return Err(anyhow!(
+                "Out of bounds: point projects behind the image plane"
+            ));
+        }
+
+        Ok(ImageCoordinate {
+            sample: rp.dot_product(&self.h) / alpha,
+            line: rp.dot_product(&self.v) / alpha,
+        })
     }
 
     pub fn pixel_angle_horiz(&self) -> f64 {
@@ -531,6 +579,48 @@ impl Cahvore {
         (1.0 / f).atan()
     }
 
+    pub fn scale(&self, sx: f64, sy: f64) -> Self {
+        Self {
+            c: self.c,
+            a: self.a,
+            h: self.h * sx,
+            v: self.v * sy,
+            o: self.o,
+            r: self.r,
+            e: self.e,
+            pupil_type: self.pupil_type.clone(),
+            linearity: self.linearity,
+        }
+    }
+
+    pub fn shift(&self, dx: f64, dy: f64) -> Self {
+        Self {
+            c: self.c,
+            a: self.a,
+            h: self.h + dx * self.a,
+            v: self.v + dy * self.a,
+            o: self.o,
+            r: self.r,
+            e: self.e,
+            pupil_type: self.pupil_type.clone(),
+            linearity: self.linearity,
+        }
+    }
+
+    pub fn translate(&self, translation: Vector) -> Self {
+        Self {
+            c: self.c + translation,
+            a: self.a,
+            h: self.h,
+            v: self.v,
+            o: self.o,
+            r: self.r,
+            e: self.e,
+            pupil_type: self.pupil_type.clone(),
+            linearity: self.linearity,
+        }
+    }
+
     pub fn serialize(&self) -> String {
         format!(
             "{};{};{};{};{};{};{};{};{}",
@@ -545,137 +635,4 @@ impl Cahvore {
             self.linearity
         )
     }
-}
-
-//  Adapted from https://github.com/digimatronics/ComputerVision/blob/master/src/vw/Camera/CAHVOREModel.cc
-pub fn linearize(
-    camera_model: &Cahvore,
-    cahvor_width: usize,
-    cahvor_height: usize,
-    cahv_width: usize,
-    cahv_height: usize,
-) -> Cahvore {
-    let limfov = std::f64::consts::PI * (3.0 / 4.0);
-    let minfov = true;
-
-    let mut output_camera = Cahvore::new_cahv(
-        camera_model.c,
-        Vector::default(),
-        Vector::default(),
-        Vector::default(),
-    );
-
-    let hpts = [
-        Vector::default(),
-        Vector::new(0.0, (cahvor_height as f64 - 1.0) / 2.0, 0.0),
-        Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
-        Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
-        Vector::new(
-            cahvor_width as f64 - 1.0,
-            (cahvor_height as f64 - 1.0) / 2.0,
-            0.0,
-        ),
-        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0)
-            .subtract(&Vector::new(1.0, 1.0, 0.0)),
-    ];
-
-    let vpts = [
-        Vector::default(),
-        Vector::new((cahvor_width as f64 - 1.0) / 2.0, 0.0, 0.0),
-        Vector::new(cahvor_width as f64 - 1.0, 0.0, 0.0),
-        Vector::new(0.0, cahvor_height as f64 - 1.0, 0.0),
-        Vector::new(
-            (cahvor_width as f64 - 1.0) / 2.0,
-            cahvor_height as f64 - 1.0,
-            0.0,
-        ),
-        Vector::new(cahvor_width as f64, cahvor_height as f64, 0.0)
-            .subtract(&Vector::new(1.0, 1.0, 0.0)),
-    ];
-
-    let p2_sample = (cahvor_width as f64 - 1.0) / 2.0;
-    let p2_line = (cahvor_height as f64 - 1.0) / 2.0;
-
-    output_camera.a = camera_model
-        .ls_to_look_vector(&ImageCoordinate {
-            line: p2_line,
-            sample: p2_sample,
-        })
-        .expect("Failed to project boresight")
-        .look_direction;
-
-    let mut dn = camera_model.a.cross_product(&camera_model.h);
-    //let mut rt = dn.cross_product(&camera_model.a).normalized();
-    dn = dn.normalized();
-
-    let mut rt = dn.cross_product(&output_camera.a);
-    dn = output_camera.a.cross_product(&rt).normalized();
-    rt = rt.normalized();
-
-    let mut hmin = 1.0;
-    let mut hmax = -1.0;
-    for local in hpts.iter() {
-        if let Ok(lv) = camera_model.ls_to_look_vector(&ImageCoordinate {
-            line: local.y,
-            sample: local.x,
-        }) {
-            let cs = output_camera.a.dot_product(
-                &lv.look_direction
-                    .subtract(&dn.scale(dn.dot_product(&lv.look_direction)))
-                    .normalized(),
-            );
-            hmin = min!(hmin, cs);
-            hmax = max!(hmax, cs);
-        }
-    }
-
-    let mut vmin = 1.0;
-    let mut vmax = -1.0;
-    for local in vpts.iter() {
-        if let Ok(lv) = camera_model.ls_to_look_vector(&ImageCoordinate {
-            line: local.y,
-            sample: local.x,
-        }) {
-            let cs = output_camera.a.dot_product(
-                &lv.look_direction
-                    .subtract(&rt.scale(rt.dot_product(&lv.look_direction)))
-                    .normalized(),
-            );
-            vmin = min!(vmin, cs);
-            vmax = max!(vmax, cs);
-        }
-    }
-
-    let cahv_image_size = Vector::new(cahv_height as f64, cahv_width as f64, 0.0);
-
-    let mut cosines = Vector::new(0.0, 0.0, 1.0);
-    if minfov {
-        cosines.x = hmax;
-        cosines.y = vmax;
-    } else {
-        cosines.x = hmin;
-        cosines.y = vmin;
-    }
-
-    if cosines.x.acos() > limfov {
-        cosines.x = limfov.cos();
-    }
-    if cosines.y.acos() > limfov {
-        cosines.y = limfov.cos();
-    }
-
-    let scalars = cahv_image_size.scale(0.5).multiply(&cosines).divide(
-        &Vector::new(1.0, 1.0, 0.0)
-            .subtract(&cosines.multiply(&cosines))
-            .sqrt(),
-    );
-
-    let centers = cahv_image_size
-        .subtract(&Vector::new(1.0, 1.0, 0.0))
-        .scale(0.5);
-
-    output_camera.h = output_camera.a.scale(centers.x).add(&rt.scale(scalars.x));
-    output_camera.v = output_camera.a.scale(centers.y).add(&dn.scale(scalars.y));
-
-    output_camera
 }
