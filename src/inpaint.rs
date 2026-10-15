@@ -76,7 +76,7 @@ fn get_num_good_neighbors(mask: &ImageBuffer, x: i32, y: i32) -> u32 {
 }
 
 pub fn find_starting_point(mask: &ImageBuffer) -> Option<Point> {
-    for (y, x) in itertools::iproduct!((0..mask.height), (0..mask.width)) {
+    for (y, x) in itertools::iproduct!(0..mask.height, 0..mask.width) {
         if mask.get(x, y) > 0.0 {
             return Some(Point { x, y, score: 0 });
         }
