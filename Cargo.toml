@@ -10,7 +10,8 @@ keywords = ["planetary", "astrophotography", "science", "imaging"]
 license = "MIT"
 
 [features]
-rayon = []
+rayon = ["dep:rayon"]
+default = []
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(rayon)'] }
@@ -24,12 +25,20 @@ image = "0.25.9"
 imageproc = "0.27.0"
 lab = "0.11.0"
 memmap = "0.7.0"
+rayon = { version = "1.7.0", optional = true }
 serde = { version = "1.0.125", features = ["derive"] }
 string-builder = "0.2.0"
 itertools = "0.15.0"
 anyhow = "1.0.65"
 dng = "1.5.0"
 jpeg-decoder = "0.3.0"
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "gaussian"
+harness = false
 
 [patch.crates-io]
 jpeg-decoder = { git = "https://github.com/MarsRaw/jpeg-decoder.git", branch = "optional-zero-ac63" }

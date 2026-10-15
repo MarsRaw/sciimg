@@ -16,7 +16,7 @@ pub mod debayer;
 pub mod decompanding;
 pub mod drawable;
 pub mod enums;
-pub mod guassianblur;
+pub mod gaussianblur;
 pub mod hotpixel;
 pub mod image;
 pub mod imagebuffer;
