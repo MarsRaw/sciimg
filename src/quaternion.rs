@@ -1,4 +1,5 @@
 use crate::{matrix::Matrix, vector::Vector};
+use anyhow::{anyhow, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Quaternion {
@@ -35,6 +36,23 @@ impl Quaternion {
             q2: real_axis.y * sin_half_theta,
             q3: real_axis.z * sin_half_theta,
         }
+    }
+
+    pub fn from_vec(arr: &[f64]) -> Result<Self> {
+        if arr.len() == 4 {
+            Ok(Quaternion {
+                q0: arr[0],
+                q1: arr[1],
+                q2: arr[2],
+                q3: arr[3],
+            })
+        } else {
+            Err(anyhow!("Insufficient or excessive number of parameters"))
+        }
+    }
+
+    pub fn to_vec(&self) -> Vec<f64> {
+        vec![self.q0, self.q1, self.q2, self.q3]
     }
 
     pub fn from_pitch_roll_yaw(roll: f64, pitch: f64, yaw: f64) -> Self {

@@ -1,5 +1,6 @@
 use std::env;
 use std::ffi::OsStr;
+use std::fs::File;
 use std::path::Path;
 
 pub fn get_extension(chk_path: &str) -> Option<&str> {
@@ -9,6 +10,10 @@ pub fn get_extension(chk_path: &str) -> Option<&str> {
 // Checks if file exists.
 pub fn file_exists(chk_path: &str) -> bool {
     Path::new(&chk_path).exists()
+}
+
+pub fn file_readable(chk_path: &str) -> bool {
+    File::open(chk_path).is_ok()
 }
 
 pub fn basename(chk_path: &str) -> String {
