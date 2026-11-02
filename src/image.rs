@@ -1,13 +1,13 @@
 use crate::output;
 use crate::output::OutputFormat;
 use crate::{
-    color, debayer, decompanding, enums, hotpixel, imagebuffer::ImageBuffer, imagebuffer::Offset,
-    imagerot, inpaint, lowpass, max, min, noise, path, resize, vector::Vector, Mask, MaskVec,
+    Mask, MaskVec, color, debayer, decompanding, enums, hotpixel, imagebuffer::ImageBuffer,
+    imagebuffer::Offset, imagerot, inpaint, lowpass, max, min, noise, path, resize, vector::Vector,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use enums::ImageMode;
-use image::{open, ColorType::*, DynamicImage};
+use image::{ColorType::*, DynamicImage, open};
 use itertools::iproduct;
 
 // A simple image raster buffer.

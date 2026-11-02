@@ -1,11 +1,11 @@
 use crate::{
-    enums, image::Image, max, min, output, output::OutputFormat, path, Dn, DnVec, MaskVec,
-    MaskedDnVec, MinMax, VecMath,
+    Dn, DnVec, MaskVec, MaskedDnVec, MinMax, VecMath, enums, image::Image, max, min, output,
+    output::OutputFormat, path,
 };
 
 extern crate image;
 use anyhow::Result;
-use image::{open, DynamicImage, Rgba};
+use image::{DynamicImage, Rgba, open};
 use itertools::iproduct;
 
 // A simple image raster buffer.

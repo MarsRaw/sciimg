@@ -30,9 +30,7 @@ macro_rules! fabs {
 }
 
 macro_rules! LIM {
-    ($x: expr, $y:expr, $z:expr) => {{
-        max!($y, min!($x, $z))
-    }};
+    ($x: expr, $y:expr, $z:expr) => {{ max!($y, min!($x, $z)) }};
 }
 macro_rules! ULIM {
     ($x: expr, $y:expr, $z:expr) => {{

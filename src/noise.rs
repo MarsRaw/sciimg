@@ -1,5 +1,5 @@
 extern crate lab;
-use lab::{labs_to_rgbs, rgbs_to_labs, Lab};
+use lab::{Lab, labs_to_rgbs, rgbs_to_labs};
 
 use crate::{blur, enums, image::Image, imagebuffer::ImageBuffer};
 

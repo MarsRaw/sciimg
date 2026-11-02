@@ -1,6 +1,6 @@
 use crate::max;
-use crate::{image::Image, imagebuffer::ImageBuffer, Dn, DnVec, VecMath};
-use anyhow::{anyhow, Result};
+use crate::{Dn, DnVec, VecMath, image::Image, imagebuffer::ImageBuffer};
+use anyhow::{Result, anyhow};
 
 /// NOTE: this will call the parallelized version if you are using the 'rayon' feature.
 pub fn gaussian_blur_nband(buffers: &mut [ImageBuffer], sigma: f32) -> Result<Vec<ImageBuffer>> {
