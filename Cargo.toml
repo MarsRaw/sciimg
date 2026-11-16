@@ -20,7 +20,6 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(rayon)'] }
 rayon = "1.7.0"
 
 [dependencies]
-chrono = "0.4.19"
 image = "0.25.9"
 imageproc = "0.27.0"
 lab = "0.11.0"

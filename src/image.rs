@@ -10,6 +10,10 @@ use enums::ImageMode;
 use image::{ColorType::*, DynamicImage, open};
 use itertools::iproduct;
 
+const GRAYSCALE_SCALAR_RED: f32 = 0.2125;
+const GRAYSCALE_SCALAR_GREEN: f32 = 0.7154;
+const GRAYSCALE_SCALAR_BLUE: f32 = 0.0721;
+
 // A simple image raster buffer.
 #[derive(Debug, Clone)]
 pub struct Image {
@@ -454,6 +458,19 @@ impl Image {
         }
     }
 
+    pub fn get_pixel_grayscale(&self, x: usize, y: usize) -> f32 {
+        if self.num_bands() == 1 {
+            self.bands[0].get(x, y)
+        } else if self.num_bands() == 3 {
+            let r = self.bands[0].get(x, y);
+            let g = self.bands[1].get(x, y);
+            let b = self.bands[2].get(x, y);
+            r * GRAYSCALE_SCALAR_RED + g * GRAYSCALE_SCALAR_GREEN + b * GRAYSCALE_SCALAR_BLUE
+        } else {
+            panic!("Unsupported number of iamge bands for grayscale calculation");
+        }
+    }
+
     pub fn get_alpha_at(&self, x: usize, y: usize) -> bool {
         if self.uses_alpha {
             self.alpha.get_2d(self.width, self.height, x, y)
@@ -789,8 +806,8 @@ impl Image {
 
         let mut v = f32::MIN;
 
-        for i in 0..self.bands.len() {
-            let b = self.bands[i].get(x, y);
+        for band in self.bands.iter().take(self.bands.len()) {
+            let b = band.get(x, y);
             if v == f32::MIN {
                 v = b;
             } else if v != b {
@@ -841,11 +858,12 @@ impl Image {
         let mut minval = f32::MAX;
         let mut maxval = f32::MIN;
 
-        for i in 0..self.bands.len() {
-            let mnmx = self.bands[i].get_min_max();
+        for band in self.bands.iter().take(self.bands.len()) {
+            let mnmx = band.get_min_max();
             minval = min!(mnmx.min, minval);
             maxval = max!(mnmx.max, maxval);
         }
+
         (minval, maxval)
     }
 
