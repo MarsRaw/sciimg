@@ -1,7 +1,7 @@
 use crate::image::Image;
 use anyhow::Result;
 
-fn remove_local_mean(g: &mut [f32], w: usize, h: usize, r: usize) {
+pub fn remove_local_mean(g: &mut [f32], w: usize, h: usize, r: usize) {
     let integral = Integral::new(g, w, h);
     for y in 0..h {
         for x in 0..w {
