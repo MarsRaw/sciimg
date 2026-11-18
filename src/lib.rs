@@ -22,6 +22,7 @@ pub mod image;
 pub mod imagebuffer;
 pub mod imagerot;
 pub mod inpaint;
+pub mod integral;
 pub mod lowpass;
 pub mod matrix;
 pub mod medianblur;

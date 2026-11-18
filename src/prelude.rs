@@ -9,5 +9,6 @@ pub use crate::enums::CalFileType;
 pub use crate::enums::ImageMode;
 pub use crate::image::Image;
 pub use crate::imagebuffer::ImageBuffer;
+pub use crate::integral;
 pub use crate::not_implemented;
 pub use crate::path;

@@ -789,8 +789,8 @@ impl Image {
 
         let mut v = f32::MIN;
 
-        for i in 0..self.bands.len() {
-            let b = self.bands[i].get(x, y);
+        for band in self.bands.iter().take(self.bands.len()) {
+            let b = band.get(x, y);
             if v == f32::MIN {
                 v = b;
             } else if v != b {
@@ -841,8 +841,8 @@ impl Image {
         let mut minval = f32::MAX;
         let mut maxval = f32::MIN;
 
-        for i in 0..self.bands.len() {
-            let mnmx = self.bands[i].get_min_max();
+        for band in self.bands.iter().take(self.bands.len()) {
+            let mnmx = band.get_min_max();
             minval = min!(mnmx.min, minval);
             maxval = max!(mnmx.max, maxval);
         }
@@ -1040,5 +1040,45 @@ impl Image {
             .collect();
         self.width = to_width;
         self.height = to_height;
+    }
+
+    pub fn to_grayscale(&self) -> Result<Self> {
+        if self.num_bands() == 1 {
+            return Err(anyhow!("Cannot convert image to mono: Already mono"));
+        } else if self.num_bands() != 3 {
+            return Err(anyhow!(
+                "Cannot convert image to mono: Needs a three band RGB image"
+            ));
+        }
+
+        let mut band_0_scaled = match self.get_band(0).scale(0.2125) {
+            Ok(b) => b,
+            Err(why) => return Err(anyhow!("Failed to scale band values: {:?}", why)),
+        };
+
+        let band_1_scaled = match self.get_band(1).scale(0.7154) {
+            Ok(b) => b,
+            Err(why) => return Err(anyhow!("Failed to scale band values: {:?}", why)),
+        };
+
+        let band_2_scaled = match self.get_band(2).scale(0.0721) {
+            Ok(b) => b,
+            Err(why) => return Err(anyhow!("Failed to scale band values: {:?}", why)),
+        };
+
+        band_0_scaled.add_mut(&band_1_scaled);
+        band_0_scaled.add_mut(&band_2_scaled);
+
+        let new_mono_image = match Image::new_from_buffer_mono(&band_0_scaled) {
+            Ok(mono) => mono,
+            Err(why) => {
+                return Err(anyhow!(
+                    "Failed to create single band mono image: {:?}",
+                    why
+                ));
+            }
+        };
+
+        Ok(new_mono_image)
     }
 }
