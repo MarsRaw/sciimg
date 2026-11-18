@@ -791,11 +791,7 @@ impl MaskedDnVec {
 impl Index<usize> for MaskedDnVec {
     type Output = Dn;
     fn index<'a>(&'_ self, i: usize) -> &'_ Dn {
-        if self.mask[i] {
-            &self.vec[i]
-        } else {
-            &0.0
-        }
+        if self.mask[i] { &self.vec[i] } else { &0.0 }
     }
 }
 

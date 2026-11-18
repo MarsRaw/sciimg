@@ -1,5 +1,5 @@
 //! So this is a carbon copy of the two implementations in src/gaussian.rs
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use sciimg::image::Image;
 
 use std::time::Duration;

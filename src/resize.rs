@@ -1,7 +1,7 @@
 use crate::{enums::ImageMode, imagebuffer};
 use anyhow::Result;
-use image::imageops::resize;
 use image::imageops::FilterType;
+use image::imageops::resize;
 
 pub fn resize_to_8(
     buffer: &imagebuffer::ImageBuffer,

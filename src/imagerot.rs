@@ -2,7 +2,7 @@ use crate::{enums, imagebuffer};
 
 use anyhow::Result;
 use image::Rgba;
-use imageproc::geometric_transformations::{rotate_about_center, Interpolation};
+use imageproc::geometric_transformations::{Interpolation, rotate_about_center};
 
 pub fn rotate_8(buffer: &imagebuffer::ImageBuffer, theta: f32) -> Result<imagebuffer::ImageBuffer> {
     let image = buffer.buffer_to_image_8bit();

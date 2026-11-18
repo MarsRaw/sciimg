@@ -1,6 +1,6 @@
 use crate::matrix::Matrix;
 use crate::vector::Vector;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]

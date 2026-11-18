@@ -1,5 +1,5 @@
 use crate::{matrix::Matrix, vector::Vector};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Quaternion {

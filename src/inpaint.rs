@@ -1,7 +1,7 @@
 // https://www.researchgate.net/publication/238183352_An_Image_Inpainting_Technique_Based_on_the_Fast_Marching_Method
 
 use crate::{enums, image::Image, imagebuffer::ImageBuffer, stats};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 #[derive(Debug, Clone)]
 pub struct Point {

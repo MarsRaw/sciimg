@@ -1,14 +1,18 @@
 use crate::output;
 use crate::output::OutputFormat;
 use crate::{
-    color, debayer, decompanding, enums, hotpixel, imagebuffer::ImageBuffer, imagebuffer::Offset,
-    imagerot, inpaint, lowpass, max, min, noise, path, resize, vector::Vector, Mask, MaskVec,
+    Mask, MaskVec, color, debayer, decompanding, enums, hotpixel, imagebuffer::ImageBuffer,
+    imagebuffer::Offset, imagerot, inpaint, lowpass, max, min, noise, path, resize, vector::Vector,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use enums::ImageMode;
-use image::{open, ColorType::*, DynamicImage};
+use image::{ColorType::*, DynamicImage, open};
 use itertools::iproduct;
+
+const GRAYSCALE_SCALAR_RED: f32 = 0.2125;
+const GRAYSCALE_SCALAR_GREEN: f32 = 0.7154;
+const GRAYSCALE_SCALAR_BLUE: f32 = 0.0721;
 
 // A simple image raster buffer.
 #[derive(Debug, Clone)]
@@ -454,6 +458,19 @@ impl Image {
         }
     }
 
+    pub fn get_pixel_grayscale(&self, x: usize, y: usize) -> f32 {
+        if self.num_bands() == 1 {
+            self.bands[0].get(x, y)
+        } else if self.num_bands() == 3 {
+            let r = self.bands[0].get(x, y);
+            let g = self.bands[1].get(x, y);
+            let b = self.bands[2].get(x, y);
+            r * GRAYSCALE_SCALAR_RED + g * GRAYSCALE_SCALAR_GREEN + b * GRAYSCALE_SCALAR_BLUE
+        } else {
+            panic!("Unsupported number of iamge bands for grayscale calculation");
+        }
+    }
+
     pub fn get_alpha_at(&self, x: usize, y: usize) -> bool {
         if self.uses_alpha {
             self.alpha.get_2d(self.width, self.height, x, y)
@@ -846,6 +863,7 @@ impl Image {
             minval = min!(mnmx.min, minval);
             maxval = max!(mnmx.max, maxval);
         }
+
         (minval, maxval)
     }
 

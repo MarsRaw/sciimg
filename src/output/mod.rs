@@ -2,7 +2,7 @@ pub mod dng;
 pub mod standard;
 use crate::enums::ImageMode;
 use crate::image::Image;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::env;
 
 use std::ffi::OsStr;

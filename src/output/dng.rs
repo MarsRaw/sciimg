@@ -1,10 +1,10 @@
 use crate::enums::ImageMode;
 use crate::image::Image;
 use crate::path;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use dng::ifd::{Ifd, IfdValue};
 use dng::tags::IfdType;
-use dng::{tags, DngWriter, FileType};
+use dng::{DngWriter, FileType, tags};
 use std::fs::File;
 use std::sync::Arc;
 
@@ -12,7 +12,10 @@ use std::sync::Arc;
 
 pub fn save_image_to_rgb_16bpp(output_file_name: &str, image: &Image) -> Result<()> {
     if !path::parent_exists_and_writable(output_file_name) {
-        return Err(anyhow!("Unable to open output path for writing: Parent path not found or permission denied. {}", output_file_name));
+        return Err(anyhow!(
+            "Unable to open output path for writing: Parent path not found or permission denied. {}",
+            output_file_name
+        ));
     }
     if image.num_bands() < 3 {
         return Err(anyhow!(
@@ -68,7 +71,10 @@ pub fn save_image_to_rgb_16bpp(output_file_name: &str, image: &Image) -> Result<
 
 pub fn save_image_to_rgba_16bpp(output_file_name: &str, image: &Image) -> Result<()> {
     if !path::parent_exists_and_writable(output_file_name) {
-        return Err(anyhow!("Unable to open output path for writing: Parent path not found or permission denied. {}", output_file_name));
+        return Err(anyhow!(
+            "Unable to open output path for writing: Parent path not found or permission denied. {}",
+            output_file_name
+        ));
     }
     if !image.is_using_alpha() {
         return Err(anyhow!(
@@ -89,7 +95,10 @@ pub fn save_image_to_mono_16bpp(
     use_band: usize,
 ) -> Result<()> {
     if !path::parent_exists_and_writable(output_file_name) {
-        return Err(anyhow!("Unable to open output path for writing: Parent path not found or permission denied. {}", output_file_name));
+        return Err(anyhow!(
+            "Unable to open output path for writing: Parent path not found or permission denied. {}",
+            output_file_name
+        ));
     }
     if image.get_mode() != ImageMode::U16BIT {
         // Rather, I just refuse to
@@ -140,7 +149,10 @@ pub fn save_image_to_mono_16bpp(
 
 pub fn save_image_to_rgb_8bpp(output_file_name: &str, image: &Image) -> Result<()> {
     if !path::parent_exists_and_writable(output_file_name) {
-        return Err(anyhow!("Unable to open output path for writing: Parent path not found or permission denied. {}", output_file_name));
+        return Err(anyhow!(
+            "Unable to open output path for writing: Parent path not found or permission denied. {}",
+            output_file_name
+        ));
     }
     if image.num_bands() < 3 {
         return Err(anyhow!(
@@ -195,7 +207,10 @@ pub fn save_image_to_rgb_8bpp(output_file_name: &str, image: &Image) -> Result<(
 
 pub fn save_image_to_rgba_8bpp(output_file_name: &str, image: &Image) -> Result<()> {
     if !path::parent_exists_and_writable(output_file_name) {
-        return Err(anyhow!("Unable to open output path for writing: Parent path not found or permission denied. {}", output_file_name));
+        return Err(anyhow!(
+            "Unable to open output path for writing: Parent path not found or permission denied. {}",
+            output_file_name
+        ));
     }
     if !image.is_using_alpha() {
         return Err(anyhow!(
@@ -216,7 +231,10 @@ pub fn save_image_to_mono_8bpp(
     use_band: usize,
 ) -> Result<()> {
     if !path::parent_exists_and_writable(output_file_name) {
-        return Err(anyhow!("Unable to open output path for writing: Parent path not found or permission denied. {}", output_file_name));
+        return Err(anyhow!(
+            "Unable to open output path for writing: Parent path not found or permission denied. {}",
+            output_file_name
+        ));
     }
     if image.get_mode() != ImageMode::U8BIT {
         // Rather, I just refuse to

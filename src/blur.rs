@@ -1,4 +1,4 @@
-use image::{imageops::blur, DynamicImage, Rgba};
+use image::{DynamicImage, Rgba, imageops::blur};
 
 use crate::imagebuffer::ImageBuffer;
 

@@ -1,6 +1,6 @@
 use crate::{camera::model::*, util::vec_to_str, vector::Vector};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

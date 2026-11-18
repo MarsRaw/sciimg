@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use memmap::Mmap;
 use std::fs::File;
 use std::io;
