@@ -458,6 +458,31 @@ impl Image {
         }
     }
 
+    pub fn overlay(&mut self, other: &Image) -> Result<()> {
+        if self.width != other.width || self.height != other.height {
+            return Err(anyhow!(
+                "Image overlay error: Image dimensions do not match"
+            ));
+        }
+
+        // This works like using "Lighten Only in photoshop". For each pixel,
+        // this will check whether the input image grayscale value is greater
+        // than the composite image. If it is, it will set that value into the
+        // composite image.
+        iproduct!(0..self.height, 0..self.width).for_each(|(y, x)| {
+            let self_gray = self.get_pixel_grayscale(x, y);
+            let other_gray = other.get_pixel_grayscale(x, y);
+            if other_gray > self_gray {
+                for b in 0..self.num_bands() {
+                    let other_pixel_value = other.get_band(b).get(x, y);
+                    self.put(x, y, other_pixel_value, b);
+                }
+            }
+        });
+
+        Ok(())
+    }
+
     pub fn get_pixel_grayscale(&self, x: usize, y: usize) -> f32 {
         if self.num_bands() == 1 {
             self.bands[0].get(x, y)
