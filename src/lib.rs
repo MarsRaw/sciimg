@@ -587,13 +587,41 @@ impl VecMath for DnVec {
 // / Mask
 // ////////////////////////////////////////////////
 
+// pub fn crop_2d<T: Copy>(
+//     from_array: &[T],
+//     from_width: usize,
+//     from_height: usize,
+//     left_x: usize,
+//     top_y: usize,
+//     to_width: usize,
+//     to_height: usize,
+// ) -> Vec<T> {
+//     if top_y + to_height > from_height || left_x + to_width > from_width {
+//         panic!("Crop bounds exceeed source array");
+//     }
+
+//     iproduct!(0..to_height, 0..to_width)
+//         .map(|(y, x)| from_array[(top_y + y) * from_width + (left_x + x)])
+//         .collect()
+// }
+
 pub type MaskVec = Vec<bool>;
+
 pub trait Mask {
     fn new_mask(capacity: usize) -> MaskVec;
     fn fill_mask(capacity: usize, fill_value: bool) -> MaskVec;
     fn get_2d(&self, width_2d: usize, height_2d: usize, x: usize, y: usize) -> bool;
     fn put_2d(&mut self, width_2d: usize, height_2d: usize, x: usize, y: usize, value: bool);
     fn clear_mask(&mut self);
+    fn crop(
+        &self,
+        from_width: usize,
+        from_height: usize,
+        left_x: usize,
+        top_y: usize,
+        to_width: usize,
+        to_height: usize,
+    ) -> MaskVec;
 }
 
 impl Mask for MaskVec {
@@ -631,6 +659,26 @@ impl Mask for MaskVec {
         (0..self.len()).for_each(|i| {
             self[i] = true;
         });
+    }
+
+    fn crop(
+        &self,
+        from_width: usize,
+        from_height: usize,
+        left_x: usize,
+        top_y: usize,
+        to_width: usize,
+        to_height: usize,
+    ) -> MaskVec {
+        crop_2d(
+            self,
+            from_width,
+            from_height,
+            left_x,
+            top_y,
+            to_width,
+            to_height,
+        )
     }
 }
 

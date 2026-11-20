@@ -1,5 +1,6 @@
 use crate::output;
 use crate::output::OutputFormat;
+use crate::resize::ResizeFilter;
 use crate::{
     Mask, MaskVec, color, debayer, decompanding, enums, hotpixel, imagebuffer::ImageBuffer,
     imagebuffer::Offset, imagerot, inpaint, lowpass, max, min, noise, path, resize, vector::Vector,
@@ -805,6 +806,13 @@ impl Image {
         for i in 0..self.bands.len() {
             self.bands[i] = self.bands[i].get_subframe(x, y, width, height).unwrap();
         }
+
+        if !self.alpha.is_empty() {
+            self.alpha = self
+                .alpha
+                .crop(self.width, self.height, x, y, width, height);
+        }
+
         self.width = width;
         self.height = height;
     }
@@ -1076,10 +1084,21 @@ impl Image {
     }
 
     pub fn resize_to(&mut self, to_width: usize, to_height: usize) {
+        self.resize_to_with_filter(to_width, to_height, ResizeFilter::Lanczos3);
+    }
+
+    pub fn resize_to_with_filter(
+        &mut self,
+        to_width: usize,
+        to_height: usize,
+        filter: ResizeFilter,
+    ) {
         self.bands = self
             .bands
             .iter()
-            .map(|b| resize::resize_to(b, to_width, to_height).expect("Failed to resize image"))
+            .map(|b| {
+                resize::resize_to(b, to_width, to_height, filter).expect("Failed to resize image")
+            })
             .collect();
         self.width = to_width;
         self.height = to_height;

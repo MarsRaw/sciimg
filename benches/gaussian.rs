@@ -1,8 +1,8 @@
 //! So this is a carbon copy of the two implementations in src/gaussian.rs
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use sciimg::image::Image;
 
-use std::time::Duration;
+use std::{hint::black_box, time::Duration};
 
 const INPAINT_TEST_IMAGE: &str = "tests/testdata/MSL_MAHLI_INPAINT_Sol2904_V1.png";
 
